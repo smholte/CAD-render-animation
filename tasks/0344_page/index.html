@@ -39,13 +39,14 @@ button{font:inherit;padding:8px 16px;border-radius:6px;border:1px solid var(--ac
 <li><b>Projects carry a copy</b> of every pack look they use, pictures included. Tested: such a project opens complete on a PC without the pack – also on a client's PC and after the looks were updated. A link to the pack went black.</li>
 <li><b>Old projects never change by themselves.</b> A button "Use the new Fresing looks" shows before / after and changes only after your OK.</li>
 <li><b>Size:</b> pictures inside projects at normal size (2k). The pack: up to about 300 MB at first, downloaded by the installer like Blender, updated apart from the app.</li>
-<li><b>Making the looks:</b> workers build them in a private repository; you get a pick page per set with today's look next to 2–3 new ones; nothing ships without your OK, and your choices are written down per set.</li>
+<li><b>Making the looks:</b> workers build them from working files in a private repository that runs no tests; the finished pack is a public download on a GitHub release with its licence inside; every pack test runs in the public repository (your plan of 21:35 – recommended, see below). You get a pick page per set with today's look next to 2–3 new ones; nothing ships without your OK, and your choices are written down per set.</li>
+<li><b>3D pages and other outputs</b> (your note of 21:41): they never carry a pack file or a pack photo at full size, and the licence says pack pictures inside an output are only for that output. Measured below.</li>
 <li><b>Order:</b> first the invisible groundwork (6 tasks), then the connection points, then one set at a time – paints first. Licence, first-start question, nudge line and shop last, when you say so.</li>
 </ul>
 </div>
 
 <div class="card warn">
-<b>Already decided by you (picks on 0343, 25 Nov 20:34)</b> – this plan builds on them: rebuild all Fresing assets as new files Fresing owns · in the installer for everyone, one question at the first start · one price per user with updates of pack 1.x · no selling until the app is much further · licence file + nudge line, no lock and no online check · workers build, you pick and approve every set, with a short record of your choices per set.
+<b>Already decided by you</b> – this plan builds on it. <i>0343 picks, 25 Nov 20:34:</i> rebuild all Fresing assets as new files Fresing owns · in the installer for everyone, one question at the first start · one price per user with updates of pack 1.x · no selling until the app is much further · licence file + nudge line, no lock and no online check · workers build, you pick and approve every set, with a short record of your choices per set. <i>21:35:</i> no tests in the private repository; the finished pack a public download on a release, licence inside; all pack tests in the public repository. <i>21:41:</i> outputs never carry the pack's full-size photos or pictures; a licence sentence for pictures inside an output; the 3D page's code stays dual GPL / MIT.
 </div>
 
 <h2>How it works</h2>
@@ -101,6 +102,33 @@ button{font:inherit;padding:8px 16px;border-radius:6px;border:1px solid var(--ac
 <tr><td>4k (Final)</td><td>210 MB</td><td>43 MB</td><td>50 MB</td></tr>
 </table></div>
 <p class="grey">Measured at 960 × 540 pixels; a bigger render needs more. The texture cache only works for pictures read from a folder, never for pictures inside a project. So: 2k inside projects; 4k later only for Final renders, read from the pack. The test pictures are made up and noisier than real photos, so real files will be smaller.</p>
+
+<h2>3D pages and other outputs (your note of 21:41)</h2>
+<p><b>Licence sentence</b> (for the draft, a lawyer may word it): <i>"Inside an output. Assets that come inside something made with them – a 3D page or model file, a Fresing Viewer file, a project sent to someone – may be used only as part of that output, not taken out and used on their own."</i> The 3D page's own code keeps its licence (dual GPL / MIT).</p>
+<p><b>What the 3D page holds today:</b> never the original picture files. The light is a tiny 256 × 128 picture. The background (only when a 360° photo is shown) is a JPEG of 1,024, 2,048 or 4,096 pixels wide, by the page's quality. Looks are baked into small 20 cm tiles. Checked: none of the pack's files ended up inside a page. But at Best quality a 4k pack photo would go in at its full width, and at the largest texture size a pack picture at its full size – so the plan caps pack items at half.</p>
+<p><img src="img/web3d_background.jpg" alt="The same view of the test crane with the background at 4096, 2048 and 1024 pixels: distant windows crisp, softer, blurred" width="1818" height="330"></p>
+<p><img src="img/web3d_pictures.jpg" alt="A concrete look 0.8 m away, baked at 2048, 1024 and 512 pixels per 20 cm tile: they look the same" width="1818" height="330"></p>
+<div class="scroll"><table>
+<tr><th>Measured (test crane, made-up photo and concrete)</th><th>file in the page</th><th>whole page</th><th>how much it changes the picture</th></tr>
+<tr><td>Background 4,096 px (Best today)</td><td>905 KB</td><td>2.65 MB</td><td>–</td></tr>
+<tr><td>Background 2,048 px ★</td><td>236 KB</td><td>1.75 MB</td><td>very little: 1.7 of 255 in the sky, distant windows softer</td></tr>
+<tr><td>Background 1,024 px</td><td>75 KB</td><td>1.41 MB</td><td>2.8 of 255: buildings blurred</td></tr>
+<tr><td>Concrete baked at 2,048 px per tile (a full-size copy)</td><td>2.3 MB</td><td>5.18 MB</td><td>–</td></tr>
+<tr><td>Concrete baked at 1,024 px ★ (the app's default)</td><td>0.5 MB</td><td>2.20 MB</td><td>none seen at 0.8 m (0.6 of 255)</td></tr>
+<tr><td>Concrete baked at 512 px</td><td>0.1 MB</td><td>1.63 MB</td><td>1.3 of 255</td></tr>
+</table></div>
+<p class="grey">Shot in a browser at the same quality and view each time; the same page shot twice differs by 0. The made-up photo has sharper detail than most real ones, so real differences will likely be smaller.</p>
+
+<h2>No tests in the private repository – compared</h2>
+<div class="scroll"><table>
+<tr><th></th><th>Tests in the private repository (the first plan)</th><th>★ No private tests (your plan, 21:35)</th></tr>
+<tr><td>Your private GitHub minutes</td><td>about 10 minutes per build or release run, from your small free allowance shared with your other private projects</td><td><b>none</b> – public repositories test for free</td></tr>
+<tr><td>Where the pack tests live</td><td>two places, which can drift apart</td><td><b>one</b> place, the public repository; the worker runs the same tests before uploading</td></tr>
+<tr><td>A faulty pack</td><td>caught before it is public</td><td>sits as a test version that no app offers; the next small version fixes it</td></tr>
+<tr><td>What becomes public</td><td>the finished pack</td><td>the finished pack and its test results – your working files and records never</td></tr>
+<tr><td>Set-up for you</td><td>a key so the private tests can publish, or you upload by hand</td><td>none, if a worker may publish the release (tried once with your OK); otherwise one key, set up once with click-by-click steps</td></tr>
+</table></div>
+<p>The pack is always checked before any app version offers it: an app release names the exact pack it was tested with, and only that one reaches your PCs.</p>
 
 <h2>Your choices</h2>
 <form id="f">
@@ -168,9 +196,15 @@ button{font:inherit;padding:8px 16px;border-radius:6px;border:1px solid var(--ac
 <label><input type="radio" name="q11" value="100"> Up to about 100 MB (a small starter pack)<small>Quick to download; fewer and smaller pictures.</small></label>
 </fieldset>
 
-<fieldset><legend>12 · Where the files live on GitHub</legend>
-<label class="rec"><input type="radio" name="q12" value="two-repos" checked> ★ Working files in a new private repository; the finished pack in a public "download only" repository<small>Like the vessel kit: your working files and photos stay private, and every app and installer can download the finished pack without a password. You create the two empty repositories when the task starts.</small></label>
-<label><input type="radio" name="q12" value="private"> Everything in one private repository<small>Simpler, but then the app and the installer could not download the pack without a password.</small></label>
+<fieldset><legend>12 · Tests and the finished pack on GitHub</legend>
+<label class="rec"><input type="radio" name="q12" value="no-private-ci" checked> ★ Your plan: working files in a private repository that runs no tests; the finished pack a public download on a release of the public repository; every pack test there<small>No private minutes, one set of tests, and nothing becomes public that is not public anyway (the pack is downloaded by every installer). The pack versions are test versions on the release page, so the app's own "latest" version is never disturbed.</small></label>
+<label><input type="radio" name="q12" value="private-ci"> The first plan: the private repository builds and tests the pack itself<small>A faulty pack is never seen in public, but it uses your private minutes and keeps two sets of tests.</small></label>
+</fieldset>
+
+<fieldset><legend>13 · How small should a 3D page make the pack's pictures?</legend>
+<label class="rec"><input type="radio" name="q13" value="half" checked> ★ Half of full size: background at most 2,048 px, looks baked at most 1,024 px per 20 cm<small>Never a full-size copy of a pack photo or picture in a page. Measured: the page 0.9 MB and 3 MB smaller; distant windows a little softer, the looks the same at normal distance.</small></label>
+<label><input type="radio" name="q13" value="quarter"> A quarter: background 1,024 px, looks 512 px<small>Smallest pages; buildings in the background clearly blurred.</small></label>
+<label><input type="radio" name="q13" value="none"> No extra limit (Best keeps 4,096 px and 2,048 px)<small>Sharpest pages, but a 4k pack photo and a 2k pack picture would sit in the page at full size.</small></label>
 </fieldset>
 </form>
 
@@ -180,16 +214,16 @@ button{font:inherit;padding:8px 16px;border-radius:6px;border:1px solid var(--ac
 
 <h2>What follows if you agree</h2>
 <ol>
-<li><b>Invisible groundwork (6 tasks):</b> the pack format and the app's list; copying looks into projects; Fresing Settings > Assets; the installer and pack updates; tests with and without a pack (plus the private repository); the "Use the new Fresing looks" button. The app looks the same afterwards.</li>
-<li><b>The connection points</b> in materials, finishes, light, surroundings, learning and the small looks – tested with a made-up test pack. Still no visible change.</li>
-<li><b>One set at a time</b> (paints first): a pick page per set with today's look next to the new ones, your choice, your OK, a short record of your choices, then the pack version that brings it.</li>
+<li><b>Invisible groundwork (6 tasks):</b> the pack format and the app's list; copying looks into projects; Fresing Settings > Assets; the installer and pack updates; the pack tests in the public repository (no private tests); the "Use the new Fresing looks" button. The app looks the same afterwards.</li>
+<li><b>The connection points</b> in materials, finishes, light, surroundings, learning and the small looks, and the 3D page's limits for pack pictures – tested with a made-up test pack. Still no visible change.</li>
+<li><b>One set at a time</b> (paints first): a pick page per set with today's look next to the new ones, your choice, your OK, a short record of your choices; then a worker builds the pack version, tests it, puts it on a release, and the next app version offers it.</li>
 <li><b>Last, when you decide to sell:</b> the licence texts, the first-start question, the nudge line, the shop and the trademark.</li>
 </ol>
 <p class="grey">Full details, file names, measurements and the task table: the report in tasks/0344-study-assets-pack-plan.md on branch task/0344-study-assets-pack-plan. The test itself: tools/assets_pack_proto/.</p>
 </main>
 <script>
 const f=document.getElementById('f'),o=document.getElementById('out');
-function upd(){const p=[];for(let i=1;i<=12;i++){const x=f.querySelector('input[name=q'+i+']:checked');p.push(i+' '+(x?x.value:'-'));}o.textContent='0344 picks: '+p.join('; ');}
+function upd(){const p=[];for(let i=1;i<=13;i++){const x=f.querySelector('input[name=q'+i+']:checked');p.push(i+' '+(x?x.value:'-'));}o.textContent='0344 picks: '+p.join('; ');}
 f.addEventListener('change',upd);upd();
 document.getElementById('copy').onclick=()=>{const t=o.textContent,s=document.getElementById('copied');
  try{navigator.clipboard.writeText(t).then(()=>{s.textContent='Copied.';},()=>{s.textContent='Select the line and copy it by hand.';});}

@@ -8,6 +8,8 @@ made up by the scripts (CC0); nothing of anyone else's, nothing of the owner's.
 | `make_test_pack.py` | Blender script: writes a made-up pack `fresing_assets/` – `pack.json`, `LICENSE-ASSETS.txt`, one `.blend` per asset (a procedural node group, a material with 3 pictures, a world with an HDRI, an environment collection, a prop at real size), pictures at 1k / 2k / 4k, HDRIs at 2k / 4k. Version `1.1.0` changes a look and a picture. Third argument `packed`: the pictures packed inside each `.blend` instead (0286's style). |
 | `try_pack.py` | Blender script, one step per run: `bring` (append or link the 5 items into a project – the group material is the app's own with the pack's group as its look), `open` (what is missing, a small Cycles picture), `update` ("Use the new Fresing looks": 1.0.0 → 1.1.0), `memory` (Cycles memory of a close-up at 1k / 2k / 4k: picture files, with `.tx` files, packed), `reuse` (Blender's `reuse_local_id`). |
 | `run_proof.py` | Plain Python: runs every step in its own Blender, hides the pack for the "client" steps, writes `results.json` and `results.md`. |
+| `web3d_measure.py` | Blender as a Python module with the app of this checkout (owner 25 Nov 21:41): the test crane with a made-up photo-like 360° picture as background, exported at the page's 3 background sizes; one group with the test pack's concrete, exported at the 3 texture sizes; reads what each page holds (pictures, sizes, no pack file inside) and shoots it in headless Chromium. |
+| `web3d_views.py` | Plain Python + node + ImageMagick: the same pages shot from a level view and 0.8 m from the textured plate (`frPage.setCamera`), look cost = mean difference per pixel against the largest size; writes the comparison crops. |
 | `registry_proto.py` | Plain Python, no Blender: `pack.json` check (missing / damaged / newer / outside the app window / contract too new – never raises, one note) and the registry (pack or code under the same id; the project's own choice first). `--selftest`: 19 checks. |
 
 Run (4-core web machine, Blender 5.2.3 Linux):
@@ -16,6 +18,8 @@ Run (4-core web machine, Blender 5.2.3 Linux):
 python3 tools/assets_pack_proto/run_proof.py ~/blender-5.2.3/blender-5.2.3-linux-x64/blender /tmp/fr0344          # ~6 min
 python3 tools/assets_pack_proto/run_proof.py ~/blender-5.2.3/blender-5.2.3-linux-x64/blender /tmp/fr0344 --extras  # ~5 min
 python3 tools/assets_pack_proto/registry_proto.py --selftest
+~/venv/bin/python tools/assets_pack_proto/web3d_measure.py /tmp/fr0344w /tmp/fr0344/pack10/fresing_assets      # ~3 min
+python3 tools/assets_pack_proto/web3d_views.py /tmp/fr0344w                                                     # ~1 min
 ```
 
 Methods: `append_ext` (append; pictures stay files in the pack), `append_packed` (append, then pack every picture into
@@ -23,4 +27,4 @@ the project), `link`, `link_packed` (link + Blender 5's "pack linked data", `lib
 A "client" = the project file alone in another folder, the pack hidden. The magenta column of `results.md` counts
 fully magenta pixels only; missing pictures show as a pink tint (mean colour) – look at the pictures.
 
-Results and what they mean: the report in `tasks/0344-study-assets-pack-plan.md`, section 2.
+Results and what they mean: the report in `tasks/0344-study-assets-pack-plan.md`, sections 2.4 and 3.1; the numbers in `results_25nov.md` and `results_web3d_25nov.md`.

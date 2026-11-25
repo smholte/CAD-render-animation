@@ -101,9 +101,14 @@ employer's name.
 `task/0344-study-assets-pack-plan` (pushes `[skip ci]`, never merged). App on the machine: `main` at 0.2.257. Findings
 only – no app code, no existing file changed. Not legal advice.
 
-**What changed:** new files only – this report; the pick page `tasks/0344_page/` (`index.html`, one picture); the proof
-`tools/assets_pack_proto/` (`make_test_pack.py`, `try_pack.py`, `run_proof.py`, `registry_proto.py`, `README.md`,
-`results_25nov.md`). `TASKS.md` not touched (branch only – the lead sets 0344 to done). Three read-only helper agents
+**Owner's changes while running:** 21:35 – no tests in the private repository; the finished pack a public release
+download under the Fresing Assets Licence; all pack tests in the public repository (1.6, 1.7, section 6, P5). 21:41 –
+outputs that carry files: a licence sentence, and the export never carries the pack's full-size HDRIs or pictures, size
+and look cost measured (3.1, P12). The branch took `main` once for the lead's updated brief.
+
+**What changed:** new files only – this report; the pick page `tasks/0344_page/` (`index.html`, three pictures); the
+proof `tools/assets_pack_proto/` (`make_test_pack.py`, `try_pack.py`, `run_proof.py`, `registry_proto.py`,
+`web3d_measure.py`, `web3d_views.py`, `README.md`, `results_25nov.md`, `results_web3d_25nov.md`). `TASKS.md` not touched (branch only – the lead sets 0344 to done). Three read-only helper agents
 (Explore) mapped the look systems, the scene / learning systems and the delivery machinery; I checked their
 decision-relevant claims in the code myself (CI skips, `.frsetup` keys, settings in background runs, the lock's marks,
 the load upgrades, Web 3D's BSDF lookup, the light pictures). File:line references are `main` at 0.2.257.
@@ -131,17 +136,27 @@ the load upgrades, Web 3D's BSDF lookup, the light pictures). File:line referenc
    them; **packed pictures never use it** (no `.tx` made, 210 MB). So projects carry pictures at **≤ 2k**; 4k is a later
    "Final only" option read from the pack folder.
 6. **Place and updates.** `%LOCALAPPDATA%\FresingRender\Fresing Assets\` beside `Tools\` – it survives a repair, a
-   Blender upgrade and **Update now** (which replaces only the extension folder); the uninstaller removes it. A small
-   `assets.json` beside each release's `index.json` names the pack version that app version was tested with (works for
-   IT's approved folder too); the app offers a new pack version with its size, the user clicks. The built pack is
-   downloaded from a public download-only repository; its sources stay private.
-7. **Making the assets:** a private source repository, one folder per set; a pick page per set with today's look next
-   to 2–3 new candidates on the same test models; the owner's picks and changes kept in `OWNERSHIP.md`; workers build,
-   the owner approves every set before it ships.
+   Blender upgrade and **Update now** (which replaces only the extension folder); the uninstaller removes it. **The
+   finished pack is a public download attached to a release of the public repository** (`assets-1.0.0`, always a
+   pre-release, so it can never become the app's "latest"), `LICENSE-ASSETS.txt` inside the zip and beside it. Each app
+   release names the pack version it was tested with (`assets.json`); the app offers a newer pack with its size, the
+   user clicks.
+7. **No private CI (owner 21:35) – recommended over the first plan (table in 1.7).** The private repository holds only
+   the working files and runs nothing. A worker builds the pack in its session, runs the public pack checks there and
+   uploads the zip as a pre-release; the public CI tests that download (cached, like Blender's zip) before any app
+   release names it – **the pin is the gate**. Workers build; the owner approves every set on its pick page; his choices
+   stay in `OWNERSHIP.md` in the private repository.
 8. **Order:** six invisible tasks first (format + registry + test pack · bring / keep / update · Settings > Assets ·
-   installer + update · CI both ways + the private repository · the update-looks action), then the plug-in points per
+   installer + update · the pack checks in the public repository · the update-looks action), then the plug-in points per
    system with a made-up test pack (still no visible change), then one asset set at a time (★ first: paints). Licence
    texts, the first-start question, the nudge lines and the shop last, when the owner says so.
+9. **Outputs that carry files (owner 21:41).** A licence sentence: assets inside an output (a 3D page, its model file,
+   a Fresing Viewer file, a project sent on) may only be used as part of that output. The 3D page never carries a pack
+   file or a pack photo at full size: today it already holds only a 256 px light picture, a tone-mapped JPEG background
+   and textures baked into 0.2 m tiles (checked: none of the pack's files inside). The plan caps pack items at half
+   their full size – background ≤ 2,048 px, baked pictures ≤ 1,024 px per 0.2 m – **measured** (3.1): the page shrinks
+   from 2.65 to 1.75 MB and from 5.18 to 2.20 MB; the look changes by 1.7 and 0.6 of 255 (softer distant buildings;
+   pictures the same at 0.8 m). The page's own code stays dual GPL / MIT.
 
 ### 1 · Pack format and place
 
@@ -198,7 +213,8 @@ beside `Tools\`, `licenses\` and `blender-5.2.3-windows-x64\`:
   `{"format": "fresing-assets-listing", "version": "1.2.0", "file": "FresingAssets-1.2.0.zip", "url": "…",
   "sha256": "…", "bytes": …, "app_min": "…", "changes": "New paints and metals"}`. The app reads it in the existing
   update check as a sibling file (`sibling_url`, as `changelog.json`) – so the same code serves GitHub and IT's approved
-  folder. Older apps ignore it (`pick_package` keeps only `fresing_render`).
+  folder. Older apps ignore it (`pick_package` keeps only `fresing_render`). Its `url` is the zip on the pack's own
+  release (1.6).
 - Installed ≠ listed → one line under Updates and in the update notice: "Fresing assets 1.2 – new paints and metals
   (240 MB) – Download". Never automatic, never during a render.
 - Download in a helper thread into its **own** folder `<config>\fresing_assets_update\` (the app update's
@@ -235,15 +251,58 @@ beside `Tools\`, `licenses\` and `blender-5.2.3-windows-x64\`:
   drivers (only simple expressions, as every Fresing file), OSL Script nodes and handlers. (A demo kit is code – the
   pack must never become one.)
 
-**1.6 Where the public download lives.** ★ A public **download-only** repository `smholte/fresing-assets`: README,
-`LICENSE-ASSETS.txt`, releases `assets-1.2.0` with the zip, no sources (0286 had planned this name for a CC0 library;
-the owner's 0343 picks turn it into the paid-for-companies pack). GitHub releases: no total limit, < 2 GiB per file
-(0286). The sources (working `.blend` files, the owner's photos, makers, pick pages, `OWNERSHIP.md`) live in a
-**private** `smholte/fresing-assets-src` (section 6). **Not** on the app's own release page: a pack release there would
-need a non-`v` tag (the precheck reads every `v` tag as an app version, `ci_precheck.py:539–541`) and must never become
-"latest" (every app's update address is `releases/latest/download/index.json`, `core/updates.py:30`; the site reads the
-newest release too), and every app release would upload it again. Draft releases cannot serve it (only people with
-access see drafts).
+**1.6 The public download (owner 21:35).** The finished pack is a file attached to a GitHub release – not Git LFS
+(LFS downloads, also by CI and forks, count against the owner's 10 GB a month) – under the Fresing Assets Licence, with
+the licence file inside the pack. Only the working files stay private (section 6).
+- **Where:** a release of the public repository `smholte/CAD-render-animation` per pack version: tag `assets-<version>`
+  (`assets-1.0.0`), title "Fresing assets pack 1.0.0 – data for the app, not an app version", **always a pre-release**.
+  GitHub never makes a pre-release "latest", and only "latest" and `v` tags are read by the apps' update check
+  (`core/updates.py:30`, `releases/latest/download/index.json`), the landing page (`tools/build_site.py:102–111`) and
+  the precheck (`ci_precheck.py:539–541`); the rehearsal clean-up deletes only its own tag (`tests.yml:773–788`) –
+  all checked. A precheck rule (P5) keeps it so: every release whose tag does not start with `v` is a pre-release.
+  (The separate download-only repository of the first draft is dropped: with no private CI, the app repository's own
+  workflows can write its releases with their own token, and all pack tests live there anyway.)
+- **Files on the release:** `FresingAssets-<version>.zip` (the pack, `LICENSE-ASSETS.txt` inside), `LICENSE-ASSETS.txt`
+  (readable before the download – "communicated before they download", 0343's Lampel quote) and `assets.json`. The
+  release text puts the licence in plain words above the files: free for private use, education and non-profits;
+  companies need a licence.
+- **Version ↔ release:** one pack version = one release = one zip; a file is never replaced (a fix is `1.0.1`); a
+  version whose tests failed stays an unpinned pre-release that no app offers, or is deleted by hand.
+- **Size:** each release file < 2 GiB, up to 1,000 files per release, no limit on total size or downloads (GitHub's
+  "About releases", [search]); pack 1.0 ≤ 300 MB (page choice 11).
+- **The pin:** `installer/assets_pin.json` = version, tag, file, url, sha256, bytes, licence id; every app release copies
+  it as `assets.json` (1.3). A pack version reaches PCs only through an app release whose pin passed the public CI.
+- **How the installer fetches it:** the pinned url, size and sha256 checked, as Blender's zip
+  (`Install-FresingRender.ps1`); offline and in CI: the zip next to `Install.bat`.
+- **How CI fetches it:** a step reads the pin and restores `actions/cache` with the key `assets-<version>-<sha256>`; on
+  a miss `curl` from the release (public, no token) + `sha256sum -c` – exactly Blender's steps (`tests.yml:317–331`,
+  `492–518`). A cache made on `main` is seen by every branch (CLAUDE.md §8); GitHub keeps 10 GB of cache per
+  repository and drops an entry unused for 7 days (GitHub's "Dependency caching reference", [search]) – Blender for
+  Linux and Windows (~0.8 GB), the venvs and a 0.3 GB pack fit.
+- **Who uploads – zero private minutes:** the worker, from its Claude Code session, by the REST API: create the
+  pre-release, send the zip to the release's upload address (what `tools/make_test_stress.py --publish` does in its
+  workflow). This session's GitHub access has push and admin rights on the public repository (read 25 Nov), but
+  whether a session's proxy lets it create a release and send ~300 MB is **not tried** – it would publish a release.
+  P5 tries it once with a 1 MB test file and the owner's OK. If it is refused: a by-hand public workflow
+  (`assets-release.yml`, `workflow_dispatch` only, never on pull requests) clones the working files with a read-only
+  deploy key (one secret; the owner adds it once with click-by-click steps), builds and checks the pack with the cached
+  Blender and uploads it with its own token – the working files never go into a log or an artifact (public logs). Last
+  resort: the worker leaves a draft for the owner to publish.
+
+**1.7 No private CI – compared (owner 21:35).**
+
+| | Private CI (the brief's first plan) | ★ No private CI (owner 21:35) |
+| --- | --- | --- |
+| The owner's private minutes | ~10 min per private push or release run, from the Free plan's small monthly allowance shared with his other private repositories (2,000 min on GitHub's Actions billing page, "$12 of compute" on its newer plans page – the two differ, [search]) | **0** – standard runners are free for public repositories |
+| Where the pack tests live | two places – private build checks and public app checks – two copies that can drift apart | **one** – the public repository; the worker runs the same checks in its session before it uploads |
+| What is tested | the zip before it is public | the published zip, before any app release names it |
+| A faulty zip | caught before publishing | stays an unpinned pre-release that nothing offers; fixed by a new patch version |
+| Secrets, the owner's set-up | a token so the private CI can publish on the public repository (or the owner uploads) | none if a session can upload (tried once in P5); else one read-only key |
+| What becomes public | the zip | the zip and its test logs – the zip is public by design; the working files and the records never |
+| A worker's wait | push, then wait for the private run | the checks run in its session at once; the public CI confirms |
+
+**Recommendation: ★ no private CI** (the owner's plan). Zero private minutes, one set of pack checks, and nothing becomes
+public that is not public anyway. Its one open point – can a session create the release? – has a sure fallback.
 
 ### 2 · One asset registry
 
@@ -363,21 +422,21 @@ break on a PC without the folder", `material_picker.py:14–15`). Cost: the pict
 | **Lifting crane classes** | `data/lifting/` 12 classes, 11.4 MB (json + STEP + png; a test caps 11.5 MB) | later: more detailed cranes as a second built-in folder in the pack, same format, found by class id; the project imports the mesh | the shipped classes | `test_lifting*` both ways | Lifting · small · low |
 | **Test tour + Learning hub + lessons** | built per PC from code + test STEPs; ~30 sets use the Product light picture; checks are numbers (joints, frames, 0 clashes) | sets follow the registry; new showcase / learning projects from the pack listed in the hub as "Fresing projects" (opened as a copy), hidden without the pack | today's sets unchanged | `test_tour.py` and `test_lessons*` both ways: the same numbers, three lesson modes equal | Learning · medium · low |
 | **Material pictures** | `tools/material_pictures.py` (`--factory-startup`, no pack) + the hash test | the pack ships `pictures/<kind>.<id>.jpg` from its own pipeline on the same swatch; the hash test stays for code looks | code pictures | every pack item has a picture (pack CI); the picker both ways | Looks · small · low |
-| **Web 3D export** | `Look` / `Baker` read the first top-level BSDF; finishes as numbers or tiles | nothing, thanks to the contract; optionally `Look.__init__` reads web numbers from the pack (as `fr_finish_web`). The page is the user's output (0343 licence point 4) | code | `test_web3d*`: a pack material bakes, no pink, both ways | Web 3D · small · low |
-| **Fresing Viewer** (MIT) | reads exports only (`.glb` + extras) | nothing; no pack inside the Viewer | – | – | Viewer · none |
+| **Web 3D export** | `Look` / `Baker` read the first top-level BSDF and bake each look into a 0.2 m tile at 512 / 1,024 / 2,048 px; the page holds a 256 px HDR light picture and, only with a 360° photo background, a tone-mapped JPEG 1,024 / 2,048 / 4,096 px wide by page quality (`core/web3d_env.QUALITY`) – never a source file (checked, 3.1) | **owner 21:41: never the pack's full-size photos or pictures** – for pack items (`fr_asset`) the background is capped at 2,048 px and the bake at 1,024 px per 0.2 m whatever the export asks (at Best / 2,048 the page would hold a full-width copy of a 4k pack photo and a full-size copy of a 2k pack picture); the light stays 256 px | as today | `test_web3d*` both ways + a new test: a pack project exported at Best / 2,048 holds no pack file and nothing above the caps | Web 3D · small · low |
+| **Fresing Viewer** (MIT) | reads exports only (`.glb` + extras) | nothing: a Viewer file is the same `.glb`, so the caps above hold; no pack inside the Viewer; its code stays MIT and the page's player code dual GPL / MIT (0269) | – | – | Viewer · none |
 | **PC check + Stress** | `@line`s; CI allows only "no graphics card" skips; Stress = 16 lines with peak memory | Full: `assets.pack` (makes the test pack, reads it, brings one item per kind, falls back when it is gone), `assets.update_looks`; Heavy: `heavy.assets` (pack looks on the Heavy machine: time, memory); Stress: `stress.assets` (the real pack on the owner's PC: graphics memory and render time with real pictures at Normal / Final); history kept apart with / without pack (picture flags) | lines use the test pack – never skipped | the lines themselves; `MIN_LINES_*` raised | PC check · medium · low |
 | **Backups** (0246) | a full `.blend` copy | nothing – packed pictures travel; the 2 x free-space rule covers the bigger files; "Use the new looks" saves a backup first | – | a backup of a pack project opens complete from `Backups\` | – · none · low |
 | **Render queue** | opens a copy (`relative_remap`), runs `world.apply` and scheme rebuilds, no settings | nothing (copies in the project); a job's scheme naming a look the project lacks → registry in the background, else code | code | a queued pack project renders without the pack | Motion · small · low |
 | **Model update** (0052 / 0324) | keeps groups and materials | new groups get looks by the project's source | code for new groups | update a pack project on a PC without the pack | Import · small · low |
 | **Templates, rule sets, schemes, saved scenes** | ids as text | nothing | code twins | – | – · none |
-| **Own materials** (0273 "From a Blender material") | `material.blend` appended | a user may build on a pack group; the copy is then inside their `material.blend` – the licence text must say this is fine inside a company / project (L1) | – | – | Repository & company use (text) |
+| **Own materials** (0273 "From a Blender material") | `material.blend` appended | a user may build on a pack group; the copy is then inside their `material.blend` – the licence text says it stays inside the company's own libraries and projects (L1, 3.1) | – | – | Repository & company use (text) |
 | **Client view** | the lock allows light looks, saved scenes, queue, render | rebuilds use the project's copies first; Settings > Assets and "Use the new looks" stay off its allow list | – | real-app test: Client view on a pack project without the pack | Settings · small · low |
 | **Workspaces** | – | the new functions' entries in their families | – | precheck | – · none |
 | **Settings** (0271 / 0283) | `prefs.py` → `fresing_settings.json` automatically | a tab **Assets**: pack found (version, size, place, licence), switch **Use Fresing assets for new looks** (on when a pack is there), Check the pack, the pack update line; the `.frsetup` can set it (`apply_settings`) | "Not installed" | real-app `ui_test_settings` + a restart | Settings · small · low |
 | **First-start set-up** (0276) – LAST | steps welcome / work / pc / company / hub / done; only on a new settings folder | a row in the step "company": **Private · Education · Non-profit · Company**; Company → price + Buy link once; nothing locked. Existing users: one card in What's new of the version that starts selling | – | `test_first_setup*` | Start & learn · small · low |
 | **About + export windows** – LAST | `core/about.REQUIRED` = 4 app files; a missing one fails `app.licences` | the pack's licence gets its **own optional** finder (never in `REQUIRED`); lines "Fresing assets 1.2 – Fresing Assets Licence" + "Licensed to …" (licence file) + a button; **nudge** (said Company, no licence file): one grey line in About and at the bottom of each Make output window – never a popup, never blocking | the GPL lines only | `test_about` both ways | Repository & company use · small · low |
-| **Installer + update + uninstall** | section 1 | 1.2 – 1.4; Windows code → an independent review | `-NoAssets` | Windows job A / B: install with and without the pack, an update of the pack, uninstall leaves nothing | Quality & delivery · large · medium-high |
-| **CI** | full / docs / reuse / lane runs, no pack | public: everything stays without a pack; the test pack is made by a tool at test time (no binary in the repository); a job **with the real pack** once one is pinned (downloads the pinned zip by sha256 into GitHub's cache, brings every id, renders tiny pictures – no pink, no Python); private repository: its own tiny workflow (section 6) | – | – | Quality & delivery · medium · low |
+| **Installer + update + uninstall** | section 1 | 1.2 – 1.6: the installer fetches the pinned release download (size + sha256, like Blender), offline the zip next to `Install.bat`, `-NoAssets`; the in-app pack update; Windows code → an independent review | `-NoAssets` | Windows job A installs with the cached pack, job B with `-NoAssets`; an update of the pack; uninstall leaves nothing | Quality & delivery · large · medium-high |
+| **CI** (owner 21:35: **no private CI**) | full / docs / reuse / lane runs, no pack | all in the public repository: (1) **without** a pack – everything as today; (2) with the **test pack** made by a tool at test time (no binary in the repository); (3) with the **real pack** from its release download (pin + sha256, `actions/cache`, as Blender's zip): a Linux job "Real pack" (pack.json, contracts, a code twin per id, sha256s, sizes, data only; every `.blend` opens and appends; a small render per kind – no pink), the real-app looks tests both ways, Windows A with the pack and B without; in every full run once a pin exists, in a lane run when the pin or the pack code changed, and by hand ("Check an assets pack": a new tag before the pin moves); the precheck's release rule (1.6). The private repository runs nothing | – | – | Quality & delivery · medium · low |
 | **User guide + function list** | – | chapter "Fresing assets" (what, the switch, updates, old projects, Use the new looks, companies); entries `settings.assets`, `assets.update_looks`, `assets.update_pack` (later `help.licence`); `THIRD-PARTY-NOTICES.md` §2.3 + line 80; COMPANY-USE file and network tables | – | precheck, `test_user_guide` | Docs · small · low |
 | **House import** | brings House Planner's own materials | nothing (only sky and weather are shared) | – | – | House · none |
 
@@ -385,6 +444,43 @@ Found by reading, not run (not about the pack – for the lead): `build_nodes` c
 keeps its `fr_coolant_patch`, so `coolant.is_patched` stays true and the per-frame `_patch_new_materials` does not put
 the wet sheen back – a wet group whose look is changed during a coolant shot may lose its sheen (`coolant.py` 311–318,
 556–568).
+
+**3.1 Outputs that carry files (owner 21:41).**
+- **Licence draft – a sentence for point 4 of 0343's draft** (a lawyer may word it): "**Inside an output.** Assets that
+  come inside something made with them – a 3D page or model file, a Fresing Viewer file, a project sent to someone – may
+  be used only as part of that output, not taken out and used on their own." Goes into `LICENSE-ASSETS` with L1.
+- **What each output carries:**
+
+| Output | What of the pack is inside | Rule |
+| --- | --- | --- |
+| 3D page (`.html`), its `.glb`, a Fresing Viewer file (the same `.glb`) | pack looks baked into 0.2 m tiles (≤ 1,024 px for pack items); a pack photo as a tone-mapped JPEG background ≤ 2,048 px wide; the light as a 256 x 128 HDR | never a pack file, never a pack photo or picture at full size (checked by a test); the page's code keeps its own licence (dual GPL / MIT, 0269) |
+| A project sent to a client (`.blend`) | its copies: pack node groups, pictures and HDRIs at 2k | allowed (0343 point 4): to open and render that project |
+| Stills, videos, turntables | pixels only | the user's |
+| House bake package, Toolbox hand-offs | light maps, renders | the user's output |
+| Own materials built on a pack look | a copy of the pack group inside the user's `material.blend` | only inside the company's own libraries and projects (L1) |
+
+- **Measured** (`tools/assets_pack_proto/web3d_measure.py` + `web3d_views.py`, results in `results_web3d_25nov.md`;
+  Blender 5.2.3 as a module, the test crane, pages shot in headless Chromium at page level Best, 960 x 540; the same
+  page shot twice differs by 0.0 – the noise floor). A made-up photo-like 360° picture (4,096 x 2,048 EXR, 20.1 MB):
+
+| Background in the page | background picture | whole page | look cost vs 4,096 px – level view, sky / whole (of 255) |
+| --- | --- | --- | --- |
+| 4,096 px (Best today) | JPEG 905 KB | 2.65 MB | – |
+| ★ 2,048 px (Balanced; the cap for pack photos) | JPEG 236 KB | 1.75 MB | 1.72 / 1.49 (PSNR 37.7 / 39.8 dB) – distant windows softer |
+| 1,024 px (Phone) | JPEG 75 KB | 1.41 MB | 2.76 / 2.29 (33.3 / 35.7 dB) – buildings blurred |
+
+  The light picture is 256 x 128 (131 KB) at Best and Balanced, 128 x 64 at Phone – far too small to light anything
+  else. The pack's concrete (2k colour, roughness, relief; one picture per 0.2 m) on the base plate:
+
+| Bake size per 0.2 m | its baked picture | `.glb` / whole page | export (all looks) | look cost vs 2,048, 0.8 m away – middle / whole |
+| --- | --- | --- | --- | --- |
+| 2,048 (a full-size copy of the 2k picture) | WebP 2,322 KB | 3.04 / 5.18 MB | 43.9 s | – |
+| ★ 1,024 (the app's default; the cap for pack looks) | JPEG 491 KB | 0.81 / 2.20 MB | 9.7 s | 0.56 / 0.47 (PSNR 49.8 / 50.7 dB) – no difference seen |
+| 512 | JPEG 114 KB | 0.34 / 1.63 MB | 2.9 s | 1.29 / 1.06 (43.6 / 44.6 dB) |
+
+  At no size did a pack file go into the page (the first 4 KB of each original picture searched in the `.glb`).
+  Pictures: `tasks/0344_page/img/web3d_background.jpg`, `web3d_pictures.jpg`. The made-up photo has sharper detail than
+  most real ones, so real look costs are likely smaller.
 
 ### 4 · Old projects
 
@@ -445,26 +541,31 @@ larger render loads finer levels (up to the "as files" number). A `.tx` file is 
 - **Render time:** every pack look is timed against its code twin (0314's look-cost way: Cycles CPU, the swatch);
   **> 1.3 x → it gets the "slower" clock and ships only with the owner's OK on its pick page**. Nothing gets slower than
   today unless he accepted it.
+- **Web 3D pages:** pack items capped at half their full size – the page measured 1.75 MB instead of 2.65 MB (background)
+  and 2.20 MB instead of 5.18 MB (pictures) at a look cost of 1.7 and 0.6 of 255 (3.1).
 - **Nothing heavier by default:** the switch decides for new projects; old projects stay as they are (section 4).
 
 ### 6 · Making the assets
 
-**Private source repository `smholte/fresing-assets-src`** (the owner creates it empty; rules like
-`fresing-render-vessel`: private, workers only with "Private assets: yes" in the task header, nothing of it copied into
-the public repository; the owner's GitHub Free minutes: one Linux job, push to `main` + by hand, no schedule, ≤ ~10 min,
-no artifacts, superseded runs cancelled):
+**Private repository `smholte/fresing-assets-src` – working files only, no CI (owner 21:35)** (the owner creates it
+empty; rules like `fresing-render-vessel`: private, workers only with "Private assets: yes" in the task header, nothing of
+it copied into the public repository; **no `.github/workflows/` at all** – zero of the owner's private minutes):
 
 ```
-CLAUDE.md, README.md
+CLAUDE.md, README.md        the rules: no workflows, nothing copied to the public repository, how a pack is built
 sets/<set>/                 one folder per set (paints-1, metals-1, finishes-1, studio-hdri-1, floors-1, workshop-1 …)
    SET.md                   what it holds (ids), status: draft / on its pick page / approved / shipped in <version>
    OWNERSHIP.md             the owner's record (below)
    make.py + params.json    the set's maker and the numbers the owner chose – a rebuild gives the same files
-   sources/                 the owner's photos, scans, references (never in the pack)
+   sources/                 source .blend scenes, full-size pictures, the owner's photos (never in the pack)
    pick/                    the pick page as it was shown (index.html + pictures)
-tools/  build_pack.py · check_pack.py · render_swatches.py · hdri_merge.py · photo_to_tile.py · make_tx.py
-.github/workflows/pack.yml
+tools/  build_pack.py · render_swatches.py · hdri_merge.py · photo_to_tile.py · make_tx.py
 ```
+
+The makers stay private – they are the recipe; publishing them would publish the looks as GPL code. The pack checks
+(`tools/assets_check.py`) live in the **public** repository (P5), so the worker and the public CI run the same ones.
+GitHub refuses files over 100 MiB and advises repositories under a few GB: photos and pictures go in at a working size;
+big sets of raw bracketed photos stay on the owner's PC and only their merged result goes in (no Git LFS).
 
 **Per kind:**
 
@@ -496,11 +597,19 @@ rather than exporting today's.
 test render; Draft / Normal / Final work; the Web 3D bake works; render time ≤ 1.3 x its code twin unless he accepts
 more; size within the set's budget; the pack checks pass (data only, contracts, sha256, pictures present).
 
-**The pack's CI** (private): build every approved set → `Fresing Assets/` + `pack.json` + zip; check format, sha256,
-contracts, every `.blend` opens in Blender 5.2.3 in the background, no Python, picture sizes and budgets, every pack id
-has its code twin in the public app at the pinned tag (the public repository is cloned without a token, as the vessel
-kit does); a release by hand: the zip to the public download repository (a worker task with both repositories
-attached, or the owner uploads it – two clicks).
+**Building and releasing a pack version – no private CI** (owner 21:35):
+1. A worker task ("Private assets: yes", both repositories attached) builds every approved set in its Claude Code session
+   with Blender 5.2.3 on the web machine → `Fresing Assets/` + `pack.json` + `FresingAssets-<v>.zip`.
+2. In the same session it runs the public checks against that zip (`tools/assets_check.py` and the with-pack tests of
+   the public checkout beside it, as the vessel kit uses `FRESING_PUBLIC`): format, sha256, contracts, every `.blend`
+   opens in Blender 5.2.3 in the background, data only, picture sizes and budgets, a code twin in the app for every id,
+   a small render per kind.
+3. It uploads the zip as the pre-release `assets-<v>` (1.6 – by the session, else the by-hand public workflow).
+4. It opens a branch of the public repository that moves the pin to `<v>` (with the code twins of new ids, the
+   CHANGELOG line). That branch's run is a full run (`installer/` changed): the public CI downloads the release zip
+   (then cached), runs the real-pack job, the looks tests both ways and the Windows install with the pack.
+5. Green → merged → the app release carries `assets.json`; PCs are offered the pack. Red → fix, `<v>` patch + 1, step 1
+   again; the faulty pre-release is never pinned.
 
 ### 7 · Order of tasks
 
@@ -511,27 +620,28 @@ pack, and the public CI keeps running without one. New lane **Assets** (new file
 
 | # | Task | Lane | Model · effort | Size | Waits for |
 | --- | --- | --- | --- | --- | --- |
-| P0 | Owner: picks on `tasks/0344_page/`; creates the empty repositories `fresing-assets-src` (private) and `fresing-assets` (public, download only) when P5 starts | owner | – | – | – |
+| P0 | Owner: picks on `tasks/0344_page/`; creates the empty private repository `fresing-assets-src` (working files only, no workflows) when the first set starts; says OK to P5's one-time upload test | owner | – | – | – |
 | P1 | **Pack format, registry, test pack** (invisible): `core/assets_pack.py` (pack.json, the rules of 1.5), `core/assets_registry.py` (today's ids per kind, resolve, `problems()`), the made-up CC0 test pack made by a tool at test time (`tools/make_test_assets_pack.py`; the same maker shipped as `pccheck/assets_test_pack.py`), pure tests | Assets | Opus · High | medium | P0 |
 | P2 | **Bring, keep, update** (invisible): `blender/assets.py` (append + pack pictures + `fr_asset` + one per id / version / picture file + names), the project fields, `fr_look_src` helpers, the update engine without UI, background Blenders; tests both ways (old 0.2.195 project, client open, queue copy, backup open, undo) | Assets | Opus · High | large | P1 |
 | P3 | **Settings > Assets + the switch**; PC-check lines `assets.pack`; function entries; guide chapter | Settings | Sonnet · Medium | small | P2 |
-| P4 | **Where the pack lives:** installer (download the pinned pack like Blender, staging folder, `-NoAssets`, offline zip next to Install.bat), `assets.json` + pin (`installer/assets_pin.json`, `build_release.py`, `release_tools.py`), the in-app pack update (own folder, swap at start), uninstall, `.frsetup` `assets` key, COMPANY-USE tables, Windows CI with and without; **independent review** (Windows code) | Quality & delivery | Opus · High | large | P1 (app side after P3) |
-| P5 | **CI both ways + private repository:** real-app test `ui_test_assets.py` (lightest group), the "with the real pack" job (on once a pack is pinned); the private repository's CLAUDE.md, README, set layout, `build_pack` / `check_pack`, workflow; the public download repository's README + licence placeholder | Quality & delivery | Opus · Medium | medium | P1 |
+| P4 | **Where the pack lives:** installer (fetch the pinned release download like Blender, staging folder, `-NoAssets`, offline zip next to Install.bat), `installer/assets_pin.json` → `assets.json` on every app release (`build_release.py`, `release_tools.py`), the in-app pack update (own folder, swap at start), uninstall, `.frsetup` `assets` key, COMPANY-USE tables, Windows CI with the cached pack and with `-NoAssets`; **independent review** (Windows code) | Quality & delivery | Opus · High | large | P1 (app side after P3) |
+| P5 | **Pack checks in the public repository – no private CI:** `tools/assets_check.py` (what the worker runs before an upload and CI after it), the "Real pack" Linux job on the cached release download (on once a pin exists), a by-hand workflow "Check an assets pack" (a tag before the pin moves), the precheck rule (a non-`v` release is a pre-release), real-app test `ui_test_assets.py` (lightest group); **the one-time upload test**: a session creates a 1 MB pre-release `assets-0.0.1-test` by the REST API and deletes it (owner's OK) – if refused, `assets-release.yml` (by hand, read-only deploy key, the owner's click-by-click steps); the private repository's CLAUDE.md / README and `build_pack.py` (no workflows) | Quality & delivery | Opus · Medium | medium | P1 |
 | P6 | **Use the new Fresing looks** (before / after, list, backup, undo step; Fresing menu, Settings > Assets, 3 Looks hint) | Assets | Opus · Medium | medium | P2, P3 |
 | P7 | **Looks plug-in:** `build_nodes` base-look swap, finishes `BUILDERS`, `is_current` stamp, the picker's pack pictures + badge, `look_costs`, Web 3D check; with the test pack | Looks | Opus · High | medium | P2 (and 0340 merged) |
 | P8 | **Light + HDRI plug-in:** `look_image` / `studio_image` by name, Backgrounds level "Fresing", Web 3D environment | Scene & Render | Opus · Medium | medium | P2 |
 | P9 | **Surroundings / props / people plug-in:** materials by key, modules in the code layout, `make_mesh` contract, rig contract | Scene & Render | Opus · High | large | P2 (people after 0303's picks) |
 | P10 | **Learning + small looks plug-in:** hub "Fresing projects", tour / lessons both ways; cable / marine / tool marks / welds / chips / decals dispatch | Learning (+ Flex, Machining, Welds, Looks) | Sonnet · Medium | medium | P2 |
-| S1 | **First set: paints & coatings** (gloss, satin, matte, powder coat, marine, hammertone, wrinkle, anti-skid) – no pictures, every model uses them, quick to judge; pick page → OK → pack 1.0.0 → pin in an app release (first visible change: new projects only) | private repo + Looks | Opus · High | medium | P4, P5, P7 |
+| P12 | **Outputs carry no full-size pack files (owner 21:41):** in the Web 3D export, a pack photo's background ≤ 2,048 px and pack looks baked ≤ 1,024 px per 0.2 m whatever the export asks (`web3d_env.sky_block`, the `Baker`'s size per look, by `fr_asset`); a test: a pack project exported at Best / 2,048 holds no pack file and nothing above the caps; the export window says so in one grey line when it lowered something; guide line | Web 3D | Sonnet · Medium | small | P2, P7 |
+| S1 | **First set: paints & coatings** (gloss, satin, matte, powder coat, marine, hammertone, wrinkle, anti-skid) – no pictures, every model uses them, quick to judge; pick page → OK → the worker builds pack 1.0.0 in its session, runs the public checks, uploads the pre-release `assets-1.0.0`; the pin branch's full run tests the download → app release (first visible change: new projects only) | private repo + Looks | Opus · High | medium | P4, P5, P7 |
 | S2… | One set per task, each with its pick page and the owner's OK: metals + fastener finishes · plastics, rubber, glass · finishes (25) · studio light + **his HDRIs** · floors + walls from **his photos** · environments (workshop, hall, quay, showroom) · props · people · cables, hoses, welds, marine, chips · decal art · showcase + learning projects · detailed crane classes | private repo (+ the plug-in lane when needed) | Opus · High first, Sonnet · Medium for later batches | medium each | S1, the matching plug-in task |
 | P11 | (optional) **Final 4k from the pack folder** (`.tx`, render-time swap) – only if 2k looks soft in his Final renders; measured first | Scene & Render | Opus · High | medium | S5, Stress numbers |
-| L1 | **Licence texts** (0343 P2: `LICENSE-ASSETS`, README, THIRD-PARTY, COMPANY-USE, own materials built on pack groups, Web 3D pages) | Repository & company use | Sonnet · Medium | small | owner says "start selling" |
+| L1 | **Licence texts** (0343 P2: `LICENSE-ASSETS` with the "inside an output" sentence of 3.1, README, THIRD-PARTY, COMPANY-USE, own materials built on pack groups, Web 3D pages, the release text of each pack version) | Repository & company use | Sonnet · Medium | small | owner says "start selling" |
 | L2 | **First-start question + nudge + licence file** ("Licensed to …" in About; the nudge line in About and the export windows; `.frsetup` `licence`) | Start & learn + Repository & company use | Opus · Medium | small | L1 |
 | L3 | **Shop + landing page** (Paddle product, prices, Buy link, download page with the licence) | Site | Sonnet · Low | small | L1, owner's shop account |
 | L4 | Owner: Benelux trademark (classes 9 + 42) before the first sale | owner | – | – | – |
 
-P3 ∥ P4 ∥ P5 can run at the same time (different lanes); P7 ∥ P8 ∥ P9 ∥ P10 too (one task per lane). The first
-visible change for users is S1's pin; until then every PC runs today's looks.
+P3 ∥ P4 ∥ P5 can run at the same time (different lanes); P7 ∥ P8 ∥ P9 ∥ P10 too (one task per lane), P12 after P7.
+The first visible change for users is S1's pin; until then every PC runs today's looks. No task uses private minutes.
 
 **Tested and measured** (4-core web machine, Intel Xeon 2.1 GHz, 16 GB, no graphics card, Linux; real Blender 5.2.3 in
 the background; Cycles on the processor):
@@ -543,6 +653,15 @@ the background; Cycles on the processor):
   on by default, `use_auto_generate_texture_cache` off, `render.generate_texture_cache`, `.tx` in `blender_tx\` beside the
   picture, `blender --command maketx`); Cycles' viewport / render texture limits.
 - `registry_proto.py --selftest`: 19 / 19.
+- The Web 3D measurement (3.1): `web3d_measure.py` (Blender 5.2.3 as a module, the app of this branch, the test crane,
+  6 exports: 3 background sizes, 3 texture sizes; 2–44 s each) + `web3d_views.py` (the same pages shot from a level
+  view and 0.8 m from the plate in headless Chromium, software GL, page level Best; the same page twice = 0.0
+  difference); results in `results_web3d_25nov.md`.
+- GitHub facts from GitHub's documentation through search excerpts, not read whole here ([search]): standard runners
+  free for public repositories; the Free plan's private allowance (2,000 minutes vs "$12 of compute" – the pages
+  differ); release files < 2 GiB each, no total or download limit, 1,000 files per release; Actions cache 10 GB per
+  repository, entries unused for 7 days removed. This session's rights on the public repository (push, admin) read
+  with `gh api`; creating a release from a session was **not** tried.
 - No independent review of this study (findings only, nothing goes to `main`); the facts the decisions rest on were
   checked by hand in the code (listed under "What changed"). The build tasks with Windows code (P4) need one.
 - Not measured: anything on a graphics card or on Windows; real photos and HDRIs (the made-up pictures are noisier –
@@ -554,7 +673,10 @@ the background; Cycles on the processor):
 - The coolant sheen point above (found by reading, not run) – for the lead.
 - COMPANY-USE's network table line numbers are out of date (`check_now` is at `updates.py:125`, not 119; the PC check's
   `updates.check` at `checks.py:7033`, not 4261 – a helper's finding); a docs fix for the lead, unrelated to the pack.
-- The repository names (`fresing-assets-src` private, `fresing-assets` public download-only), the folder name
-  `Fresing Assets` and the zip name are proposals; the owner creates the repositories when P5 starts.
+- Whether a worker session may create a release and upload ~300 MB (1.6): tried once in P5 with the owner's OK; the
+  fallback (a by-hand public workflow with one read-only deploy key) needs the owner's click-by-click set-up once.
+- The repository name `fresing-assets-src` (private, working files only), the folder name `Fresing Assets`, the tag
+  `assets-<version>` and the zip name are proposals; the owner creates the private repository when the first set starts.
+  The download-only public repository of the first draft is dropped (1.6).
 - The lead may want to tell the 0286 owner-picks follow-ups that "Fresing standard (CC0, public)" is replaced by this
   pack; 0286's Poly Haven / ambientCG / Blendkit layers stay as they were.
