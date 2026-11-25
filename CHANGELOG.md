@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.261 – 25 Nov 2026 – Lifting plan: lift path and the checks along it (task 0348)
+## 0.2.262 – 25 Nov 2026 – Lifting plan: lift path and the checks along it (task 0348)
 
 - **Lift path & checks** (8 Lifting plan): click a **set-down point** and the app proposes the lift from where the load
   hangs – hoist clear, slew, luff / telescope (the hook keeps its height), travel for a crawler that cannot reach
@@ -21,6 +21,14 @@ installer of that version was built from.
   without making the drag slower.
 - **Lift data box**: one tick puts the load, radius, crane use and the worst status so far in renders and videos.
 
+## 0.2.261 – 25 Nov 2026 – The clash check needs much less memory on big models (task 0327)
+
+- **6 Animation > Clash check** on a big model now needs about a quarter of the extra memory it needed: on the stress
+  model (11,228 parts) about 1.0 GB on top of the open project instead of 3.8 GB, so it fits on a 16 GB office PC
+  or laptop. It is also a little faster (59 s instead of 72 s on the 4-core test machine) and finds exactly the same
+  clashes.
+- Why: the check prepared every part's shape for testing at its start, also the thousands of parts that never come
+  near a moving one. It now prepares a part's shape only when a moving part comes near it.
 ## 0.2.260 – 25 Nov 2026 – Long cables and hoses come in light (task 0325)
 
 - **Long cables and hoses from CAD** (a round section swept along a curve, as Inventor's cables and harnesses are) are

@@ -1,6 +1,6 @@
 # 0352 – Compatibility kit: a format number on every project, one upgrade chain, test projects that later versions must open
 
-**Who:** worker · **Status:** open · **Branch:** `task/0352-compatibility-kit`
+**Who:** worker · **Status:** running · **Branch:** `task/0352-compatibility-kit`
 **Started by:** lead, 25 Nov 2026 23:5x (owner 25 Nov 22:4x–22:5x: strict backward compatibility from the baseline) ·
 **Model:** Opus · effort High · Claude Code on the web, environment "CAD-render-animation" · **independent review** (a
 helper agent that did not write the code tries to break it – section 2, "Subagents")
