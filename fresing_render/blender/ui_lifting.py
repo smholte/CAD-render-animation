@@ -524,8 +524,132 @@ class FRESING_PT_lifting_hook(_Panel, bpy.types.Panel):
                               "100 %. Within the entered chart and limits only.")
 
 
+# ---------------------------------------------------------------------------------------------------------------------
+# task 0348: the lift path and the checks along it
+
+def _short(t: float | None) -> str:
+    return "–" if t is None else f"{t:.0f}"
+
+
+class FRESING_PT_lifting_path(_Panel, bpy.types.Panel):
+    bl_label = "Lift path & checks"
+    bl_parent_id = "FRESING_PT_lifting"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    @classmethod
+    def poll(cls, context):
+        return _ok(context)
+
+    def draw_header(self, context):
+        self.layout.label(icon="IPO_EASE_IN_OUT")
+
+    def draw_header_preset(self, context):
+        from . import lifting_path as LP
+        rs = LP.rows(context.scene)
+        if not rs:
+            header_status(self.layout, "not checked")
+            return
+        w = core.worst_status(r.status for r in rs)
+        header_status(self.layout, f"worst: {LP.P.COLOUR[w]}", icon=STATUS_ICON[w], alert=w == core.RED)
+
+    def draw(self, context):
+        from . import lifting_path as LP
+        layout = self.layout
+        scene = context.scene
+        L = scene.fresing.lifting
+        c = lifting.active_crane(scene)
+        if c is None:
+            missing(layout, context, "No crane yet: place one under Equipment.")
+            return
+        ld = lifting.active_load(scene)
+        steps(layout, context, ["Pick: the load where it hangs now (Rigging > Hang on the hook)",
+                                "Set-down point: click where the load goes – the app proposes the steps (hoist "
+                                "clear, slew, luff / telescope, travel, lower) as an animation you can change in 6 "
+                                "Animation; or use one of your own animations",
+                                "Check along the path: every check at the keys and between them, each with its worst "
+                                "moment; Go there shows it"],
+              key="fr_how_lifting_path", used=bool(L.path_anim))
+        gap(layout)
+        if ld is not None:
+            hung = ld.rig_state == "HUNG" and ld.hung_on == c.name
+            layout.label(text=f"Pick: {ld.name} – " + ("on the hook" if hung else "not hung: the hook alone"),
+                         icon="PACKAGE")
+        col = split_props(layout)
+        col.prop(L, "path_clearance", text="Hoist clear")
+        big(layout, "fresing.lifting_set_down_point", "Set-down point…", icon="TRIA_DOWN_BAR")
+        row = layout.row(align=True)
+        row.operator("fresing.lifting_path_propose", text="Propose again", icon="FILE_REFRESH")
+        row.operator_menu_enum("fresing.lifting_path_use", "anim", text="Use an animation", icon="SEQUENCE")
+        a = LP.path_anim(scene)
+        if a is not None:
+            word = "proposed steps" if LP.is_proposed(a) else "your own animation"
+            hint(layout, context, f"Path: '{a.name}' ({word}) – change its steps in 6 Animation.")
+        else:
+            hint(layout, context, "No path yet.")
+        gap(layout)
+        layout.label(text="Ground", icon="MESH_PLANE")
+        col = split_props(layout)
+        col.prop(L, "allowable_kpa", text="Allowable (kPa)")
+        col.prop(L, "mat_size", text="Mat (m)")
+        gap(layout)
+        big(layout, "fresing.lifting_path_check", "Check along the path", icon="VIEWZOOM")
+        r = LP.result(scene)
+        stale = LP.stale(scene)
+        if r is None:
+            state = "Not checked yet."
+        elif stale:
+            state = "Changed since it was checked: Check along the path again."
+        else:
+            state = f"Along '{r['anim']}': {r['evaluations']} moments worked out."
+        row = layout.row()
+        row.alert = stale
+        row.label(text=state, icon="ERROR" if stale else "INFO")
+        if r is not None:
+            _draw_rows(layout, context, LP.rows(scene), go=True, stale=stale)
+        gap(layout)
+        live = LP.live_rows(scene)
+        body = fold(layout, "fr_lifting_live", "Now (the pose shown)", icon="TIME", closed=True,
+                    state=LP.P.COLOUR[LP.P.worst_of(live)] if isinstance(live, list) else "–")
+        if body is not None:
+            if isinstance(live, str):
+                wrap(body, context, live, icon="ERROR", alert=True)
+            else:
+                _draw_rows(body, context, live, go=False)
+        gap(layout)
+        layout.prop(L, "data_box", text="Lift data box in renders and videos")
+        hint(layout, context, "Limits: crane amber from 75 %, rigging and ground from 90 %, red above 100 %. Within "
+                              "the entered chart, gear, ground and limits only.")
+
+
+def _draw_rows(layout, context, rows, go: bool, stale: bool = False):
+    from . import lifting_path as LP
+    col = layout.column(align=True)
+    for r in rows:
+        row = col.row(align=True)
+        row.alert = r.status == core.RED and not stale
+        sp = row.split(factor=0.55, align=True)
+        sp.label(text=r.title, icon=STATUS_ICON[r.status])
+        sp2 = sp.split(factor=0.5, align=True)
+        sp2.label(text=f"{r.use * 100:.0f} %" if r.use is not None else (r.value if r.status != core.NOT_CHECKED
+                                                                          else "grey"))
+        if go:
+            sub = sp2.row(align=True)
+            sub.label(text=f"f {_short(r.t)}")
+            op = sub.operator("fresing.lifting_path_go", text="", icon="VIEWZOOM")
+            op.check = r.id
+    body = fold(layout, "fr_lifting_words" if go else "fr_lifting_words_now", "In words", icon="TEXT", closed=not go)
+    if body is not None:
+        for r in rows:
+            wrap(body, context, r.words, icon=STATUS_ICON[r.status], alert=r.status == core.RED and not stale)
+            if r.value or r.limit:
+                hint(body, context, f"Worst value {r.value or '–'} · limit {r.limit or '–'}"
+                     + (f" · frame {r.t:.1f}" if r.t is not None else ""), inset=1)
+        if any(LP.P.RANK[r.status] == 1 for r in rows):
+            hint(body, context, "Grey: not checked – the reason is in its line.")
+
+
 CLASSES = (FRESING_PT_lifting, FRESING_PT_lifting_equipment, FRESING_PT_lifting_load, FRESING_PT_lifting_rigging,
-           FRESING_PT_lifting_hook)
+           FRESING_PT_lifting_hook, FRESING_PT_lifting_path)
 
 
 def unregister_previews():

@@ -710,9 +710,184 @@ class FRESING_OT_lifting_hook_above(bpy.types.Operator):
         return _hook(self, context, tuple(p))
 
 
+# ---------------------------------------------------------------------------------------------------------------------
+# the lift path and its checks (task 0348)
+
+def _path_ok(context) -> bool:
+    return _ok(context) and lifting.active_crane(context.scene) is not None
+
+
+def _propose(op, context, point=None) -> set:
+    from . import lifting_path
+    scene = context.scene
+    try:
+        pr = lifting_path.propose(scene, point=point)
+    except lifting.LR.ReachError as exc:
+        lifting.plan(scene).message = str(exc)
+        op.report({"WARNING"}, str(exc))
+        return {"CANCELLED"}
+    _redraw()
+    if not pr.ok:
+        op.report({"WARNING"}, pr.reason)
+        return {"CANCELLED"}
+    op.report({"INFO"}, lifting.plan(scene).message)
+    return {"FINISHED"}
+
+
+class FRESING_OT_lifting_set_down_point(bpy.types.Operator):
+    """Click where the load is set down (ground, deck, a truck bed): the app proposes the lift from where the load hangs
+    now – hoist clear, slew, luff / telescope, travel, lower – as steps of an animation you can change"""
+    bl_idname = "fresing.lifting_set_down_point"
+    bl_label = "Set-down point"
+    bl_options = {"REGISTER", "UNDO"}
+
+    point: FloatVectorProperty(size=3, options={"SKIP_SAVE"}, description="The point (world, m) for scripts")
+
+    @classmethod
+    def poll(cls, context):
+        return _path_ok(context)
+
+    def execute(self, context):
+        return _propose(self, context, tuple(self.point))
+
+    def invoke(self, context, event):
+        if context.area is None or context.area.type != "VIEW_3D":
+            return self.execute(context)
+        c = lifting.active_crane(context.scene)
+        ld = lifting.active_load(context.scene)
+        names = [c.root.name] + [o.name for o in logic.descendants(c.root)]
+        if ld is not None:
+            names += [o.name for o in lifting.load_parts(ld)]
+            from . import lifting_rig
+            names += [o.name for o in context.scene.objects if o.get(lifting_rig.TAG) == ld.name]
+        self._ignore = frozenset(names)
+        self._ground = float(c.root.matrix_world.translation.z)
+        context.window.cursor_modal_set("CROSSHAIR")
+        _status(context, "Click where the load is set down · Esc: cancel")
+        context.window_manager.modal_handler_add(self)
+        return {"RUNNING_MODAL"}
+
+    def _end(self, context):
+        _status(context, None)
+        context.window.cursor_modal_restore()
+
+    def modal(self, context, event):
+        if event.type in {"ESC", "RIGHTMOUSE"} and event.value == "PRESS":
+            self._end(context)
+            return {"CANCELLED"}
+        if event.type == "LEFTMOUSE" and event.value == "PRESS":
+            ray = _region_ray(context, event)
+            if ray is None:
+                return {"PASS_THROUGH"}
+            hit = surface_hit(context, ray[0], ray[1], self._ignore, self._ground)
+            if hit is None:
+                return {"RUNNING_MODAL"}
+            self._end(context)
+            return _propose(self, context, tuple(hit[0]))
+        return {"PASS_THROUGH"}
+
+
+class FRESING_OT_lifting_path_propose(bpy.types.Operator):
+    """Works out the lift again from where the load hangs now to the set-down point (after a change of the hoist
+    clearance, the crane's pose or the load): the steps of the lift path's animation are replaced"""
+    bl_idname = "fresing.lifting_path_propose"
+    bl_label = "Propose the steps"
+    bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        if not _path_ok(context):
+            return False
+        if not lifting.plan(context.scene).has_set_down:
+            cls.poll_message_set("Click a set-down point first")
+            return False
+        return True
+
+    def execute(self, context):
+        return _propose(self, context)
+
+
+def _anim_items(self, context):
+    if context is None or context.scene is None:
+        return [("", "(none)", "")]
+    out = [(a.name, a.name, "Check the lift along this animation's steps and poses")
+           for a in context.scene.fresing.animations]
+    return out or [("", "(no animations)", "Make one in 6 Animation")]
+
+
+class FRESING_OT_lifting_path_use(bpy.types.Operator):
+    """Check the lift along one of your own animations instead: its poses and steps (6 Animation) are the path"""
+    bl_idname = "fresing.lifting_path_use"
+    bl_label = "Use an animation"
+    bl_options = {"REGISTER", "UNDO"}
+
+    anim: bpy.props.EnumProperty(items=_anim_items, name="Animation",
+                                 description="The animation whose steps and poses are the lift path")
+
+    @classmethod
+    def poll(cls, context):
+        return _path_ok(context) and len(context.scene.fresing.animations) > 0
+
+    def execute(self, context):
+        from . import lifting_path
+        if not self.anim:
+            return {"CANCELLED"}
+        lifting_path.use_animation(context.scene, self.anim)
+        _redraw()
+        return {"FINISHED"}
+
+
+class FRESING_OT_lifting_path_check(bpy.types.Operator):
+    """Builds the lift path and works out every check along it – at the keys and between them – with each check's
+    worst moment: the table shows the worst value, the limit, the status and the frame. Go there shows that moment"""
+    bl_idname = "fresing.lifting_path_check"
+    bl_label = "Check along the path"
+    bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        from . import lifting_path
+        if not _path_ok(context):
+            return False
+        if lifting_path.path_anim(context.scene) is None:
+            cls.poll_message_set("Propose the steps or pick one of your animations first")
+            return False
+        return True
+
+    def execute(self, context):
+        from . import lifting_path
+        try:
+            lifting_path.check(context.scene)
+        except (ValueError, lifting.LR.ReachError) as exc:
+            self.report({"WARNING"}, str(exc))
+            return {"CANCELLED"}
+        _redraw()
+        self.report({"INFO"}, lifting.plan(context.scene).message)
+        return {"FINISHED"}
+
+
+class FRESING_OT_lifting_path_go(bpy.types.Operator):
+    """Shows the worst moment of this check: the timeline goes to its frame, the crane and the load stand there"""
+    bl_idname = "fresing.lifting_path_go"
+    bl_label = "Go there"
+    bl_options = {"REGISTER"}
+
+    check: StringProperty(options={"SKIP_SAVE"})
+
+    def execute(self, context):
+        from . import lifting_path
+        t = lifting_path.go_to(context.scene, self.check)
+        if t is None:
+            self.report({"WARNING"}, "Check along the path first")
+            return {"CANCELLED"}
+        _redraw()
+        return {"FINISHED"}
+
+
 CLASSES = (FRESING_OT_lifting_understand, FRESING_OT_lifting_library, FRESING_OT_lifting_pick,
            FRESING_OT_lifting_place, FRESING_OT_lifting_move, FRESING_OT_lifting_remove, FRESING_OT_lifting_select,
            FRESING_OT_lifting_load_select, FRESING_OT_lifting_pose, FRESING_OT_lifting_setup_value, FRESING_OT_lifting_load_selected,
            FRESING_OT_lifting_box, FRESING_OT_lifting_load_remove, FRESING_OT_lifting_load_refresh,
            FRESING_OT_lifting_cog_move, FRESING_OT_lifting_cog_back, FRESING_OT_lifting_hook_here,
-           FRESING_OT_lifting_hook_above)
+           FRESING_OT_lifting_hook_above, FRESING_OT_lifting_set_down_point, FRESING_OT_lifting_path_propose,
+           FRESING_OT_lifting_path_use, FRESING_OT_lifting_path_check, FRESING_OT_lifting_path_go)

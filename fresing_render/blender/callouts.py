@@ -50,6 +50,12 @@ def live_values(scene, part) -> dict:
     its speed joint pays it out (m/min, from its keys). {} for any other part."""
     if part is None:
         return {}
+    if part.get("fr_lift_data_box"):            # task 0348: the lift data box on a crane's hook block
+        try:
+            from . import lifting_path
+            return lifting_path.live_values(scene, part)
+        except Exception:                       # a label never breaks a render
+            return {}
     try:
         from . import paths, paths_sea
         item = next((it for it in scene.fresing.cables if it.part == part), None)

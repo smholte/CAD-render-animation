@@ -4317,6 +4317,11 @@ def _lift_rig_changed(self, context):
     lifting.load_changed(context.scene if context else None, recompute=False)
 
 
+def _lift_data_box(self, context):
+    from . import lifting_path
+    lifting_path.data_box_changed(context.scene if context else None)
+
+
 class FRLiftPoint(bpy.types.PropertyGroup):
     """A lift point of a load (task 0232): a spot on one of its parts where a sling leg's shackle is pinned."""
     obj: PointerProperty(type=bpy.types.Object, description="The part the lift point is on")
@@ -4414,6 +4419,29 @@ class FRLifting(bpy.types.PropertyGroup):
     box_mass: FloatProperty(name="Mass", default=1.0, min=0.0, soft_max=2000.0, precision=3,
                             description="The box load's mass, t")
     message: StringProperty(default="", description="The last result of Hook to here or a placing")
+    # ---- the lift path and its checks (task 0348) ----
+    path_anim: StringProperty(default="", description="The animation the checks go along: the proposed lift path, "
+                                                      "or your own steps and poses (6 Animation)")
+    set_down: FloatVectorProperty(size=3, default=(0.0, 0.0, 0.0), subtype="TRANSLATION", unit="LENGTH",
+                                  description="Where the load is set down (world, m): the point clicked")
+    has_set_down: BoolProperty(default=False, description="A set-down point was clicked or typed")
+    path_clearance: FloatProperty(
+        name="Hoist clear", default=2.0, min=0.0, soft_max=30.0, unit="LENGTH",
+        description="How far the load goes up before the crane slews: this far above the higher of the pick and the "
+                    "set-down point, m. Propose the steps again after a change")
+    allowable_kpa: FloatProperty(
+        name="Allowable ground pressure", default=0.0, min=0.0, soft_max=2000.0, precision=0, update=_lift_rig_changed,
+        description="The ground's allowable pressure under the outrigger mats or the tracks, kPa – from the site's "
+                    "ground survey or a competent person. 0 = not entered: the ground pressure is not checked")
+    mat_size: FloatVectorProperty(
+        name="Mat", size=2, default=(0.0, 0.0), min=0.0, soft_max=10.0, precision=2, update=_lift_rig_changed,
+        description="Width x length of the mat under each outrigger pad, m. 0 = no mat: the pressure on the pad "
+                    "itself")
+    path_result: StringProperty(default="", description="The checks along the path (JSON): each check's worst moment")
+    data_box: BoolProperty(
+        name="Lift data box", default=False, update=_lift_data_box,
+        description="A box of the lift's numbers in renders and videos: the load, the radius, the crane use and the "
+                    "worst status so far, at every frame. It is a label on the hook block (5 Scene & Render > Labels)")
 
 
 # ---- Set up a crane (task 0203) ----
