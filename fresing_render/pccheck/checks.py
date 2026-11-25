@@ -6168,7 +6168,7 @@ def app_first_setup(ctx):
 
 
 @line("app.window_place", "App windows: the first one beside the side panel, the next ones offset; the set-up stays",
-      "0.2.249", what="Checks where the app's windows (the set-up, Settings, function and output windows, the Set-up "
+      "0.2.250", what="Checks where the app's windows (the set-up, Settings, function and output windows, the Set-up "
                       "window) open the first time – beside the side panel, each next one offset, over the view's "
                       "middle when they do not fit –, that the set-up window is closed at a load only when the opened "
                       "project brought it, that 'Your PC' says who draws the window in plain words, and that Product "
@@ -6188,7 +6188,7 @@ def app_window_place(ctx):
     _check(P.moved((0, 0, 400, 500), (10, 700, 400, 500), 60, 1100) == (50, 100, 450, 600),
            "a place is turned into the wrong outer rectangle")
     _check(hasattr(first_setup, "_window_key") and hasattr(ops_setup, "_tidy") and hasattr(ops_setup, "first_place"),
-           "the windows' fixes of 0.2.249 are missing")
+           "the windows' fixes of 0.2.250 are missing")
     words = core.window_words("draws: llvmpipe (LLVM); renders: CPU")
     _check(words and "draws:" not in words and "llvmpipe" not in words, f"'Your PC' is not in plain words: {words!r}")
     _check("Full access" in ui_setup.LOCKED_TEXT, "the Set-up window does not say why it is grey in the Client view")
