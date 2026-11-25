@@ -22,7 +22,9 @@ so a project never needs the entry's folder to render.
       "description": "…", "author": "…", "made_with": "0.2.238", "made": "2026-11-24",
       "base": "paint_satin",             # required: the library material it starts from
       "changes": {"color": "RAL 5015", "wear": 0.1, "rust": 0.0,
-                  "finish": {"size": 0.0008, "angle": 30, "amount": 0.8, "base": "STEEL", "kind": ""}},
+                  "finish": {"size": 0.0008, "angle": 30, "amount": 0.8, "base": "STEEL", "kind": ""},
+                  "adjust": {"shine": 0.3, "dirt": 0.2}},   # 1.1, task 0314: the Adjust sliders that are moved
+                                                             # (shine, metal, dirt, relief, coat: core/look_adjust.py)
       "tags": {"material": "Paint", "colour": "blue", "looks": ["satin"]},   # worked out when missing
       "blend": {"file": "material.blend", "material": "Shader name", "images_outside": ["D:/tex/a.png"]}
     }
@@ -49,14 +51,14 @@ from . import materials_lib as ML
 from . import ral
 
 FORMAT = "fresing-material"
-FORMAT_VERSION = "1.0"
-MAJOR, MINOR = 1, 0
+FORMAT_VERSION = "1.1"          # 1.1 (task 0314): changes.adjust
+MAJOR, MINOR = 1, 1
 JSON_NAME = "material.json"
 PICTURE_NAME = "picture.png"
 BLEND_NAME = "material.blend"
 FIELDS = ("format", "format_version", "id", "name", "description", "author", "made_with", "made", "base", "changes",
           "tags", "blend")
-CHANGE_KEYS = ("color", "wear", "rust", "finish")
+CHANGE_KEYS = ("color", "wear", "rust", "finish", "adjust")
 NEWER = "Made with a newer Fresing Render (format {v}): update the app to use it"
 MAX_JSON = 1024 * 1024                  # a material.json bigger than this is not read (it is not one)
 
@@ -334,17 +336,34 @@ def clean_changes(base: str, changes, problems: list | None = None) -> dict:
             continue
         if val:
             out[k] = round(val, 4)
+    if "adjust" in changes:                         # task 0314: only what moved, only what the look uses
+        v = changes["adjust"]
+        if not isinstance(v, dict):
+            if problems is not None:
+                problems.append("'adjust' is not a list of settings: left out.")
+        else:
+            from . import look_adjust as LA
+            for k in v:
+                if k not in LA.SLIDERS and problems is not None:
+                    problems.append(f"Unknown setting '{storable(k)}' in 'adjust': left out.")
+            adj = LA.changed(LA.effective(base, {k: x for k, x in v.items() if k in LA.SLIDERS}))
+            if adj:
+                out["adjust"] = adj
     return out
 
 
-def changes_of(material: str, color: str = "", wear: float = 0.0, rust: float = 0.0, finish: dict | None = None) -> dict:
-    """A group's settings as an entry's ``changes`` (``finish``: {size m, angle degrees, amount, base, kind})."""
-    return clean_changes(material, {"color": color or "", "wear": wear, "rust": rust, "finish": finish or {}})
+def changes_of(material: str, color: str = "", wear: float = 0.0, rust: float = 0.0, finish: dict | None = None,
+               adjust: dict | None = None) -> dict:
+    """A group's settings as an entry's ``changes`` (``finish``: {size m, angle degrees, amount, base, kind};
+    ``adjust``: the Adjust sliders, task 0314)."""
+    return clean_changes(material, {"color": color or "", "wear": wear, "rust": rust, "finish": finish or {},
+                                    "adjust": adjust or {}})
 
 
 def values_of(entry: Entry) -> dict:
     """What a group gets from an entry: material, color, wear, rust and the finish's settings (defaults where the
-    entry says nothing) – {"material", "color", "wear", "rust", "finish": {size, angle, amount, base, kind} or None}.
+    entry says nothing) – {"material", "color", "wear", "rust", "finish": {size, angle, amount, base, kind} or None,
+    "adjust": every Adjust slider (task 0314; defaults where the entry says nothing)}.
     ``color`` is None when the entry has none (the group keeps its own)."""
     base = entry.base if entry.base in ML.MATERIALS else "paint_satin"
     ch = entry.changes or {}
@@ -353,8 +372,10 @@ def values_of(entry: Entry) -> dict:
         d = fin_core.defaults(base)
         d.update(ch.get("finish") or {})
         fin = fin_core.clean(base, **{k: d.get(k) for k in ("size", "angle", "amount", "base", "kind")})
+    from . import look_adjust as LA
     return {"material": "blender_material" if entry.is_blend else base, "color": ch.get("color"),
-            "wear": float(ch.get("wear", 0.0)), "rust": float(ch.get("rust", 0.0)), "finish": fin}
+            "wear": float(ch.get("wear", 0.0)), "rust": float(ch.get("rust", 0.0)), "finish": fin,
+            "adjust": LA.clean(ch.get("adjust") or {})}
 
 
 # ---------------------------------------------------------------------------------------------------------------------

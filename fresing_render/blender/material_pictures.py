@@ -156,7 +156,8 @@ def put(scene, mat) -> None:
             materials.assign(ob, mat)
 
 
-def plain_material(base: str, color: str = "", wear: float = 0.0, rust: float = 0.0, finish: dict | None = None):
+def plain_material(base: str, color: str = "", wear: float = 0.0, rust: float = 0.0, finish: dict | None = None,
+                   adjust: dict | None = None):
     """A library material with an entry's settings, built into "FR picture material"."""
     from ..core import finishes as fin_core
     from . import materials
@@ -166,7 +167,8 @@ def plain_material(base: str, color: str = "", wear: float = 0.0, rust: float = 
     except Exception:  # noqa: BLE001
         pass
     key = fin_core.key(base, **(finish or {})) if fin_core.get(base) else ""
-    materials.build_nodes(mat, base, color, wear, finish=key, rust=rust)
+    from ..core import look_adjust as LA
+    materials.build_nodes(mat, base, color, wear, finish=key, rust=rust, adjust=LA.key(adjust or {}))
     return mat
 
 
@@ -237,6 +239,6 @@ def make(item: dict) -> float:
         fin = v["finish"]
         if fin and 0 < fin.get("size", 0) < FINE:
             fin = dict(fin, size=min(fin["size"] * FINISH_SCALE, FINE))       # (kept inside the finish's limits by its key)
-        mat = plain_material(base, v["color"] or item.get("colour", "") or "", v["wear"], v["rust"], fin)
+        mat = plain_material(base, v["color"] or item.get("colour", "") or "", v["wear"], v["rust"], fin, v["adjust"])
     put(scene, mat)
     return render(scene, item["out"], int(item.get("samples", 32)), int(item.get("size", 256)))

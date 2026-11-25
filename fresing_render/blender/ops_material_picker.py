@@ -460,6 +460,80 @@ class FRESING_OT_mat_filters_clear(bpy.types.Operator):
         return {"FINISHED"}
 
 
-CLASSES = (FRESING_OT_materials, FRESING_OT_materials_close, FRESING_OT_mat_pick, FRESING_OT_mat_use,
+class FRESING_OT_look_reset(bpy.types.Operator):
+    """Puts the group's look back to the material as it was made: the Adjust sliders, Wear, Rust and the pattern's
+    settings. A paint keeps the colour you gave the group"""
+
+    bl_idname = "fresing.look_reset"
+    bl_label = "Reset"
+    bl_options = {"REGISTER", "UNDO"}
+
+    group: StringProperty(options={"SKIP_SAVE", "HIDDEN"})
+
+    def execute(self, context):
+        s = context.scene.fresing
+        g = s.groups.get(self.group) if self.group else _group(context)
+        if g is None:
+            self.report({"WARNING"}, "Pick a group in 3 Looks first")
+            return {"CANCELLED"}
+        try:
+            MP.reset(context, g)
+        except (ValueError, TypeError, OSError, RuntimeError) as exc:
+            return _report_error(self, exc)
+        MP.redraw()
+        self.report({"INFO"}, f"{g.name}: the look as made")
+        return {"FINISHED"}
+
+
+class FRESING_OT_look_nodes(bpy.types.Operator):
+    """Opens the group's material in Blender's shader editor, in a window of its own (Full access only). The node
+    "FR adjust" holds the Adjust sliders under the same names; the nodes before it are the ready-made look. A change
+    of material, colour or Wear in the app builds the nodes again: save your own version first with From a Blender
+    material…"""
+
+    bl_idname = "fresing.look_nodes"
+    bl_label = "Open in the shader editor"
+    bl_options = {"REGISTER", "UNDO"}
+
+    group: StringProperty(options={"SKIP_SAVE", "HIDDEN"})
+
+    @classmethod
+    def poll(cls, context):
+        from . import workspaces
+        scene = context.scene
+        if scene is None or not hasattr(scene, "fresing") or not workspaces.blender_ui(scene):
+            cls.poll_message_set("Only in the workspace Full access (Blender's own editors)")
+            return False
+        return True
+
+    def execute(self, context):
+        from . import look_adjust
+        s = context.scene.fresing
+        g = s.groups.get(self.group) if self.group else _group(context)
+        if g is None:
+            self.report({"WARNING"}, "Pick a group in 3 Looks first")
+            return {"CANCELLED"}
+        mat = look_adjust.keep_node(g)
+        from . import logic
+        parts = logic.parts_in_group(context.scene, g.name)
+        if mat is None or not parts:
+            self.report({"WARNING"}, f"'{g.name}' has no parts to show the material on")
+            return {"CANCELLED"}
+        vl = context.view_layer
+        for ob in context.selected_objects:
+            ob.select_set(False)
+        try:
+            parts[0].select_set(True)
+            vl.objects.active = parts[0]
+        except RuntimeError:                          # a part hidden in the view: the editor is pinned below
+            pass
+        if not bpy.app.background:
+            name = mat.name
+            bpy.app.timers.register(lambda: look_adjust.open_editor(name), first_interval=0.05)
+        self.report({"INFO"}, f"{g.name}: the material '{mat.name}' in the shader editor")
+        return {"FINISHED"}
+
+
+CLASSES = (FRESING_OT_look_reset, FRESING_OT_look_nodes, FRESING_OT_materials, FRESING_OT_materials_close, FRESING_OT_mat_pick, FRESING_OT_mat_use,
            FRESING_OT_mat_star, FRESING_OT_mat_unlist, FRESING_OT_mat_save, FRESING_OT_mat_from_blender,
            FRESING_OT_mat_picture, FRESING_OT_mat_show, FRESING_OT_mat_refresh, FRESING_OT_mat_filters_clear)

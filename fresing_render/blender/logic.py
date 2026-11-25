@@ -186,8 +186,9 @@ def upgrade_looks(scene) -> int:
         if g.material == "blender_material":          # task 0273: a copy of an own Blender material, not built here
             continue
         mat = bpy.data.materials.get(materials.material_name(g.name))
+        from . import look_adjust
         if mat is not None and not materials.is_current(mat, g.material, g.color, g.wear,
-                                                                    materials.group_finish(g), g.rust):
+                                                        materials.group_finish(g), g.rust, look_adjust.group_key(g)):
             old += 1
     if old:
         refresh_group_materials(scene)

@@ -396,6 +396,11 @@ fn(id="looks.picker", short="Material picker",
 fn(id="looks.own_materials", title="Your own materials: Save as my material, From a Blender material", family="looks",
    panel="FRESING_PT_looks", button="fresing.mat_save", guide="own-materials", pccheck=("looks.picker",),
    since="0.2.241")
+# task 0314: adjust a look – plain sliders per material, live; Reset; the shader editor; "slower" looks marked
+fn(id="looks.adjust", short="Adjust a look",
+   title="Adjust a look: Shine, Metal ↔ paint, Dirt, Relief, Clear coat – live, Reset, Open in the shader editor",
+   family="looks", panel="FRESING_PT_looks", button="fresing.look_reset", guide="adjust-a-look",
+   tour=("look_adjust",), pccheck=("looks.adjust",), since="0.2.245")
 fn(id="looks.rule_sets", title="Rule sets", family="looks", panel="FRESING_PT_looks",
    button="fresing.rule_set_switch", guide="rule-sets", pccheck=("rules.switch",), since="0.2.13")
 fn(id="looks.faces", title="Paint faces", family="looks", panel="FRESING_PT_faces", button="fresing.paint_faces",
@@ -860,7 +865,7 @@ fn(id="help.right_click", headline=True, short="Right-click menu", title="Right-
 fn(id="settings.keys", headline=True, short="Keys", title="Keys: every key of the app in one list – moving the view, "
    "selecting, Fresing's own, Blender's –, search, change Fresing's own keys (kept over a restart), a printable key "
    "sheet; Fresing > Keys…", family="help", panel="TOPBAR_MT_fresing", button="fresing.keys", guide="keys",
-   tour=("keys_tab",), pccheck=("settings.keys",), since="0.2.245")          # task 0295
+   tour=("keys_tab",), pccheck=("settings.keys",), since="0.2.246")          # task 0295
 
 fn(id="usage.my_usage", title="My usage: what you use, time per stage (only while you use the app), time saved (estimate)",
    family="help", panel="TOPBAR_MT_fresing", button="fresing.usage_window", guide="my-usage", tour=("usage",),
