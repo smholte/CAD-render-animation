@@ -870,6 +870,7 @@ if MODE == "panels":
             elif name == "panel_5_web3d":               # exported once: the result line and its buttons show
                 # task 0106: with Surroundings on the page open, as in the project (a sea) with haze and rain
                 mod("blender.ui")._OPEN_FOLDS = True
+                mod("blender.workspaces").set_tick(sc, "web", True)   # task 0336: the web family is off until used
                 w = sc.fresing.web3d
                 w.env_mode = "PROJECT"
                 mod("blender.web3d_env").fill_from_project(sc)

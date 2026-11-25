@@ -4593,28 +4593,36 @@ the machine himself, or for your website.
 3. **Hide part names** (on by default): the parts are called Part 1, Part 2 … in the file, so a customer does not
    see your part numbers. Switch it off to keep the names you see in the app.
    <a id="web3d-view-names"></a>**View names** (Camera names by default): what the page calls its saved views – one
-   per camera of the project. **Camera names** shows the cameras' own names ("Shot 3: carousel and arch");
+   per ticked camera (below). **Camera names** shows the cameras' own names ("Shot 3: carousel and arch");
    **Numbered** shows View 1, View 2 … – choose it when the camera names should stay private. Hide part names no
-   longer changes the view names. The line under it shows the names the page will get (the first three and "…"),
-   so nothing goes out unseen. A page exported before keeps its names; export again to get the new ones.
+   longer changes the view names. A page exported before keeps its names; export again to get the new ones.
+   <a id="web3d-page-views"></a>**Page views** (a fold; its title says how many, e.g. "3 of 5"): a tick per camera of the
+   project – a ticked camera becomes a saved view on the page, an unticked one stays out. Your own cameras start
+   ticked; the cameras the app makes for its own work – the video's Animation camera, the product video's camera and
+   the Turntable camera, marked "(the app's)" – start unticked. **All** / **None** tick or untick every camera. With
+   the fold closed, the line under it names the views the page will get (the first three and "…"), so nothing goes
+   out unseen. Undo (Ctrl+Z) takes a tick back.
    **Faces for measuring** (on by default): the parts' flat and round faces go into the file, so the page can
    measure between planes, read a hole's diameter, measure centre to centre and to the parts' **edges**
    ([Measure](#web3d-tools)); the edges add up to about a tenth to the page (measured: the test crane's page +0.7 %, the old cable-lay demo's +12 %).
-4. **Smaller file** (on by default): a big model – 200,000 triangles or more – is packed tighter
-   (meshopt), about **half the file**; the page opens it as before, also offline. Since 0.2.143 the motion is packed
+4. **Smaller file** (on by default): a big model – 200,000 triangles or more – is packed tighter, about **half the
+   file**; the page opens it as before, also offline. Since 0.2.143 the motion is packed
    too: each part keeps only the moments a straight blend cannot give (every frame stays within 0.1 mm and 0.05° of
    the app), and the moving cables store how much they moved from one moment to the next. Smaller models are not packed:
    they would gain little. Some older 3D programs cannot open such a packed `.glb` on its own (Blender 5.2, Chrome,
    Edge, Firefox and Safari can); switch it off for a customer whose program refuses the file.
-5. **Include animation** (only after Build & play in 6 Animation): the parts move as in the animation and the
-   page plays it in a loop. Tools a tool change carries (spindle, changer arm, pots) and parts a Show/Hide step brings
+5. **Include animation** (only after Build & play in 6 Animation – before that the panel shows a **Build & play
+   first** button in its place): the parts move as in the animation and the page plays it in a loop. A built
+   animation whose camera does not move gets no Film button; the panel says so. Tools a tool change carries (spindle, changer arm, pots) and parts a Show/Hide step brings
    in or takes out come and go as in the animation. Cables, wire ropes, hoses, the rope on drums and carousels, track
    links and drag-chain links move as in the app ([below](#web3d-moving)). It makes the export slower.
 6. Click **Export…**, pick a folder and a name. Two files are saved next to each other: `<name>.glb` (the 3D file,
    which most 3D programs and websites can read) and `<name>.html` (the page). The panel shows how far it is;
    **Cancel** or Esc stops it, and then nothing is saved.
-7. The line under the button shows the file size ("compressed" when it was packed), the number of triangles, the number of pictures and the time.
-   **Open page** opens it in your web browser; **Show in folder** shows the files.
+7. **Open page** (next to Export…) opens the page in your web browser; the folder button next to it shows the files.
+   Both are greyed until there is an export, and they stay on Export's row, so after an export they are where you
+   just clicked – also in the small Make > 3D page window. The box under the button names the file and gives its size
+   ("compressed" when it was packed), the number of triangles, the number of pictures and the time.
 
 **File size.** The page holds the model packed (the browser unpacks it as it opens), so the
 page is about as big as the `.glb`, not a third bigger. Pictures are saved as WebP where that is smaller and as
@@ -4685,10 +4693,10 @@ title and these controls:
   [Film](#web3d-film).
 - **Motions** (a project with [lead motions](#lead-motions)): one slider per function of the machine – see
   [Motions](#web3d-motions).
-- **Saved views**: one per camera of the project, named as **View names** says (keys **1 … 9**); the view flies
-  there. On a PC, a tablet and a phone held sideways they are **one row of buttons** that never wraps: when they do
-  not fit, the row scrolls sideways (its edges fade) and **All views** at its end opens the list of all of them. On a
-  phone held upright they are **one control** above the play bar: **‹ name ›** – the arrows step to the previous or
+- **Saved views**: one per ticked camera ([Page views](#web3d-page-views)), named as **View names** says
+  (keys **1 … 9**); the view flies there. On a PC and a tablet they are **one row of buttons** that never wraps: when
+  they do not fit, the row scrolls sideways (its edges fade) and **All views** at its end opens the list of all of
+  them. On a phone, upright or held sideways, they are **one control** above the play bar: **‹ name ›** – the arrows step to the previous or
   next view, a tap on the name opens the list from the bottom (the current view marked; it closes on a pick, a tap
   outside, Esc or the phone's Back). Long names end in "…" on the control and are whole in the list. Two or three
   short names on a phone stay buttons. An **Isometric** camera (no perspective in the app) shows the same frame on
@@ -4775,7 +4783,8 @@ to move" until the first touch (or 6 s); later visits go without it. A phone has
 button** shows its name (it does not press it), and the help lists every button. Upright the right column has at most
 five buttons; the rarer ones (Screenshot, Copy link, Clean look) are under **More tools** (⋯), with their names. When
 Auto quality lowers the quality, a short message says so for a few seconds above the controls; the level is always in
-the settings (gear).
+the settings (gear). The settings (gear) end above the views control and the play bar and scroll when they are longer – held
+sideways they no longer cover the time line, the speed or Film.
 
 **Light on the computer:** the page draws a picture only when something changes – the view moves, the animation,
 sea, vessel or rain plays, a setting changes – at most 60 a second, and nothing while its tab is hidden. A machine

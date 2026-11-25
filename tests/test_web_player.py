@@ -477,8 +477,8 @@ def test_saved_views_as_one_control_on_a_phone(tmp_path):
 
 @browser_test
 def test_saved_views_as_one_row_on_wide_screens(tmp_path):
-    """Wide screens and a phone sideways: one row that never wraps; when it does not fit it scrolls sideways and All
-    views opens the same list; a few short views on a phone stay buttons; one view is one button; none: nothing."""
+    """Wide screens: one row that never wraps; when it does not fit it scrolls sideways and All views opens the same
+    list (a phone sideways: the pill since task 0336, 0328 row 21); a few short views on a phone stay buttons; one view is one button; none: nothing."""
     row = ("(function () { var b = [...document.querySelectorAll('#fr-views .fr-vbtn')], s = document.querySelector('#fr-views .fr-vscroll');"
            " var all = document.querySelector('#fr-views .fr-all');"
            " return [frPage.viewMode, b.length, new Set(b.map(x => Math.round(x.getBoundingClientRect().top))).size,"
@@ -494,7 +494,7 @@ def test_saved_views_as_one_row_on_wide_screens(tmp_path):
     o = out["out"]
     assert o[0] == ["row", 21, 1, True, True]
     assert o[2] is True and o[4] == 12 and o[5] is True                      # the picked one scrolled into sight
-    assert o[7] == ["row", 21, 1, True, True]
+    assert o[7][0] == "pill"                                                 # task 0336: sideways as upright
     short = views_of(3, ["Front", "Top", "Side"])
     for views, want in ((short, ["row", 3, 1, False, False]), (views_of(3), None), (views_of(1), ["row", 1, 1, False, False]),
                         ([], ["none", 0, 0, None, False])):
@@ -697,3 +697,25 @@ def test_a_page_without_lead_motions_has_no_motions_button(tmp_path):
     out = probe(path, [{"eval": "[!!document.querySelector('#fr-motions .fr-mbtn'), frPage.leadState(), frPage.motions.length]"}],
                 query="soft=0")
     assert out["out"][0] == [False, None, 0]
+
+
+@browser_test
+def test_phone_sideways_menu_clear_of_the_play_bar(tmp_path):
+    """Task 0336 (0328 row 21, 0179's open point): a phone held sideways (932 x 430) with 7 saved views. The views were
+    a row of 7 buttons and the settings menu covered the right half of the play bar (time, speed, Film) and the views.
+    Now the views are one pill ‹ name › as upright, and the open menu ends above the bottom stack (it scrolls)."""
+    path, _n = write(tmp_path / "side.html", views=views_of(7))
+    rects = ("(function () { function r(s) { var e = document.querySelector(s); if (!e) return null;"
+             " var b = e.getBoundingClientRect(); return [b.left, b.top, b.right, b.bottom]; }"
+             " return { menu: r('#fr-menu'), play: r('#fr-playbar'), views: r('#fr-views'), mode: frPage.viewMode,"
+             " scroll: document.getElementById('fr-menu').scrollHeight > document.getElementById('fr-menu').clientHeight }; })()")
+    out = probe(path, [{"eval": CHECK}, {"click": "#fr-tools [aria-label='Settings']"}, {"wait": 100}, {"eval": rects}],
+                size="932x430", mobile=True, query="soft=0")
+    assert out["ok"], out
+    _no_overlaps(out["out"][0], "932x430")
+    o = out["out"][-1]
+    assert o["mode"] == "pill", o
+    menu, play, views = o["menu"], o["play"], o["views"]
+    assert menu is not None and play is not None, o
+    assert menu[3] <= min(play[1], views[1]) + 0.5, o          # the menu's bottom above the views and the play bar
+    assert menu[3] - menu[1] > 120, o                          # still a usable menu (it scrolls)

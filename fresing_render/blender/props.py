@@ -3958,7 +3958,7 @@ class FRWeb3D(bpy.types.PropertyGroup):
                     "page measures between clicked points only")
     compress: BoolProperty(
         name="Smaller file", default=True,
-        description="Compresses a big model (200,000 triangles or more) with meshopt: about half the file; its "
+        description="Packs a big model (200,000 triangles or more) tighter: about half the file; its "
                     "page opens it as before, offline too. Some older 3D viewers cannot open such a .glb on its own "
                     "(Blender 5.2, Chrome, Edge, Firefox and Safari can). Off: the plain file, about twice as big")
     # ---- baked light (task 0107): a choice per export; the names are fixed (the house format uses them)

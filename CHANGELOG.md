@@ -5,6 +5,20 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.246 – 25 Nov 2026 – 3D page: Open page in sight, page views by tick, phone sideways (task 0336)
+
+- **Open page** and the folder button now sit on the **Export…** row (Make > 3D page, and 5 Scene & Render > Web 3D
+  model). After an export they are right where you clicked – in the small Make window the result used to be below the
+  window's edge. Greyed until there is an export.
+- **Include animation** no longer sits greyed without a reason: before a Build the panel shows **Build & play first**
+  in its place. A built animation whose camera does not move says that the page gets no Film button.
+- **Page views** (a new fold): a tick per camera – you choose which cameras become saved views on the page. Your own
+  cameras start ticked; the ones the app makes for its own work (the Turntable camera, the video's Animation camera,
+  the product video's camera) start unticked. **All** / **None**; Undo takes a tick back.
+- **On a phone held sideways** the page's saved views are one ‹ name › control, as upright, and the settings menu ends
+  above the views and the play bar (it scrolls) – it covered the time line, the speed and Film.
+- **Smaller file**: its tooltip and the guide no longer name the packing method.
+
 ## 0.2.245 – 25 Nov 2026 – Adjust a look (task 0314)
 
 - **Adjust** (Materials window, under **Use for <group>**, when the group has the picked material): a few plain

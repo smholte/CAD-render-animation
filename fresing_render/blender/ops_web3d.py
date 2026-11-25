@@ -187,4 +187,40 @@ class FRESING_OT_web3d_env_from_project(bpy.types.Operator):
         return {"FINISHED"}
 
 
-CLASSES = (FRESING_OT_web3d_export, FRESING_OT_web3d_cancel, FRESING_OT_web3d_env_from_project)
+class FRESING_OT_web3d_view(bpy.types.Operator):
+    """Ticks or unticks this camera as a saved view on the page: the visitor gets a button (or a name in the list)
+    that flies to it. Cameras the app makes for its own work (the video's Animation camera, the product video's, the
+    turntable's) start unticked"""
+
+    bl_idname = "fresing.web3d_view"
+    bl_label = "View on the page"
+    bl_options = {"REGISTER", "UNDO"}
+
+    name: StringProperty(options={"HIDDEN", "SKIP_SAVE"})
+    every: BoolProperty(default=False, options={"HIDDEN", "SKIP_SAVE"})
+    on: BoolProperty(default=True, options={"HIDDEN", "SKIP_SAVE"})
+
+    @classmethod
+    def description(cls, context, props):
+        if props.every:
+            return ("Ticks every camera of the project: each becomes a saved view on the page" if props.on else
+                    "Unticks every camera: the page gets no saved views (the visitor still turns and zooms)")
+        return " ".join(cls.__doc__.split())
+
+    def execute(self, context):
+        scene = context.scene
+        if self.every:
+            for ob in web3d.all_cameras(scene):
+                web3d.set_on_page(ob, self.on)
+        else:
+            ob = bpy.data.objects.get(self.name)
+            if ob is None or ob.type != "CAMERA":
+                self.report({"WARNING"}, f"No camera called {self.name}")
+                return {"CANCELLED"}
+            web3d.set_on_page(ob, not web3d.on_page(ob))
+        _redraw(context)
+        return {"FINISHED"}
+
+
+CLASSES = (FRESING_OT_web3d_export, FRESING_OT_web3d_cancel, FRESING_OT_web3d_env_from_project,
+           FRESING_OT_web3d_view)
