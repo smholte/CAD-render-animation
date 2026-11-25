@@ -1,6 +1,6 @@
 # 0330 – Animation keeps the user's keys (0328 F1)
 
-**Who:** worker · **Status:** open · **Branch:** `task/0330-animation-keeps-user-keys`
+**Who:** worker · **Status:** running · **Branch:** `task/0330-animation-keeps-user-keys`
 **Started by:** lead, 25 Nov 2026 (from 0328's report, owner's focus: user friendliness) · **Model:** Opus · effort Medium
 **Area:** Motion lane – `blender/animation.py`, `blender/queue.py` (the warning before a queued Build), `blender/turntable.py`, `blender/lead_motions.py` (logic only, not its panel), their tests, guide, CHANGELOG.
 **Not:** `ui_lead_motions.py` (0333), `ui_motion.py` (0333), the Keys / top bar (0295).

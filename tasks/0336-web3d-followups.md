@@ -1,6 +1,6 @@
 # 0336 – 3D page follow-ups (0328 F7)
 
-**Who:** worker · **Status:** open · **Branch:** `task/0336-web3d-followups`
+**Who:** worker · **Status:** running · **Branch:** `task/0336-web3d-followups`
 **Started by:** lead, 25 Nov 2026 (from 0328's report, owner's focus: user friendliness) · **Model:** Sonnet · effort Medium
 **Area:** Web 3D lane – `blender/ui_web3d.py`, `blender/web3d.py`, `core/web3d.py`, `fr_player.js` (and the site copy it is built into), their tests, guide, CHANGELOG.
 **Not:** `ops_make.py` window size (0331) – put the result where the eye is inside your own panel instead.
