@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Companies pay, private free</title>
+<style>
+:root{--bg:#f6f6f4;--card:#fff;--ink:#1d1d1b;--grey:#666;--line:#d8d8d4;--accent:#1f5fa8;--rec:#e8f1e3;--recline:#5a8f45;--warn:#fff4dc}
+@media (prefers-color-scheme:dark){:root{--bg:#18191b;--card:#222428;--ink:#e8e8e6;--grey:#a4a4a0;--line:#3a3c40;--accent:#7fb0ea;--rec:#24331f;--recline:#7fb565;--warn:#3a321d}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,sans-serif}
+main{max-width:900px;margin:0 auto;padding:16px}h1{font-size:1.6em;margin:.4em 0}h2{margin:1.6em 0 .4em;font-size:1.25em}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin:12px 0}
+.grey{color:var(--grey)}.warn{background:var(--warn)}
+fieldset{border:1px solid var(--line);border-radius:8px;margin:14px 0;padding:10px 14px;background:var(--card)}
+legend{font-weight:600;padding:0 6px}label{display:block;padding:6px 8px;border-radius:6px;margin:3px 0;cursor:pointer}
+label.rec{background:var(--rec);border-left:4px solid var(--recline)}label small{display:block;color:var(--grey)}
+table{border-collapse:collapse;width:100%;font-size:.92em}td,th{border-bottom:1px solid var(--line);padding:5px 6px;text-align:left;vertical-align:top}
+.scroll{overflow-x:auto}img{max-width:100%;border:1px solid var(--line);border-radius:6px}
+#out{font-family:ui-monospace,monospace;background:var(--card);border:1px solid var(--line);padding:10px;border-radius:6px;white-space:pre-wrap;word-break:break-word}
+button{font:inherit;padding:8px 16px;border-radius:6px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer}
+blockquote{margin:0;padding:8px 12px;border-left:3px solid var(--line);font-size:.92em}
+</style></head><body><main>
+<h1>Companies pay, private use stays free</h1>
+<p class="grey">Task 0343 · findings only · 25 Nov 2026. Not legal or tax advice. ★ = recommended (always the first choice).</p>
+
+<div class="card">
+<b>In short</b>
+<ul>
+<li><b>Allowed:</b> the code stays GPL; Fresing's own pictures, HDRIs, material libraries and projects can have their own licence – in their own folder, and the app must run without them.</li>
+<li><b>The catch:</b> almost all of today's looks (87 materials, 25 finishes, 5 light looks, weather, surroundings, people, demo, lessons) are <b>program code</b>, released under the GPL in all 232 versions up to 0.2.248. Those versions stay free for everyone, for ever. <b>The paid part can only be new things</b>: your own HDRIs and 360° photos, hand-made finish and environment libraries, learning projects.</li>
+<li><b>No lock, no online check:</b> companies pay by invoice and get a licence file the app only shows.</li>
+<li><b>Price proposal:</b> €129 once per company user, €59 for a freelancer (KeyShot: $1,299–1,599 a year; Enscape: $460–585 a year; Rhino: $995 once).</li>
+<li><b>Name:</b> unregistered, "Fresing" is barely protected. Register in the Benelux before the first sale (2 classes: €271).</li>
+</ul>
+</div>
+
+<h2>With and without the Fresing looks</h2>
+<p>Left: the app's looks today. Right: a plain look – only the colour and shine of each part, Blender's own grey world and one sun. This is roughly what the app would look like without a looks pack. Cycles, preview quality, measured on the 4-core test machine.</p>
+<p><img src="img/with_without_crane.jpg" alt="Test crane: with Fresing looks (left), plain look (right)"></p>
+<p><img src="img/with_without_mill.jpg" alt="Test mill: with Fresing looks (left), plain look (right)"></p>
+<p><img src="img/with_without_finishes.jpg" alt="Finishes test model: with Fresing looks (left), plain look (right)"></p>
+<p class="grey">The crane and the mill hardly change. The finishes model loses its tread plate, grilles, knurls and textures. So the app runs and makes clean pictures without the pack. The pack adds the surface detail and the light.</p>
+
+<h2>Your choices</h2>
+<form id="f">
+<fieldset><legend>1 · What goes into the paid pack?</legend>
+<label class="rec"><input type="radio" name="q1" value="new-only" checked> ★ Only new things, made as files from now on: your HDRIs and 360° photos, new hand-made finishes and environments, learning projects. Today's looks stay free.<small>Little risk; nothing gets worse for anyone. The pack is worth only what new things go into it.</small></label>
+<label><input type="radio" name="q1" value="move-finishes"> Also move today's finishes and studio light out of the code into the pack (in a future version)<small>Big job with high risk (tests, tour, PC check). Version 0.2.248 keeps them free anyway.</small></label>
+<label><input type="radio" name="q1" value="wait"> Not yet – first make a few new assets and see</label>
+</fieldset>
+
+<fieldset><legend>2 · How do private users get the pack?</legend>
+<label class="rec"><input type="radio" name="q2" value="download" checked> ★ A free download on the landing page, with the licence shown first, and "Add Fresing assets…" in the app (as the demo kits work now). Companies get the same file from the shop.</label>
+<label><input type="radio" name="q2" value="installer"> In the installer for everyone; the licence decides who pays<small>Easier for private users, but companies get it without any reminder to pay.</small></label>
+</fieldset>
+
+<fieldset><legend>3 · Price model</legend>
+<label class="rec"><input type="radio" name="q3" value="once-per-user" checked> ★ One-time per user, with all updates of pack 1.x (at least 2 years); the next big version at half price. Freelancer price and 5 / 10-user packs.</label>
+<label><input type="radio" name="q3" value="yearly-company"> Yearly per company (e.g. €190 a year for up to 10 people, €490 a year with no user limit)</label>
+<label><input type="radio" name="q3" value="both"> Both: once per user, or yearly per company</label>
+</fieldset>
+
+<fieldset><legend>4 · Price level (excl. VAT)</legend>
+<label class="rec"><input type="radio" name="q4" value="129-59" checked> ★ €129 per company user · €59 freelancer · 5 users €499 · 10 users €899</label>
+<label><input type="radio" name="q4" value="99-49"> €99 · €49 · €399 · €699</label>
+<label><input type="radio" name="q4" value="199-99"> €199 · €99 · €799 · €1,399</label>
+</fieldset>
+
+<fieldset><legend>5 · Non-profits: free for what?</legend>
+<label class="rec"><input type="radio" name="q5" value="own-work" checked> ★ Free for their own work that they do not sell (a registered charity, association or foundation)</label>
+<label><input type="radio" name="q5" value="all"> Free for all their work</label>
+</fieldset>
+
+<fieldset><legend>6 · Which shop handles payment and VAT?</legend>
+<label class="rec"><input type="radio" name="q6" value="paddle" checked> ★ Paddle: it is the seller, so it handles VAT in every country. Proper invoices with VAT numbers for businesses. Fee 5 % + 50¢. Your account is reviewed first.</label>
+<label><input type="radio" name="q6" value="gumroad"> Gumroad: also the seller and handles VAT, has licence keys with seat counts. Fee 10 % + $0.50. Business buyers get their VAT back as a refund.</label>
+<label><input type="radio" name="q6" value="superhive"> Also Superhive later, as a second shop window to Blender users (check first who pays the VAT there)</label>
+</fieldset>
+
+<fieldset><legend>7 · How does a company show it paid?</legend>
+<label class="rec"><input type="radio" name="q7" value="file" checked> ★ Invoice + a licence file; About shows "Licensed to …". No check and no lock. The app stays fully offline.</label>
+<label><input type="radio" name="q7" value="ask-once"> Also ask once at the first start: "Private, education, non-profit, or company?" (only a question, nothing is locked)</label>
+</fieldset>
+
+<fieldset><legend>8 · The name "Fresing"</legend>
+<label class="rec"><input type="radio" name="q8" value="benelux-now" checked> ★ Register in the Benelux, classes 9 + 42 (€271 for 10 years), before the first sale. If a 2027 SME voucher opens first, use it.</label>
+<label><input type="radio" name="q8" value="wait-2027"> Wait for the 2027 SME Fund round (the 2026 vouchers closed on 19 Nov)</label>
+<label><input type="radio" name="q8" value="eu"> An EU trademark straight away (about €1,050 for 3 classes)</label>
+</fieldset>
+
+<fieldset><legend>9 · Supporting Blender</legend>
+<label class="rec"><input type="radio" name="q9" value="5pct" checked> ★ A fixed share of the pack's income (e.g. 5 %) as an individual Development Fund membership</label>
+<label><input type="radio" name="q9" value="later"> Decide later</label>
+</fieldset>
+
+<fieldset><legend>10 · Support promise to paying companies</legend>
+<label class="rec"><input type="radio" name="q10" value="email-5d" checked> ★ E-mail only, an answer within 5 working days, fixes in the normal releases, no fixed fix time</label>
+<label><input type="radio" name="q10" value="none"> No promise; GitHub issues for everyone</label>
+</fieldset>
+
+<fieldset><legend>11 · The licence text</legend>
+<label class="rec"><input type="radio" name="q11" value="draft" checked> ★ Start with the plain draft below (written so a lawyer could check it later)</label>
+<label><input type="radio" name="q11" value="lawyer"> Have a lawyer check it once before the first sale (cost unknown)</label>
+</fieldset>
+</form>
+
+<p><b>Your picks</b> – copy this line and paste it to the lead chat:</p>
+<div id="out"></div>
+<p><button id="copy" type="button">Copy</button></p>
+
+<h2>Who pays, in plain words</h2>
+<div class="card">
+<p><b>Free:</b> a person's private use, not for paid work · pupils, students, teachers and researchers, for learning, teaching and research · registered non-profits (see choice 5).<br>
+<b>Paid:</b> every company, freelancers included, and any paid work for a client.<br>
+<b>Always the user's:</b> renders, videos, pictures and web 3D pages made with the assets. You may sell them and need not credit Fresing.<br>
+<b>Not allowed:</b> passing the assets on by themselves. Sending a client a project file with the assets inside is fine.<br>
+<b>A copy of the code:</b> allowed under the GPL, but without the assets folder and without the Fresing name and logo.</p>
+</div>
+
+<h2>Draft licence (a lawyer may word it)</h2>
+<blockquote>
+<b>Fresing Assets Licence 1.0</b><br>
+1. <b>What it covers.</b> The files in the folder <code>fresing_assets</code> and any pack named "Fresing Assets": pictures, HDRIs, 360° photos, materials, environments and projects, © Fresing. It does not cover the Fresing Render software (GPL-3.0-or-later) or other people's files (they have their own licences, listed in the pack).<br>
+2. <b>Free use</b> – no payment needed: (a) a person for private use, not for paid work and not for a business; (b) pupils, students, teachers and researchers of a school, university or training centre, for learning, teaching and research, not for paid work for a client; (c) a registered non-profit organisation, for its own activities that it does not sell.<br>
+3. <b>Company use</b> – all other use, by or for a business (a one-person business or freelancer included) or for paid work, needs a paid licence: one per user, or the number of users on the invoice.<br>
+4. <b>You may</b> use the assets in your projects. Everything you make with them is yours, also to sell, without credit. You may send a project with the assets inside to a client or partner, so they can open and render that project.<br>
+5. <b>You may not</b> sell, give or publish the assets by themselves or in another library, pack or product, or remove this licence or the file that names the licensee.<br>
+6. <b>Copies of the software.</b> The GPL lets anyone copy and change Fresing Render. This licence does not let a copy given to others include the assets or use the Fresing name and logos.<br>
+7. <b>Proof.</b> Your invoice and licence file (company, number of users, invoice number). There is no online check.<br>
+8. <b>No warranty.</b> Fresing's liability is limited to the price paid. Dutch law applies.<br>
+9. <b>Ending.</b> The licence ends if you break it and do not put it right within 30 days of being told.
+</blockquote>
+
+<h2>Prices of others (official pages, 25 Nov 2026)</h2>
+<div class="scroll"><table>
+<tr><th>Product</th><th>Price</th><th>Term</th></tr>
+<tr><td>KeyShot Studio Professional / Business</td><td>$1,299 / $1,599 per user</td><td>a year; no perpetual option</td></tr>
+<tr><td>Enscape Solo / Premium / Impact</td><td>$460 / $537 / $585 per user</td><td>a year</td></tr>
+<tr><td>Rhino 9</td><td>$995 per user (upgrade $595)</td><td>once</td></tr>
+<tr><td>Twinmotion <span class="grey">(page blocked here – search excerpts)</span></td><td>free below $1 M yearly revenue; $445 per seat above</td><td>a year</td></tr>
+<tr><td>D5 Render Pro <span class="grey">(blocked – excerpts)</span></td><td>≈ $360 per user; free version non-commercial only</td><td>a year</td></tr>
+<tr><td>Blender add-ons on Superhive (material pack, studio lights, STEP importers)</td><td>$15–89 per user; 5 users $90–100</td><td>once</td></tr>
+<tr><td><b>Proposal: Fresing assets</b></td><td><b>€129 per company user · €59 freelancer</b></td><td><b>once, updates for pack 1.x</b></td></tr>
+</table></div>
+
+<h2>What follows if you agree</h2>
+<ol>
+<li>You: register the trademark, open a shop account.</li>
+<li>Licence texts: assets licence, README, About window, company page (small).</li>
+<li>The pack in the app: add or remove it, show "Licensed to …", and the app works fully without it (medium).</li>
+<li>Plain fallback look, and looks that use the pack when it is there (medium).</li>
+<li>A private repository that builds the pack (small).</li>
+<li>First pack: your HDRIs and 360° photos, a hand-made finishes set, one learning project (medium + your photos).</li>
+<li>Landing page: free / company prices, download and buy buttons (small).</li>
+</ol>
+<p class="grey">Full details, sources and the accountant's questions: the report in tasks/0343-study-paid-company-use.md on branch task/0343-study-paid-company-use.</p>
+</main>
+<script>
+const f=document.getElementById('f'),o=document.getElementById('out');
+function upd(){const p=[];for(let i=1;i<=11;i++){const x=f.querySelector('input[name=q'+i+']:checked');p.push(i+' '+(x?x.value:'-'));}o.textContent='0343 picks: '+p.join('; ');}
+f.addEventListener('change',upd);upd();
+document.getElementById('copy').onclick=()=>{try{navigator.clipboard.writeText(o.textContent);}catch(e){}};
+</script>
+</body></html>
