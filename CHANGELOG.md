@@ -5,6 +5,17 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.242 – 25 Nov 2026 – Faster model update: unchanged parts keep their meshes (task 0324)
+
+- **Update to new revision… only meshes what changed.** Each part now gets a fingerprint of its exact shape, its face
+  colours and the Detail. A part whose fingerprint is the same in the new revision keeps its mesh from the last import
+  – nothing is meshed or built again for it. A part where even one face moved 0.1 mm is meshed again.
+- Measured on the made-up 11,228-part stress model (4-core test machine, 1 % of the parts changed): the model update
+  took **236 s** before, now **112 s** (a fresh import of the same file: 140 s). 1,899 of 1,995 unique parts were kept.
+- The result is the same as reading every part again: groups, painted faces, decals, joints, hoses, cables and welds
+  are kept as before. The PC check's Stress line "model update" now says how many parts were reused.
+- The first update of a project imported with an older version reads every part once; after that, updates are quick.
+- A fresh import is as fast as before.
 ## 0.2.241 – 25 Nov 2026 – The material picker: pictures, this project's materials, your own and your company's materials (task 0273)
 
 - **More materials…** (3 Looks, in the box of the picked group) opens the new **Materials** window: a picture of every

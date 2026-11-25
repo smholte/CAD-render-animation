@@ -278,7 +278,7 @@ fn(id="import.mesh", short="Import mesh", title="Import a mesh model (glTF, OBJ,
    pccheck=("import.mesh", "import.mesh_fbx"), since="0.2.99")
 fn(id="import.update", short="Update revision", title="Model update to a new revision", family="import", panel="FRESING_PT_import",
    button="fresing.import_step", text="Update to new revision…", guide="update-model", tour=("update",),
-   pccheck=("model.update", "model.update_safe"), since="0.2.0",
+   pccheck=("model.update", "model.update_safe"), since="0.2.0", changed="0.2.242",
    manual_estimate=("use", 1800, "import the new revision and set up joints, looks and the animation again"))
 fn(id="import.two_copies", short="STEP twice", title="The same STEP twice", family="import", panel="FRESING_PT_import",
    button="fresing.import_step", guide="import", tour=("copies",), pccheck=("model.two_copies",), since="0.2.44")
