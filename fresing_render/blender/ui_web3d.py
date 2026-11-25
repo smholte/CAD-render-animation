@@ -8,7 +8,7 @@ import bpy
 
 from ..core import web3d as core
 from . import animation, ui, vessel_motion, web3d, web3d_env, web3d_film
-from .ui import BIG, MEDIUM, _has_model, _Panel, big_row, gap, header_status, hint, split_props, wrap
+from .ui import BIG, MEDIUM, _has_model, _Panel, big, big_row, gap, header_status, hint, split_props, wrap
 
 
 class FRESING_PT_web3d(_Panel, bpy.types.Panel):
@@ -94,7 +94,7 @@ class FRESING_PT_web3d(_Panel, bpy.types.Panel):
         done = bool(w.last_text and os.path.exists(w.last_path))
         page = bool(done and w.last_html and os.path.exists(w.last_html))
         row = big_row(layout, BIG)
-        row.operator("fresing.web3d_export", text="Export…", icon="EXPORT", depress=bool(ui._POPOVER["units"]))
+        big(row, "fresing.web3d_export", "Export…", "EXPORT", BIG)   # through big(): tools/ui_test_panel.py spies on it
         sub = row.row(align=True)
         sub.enabled = page
         sub.operator("fresing.open_file", text="Open page", icon="URL").path = w.last_html if page else ""
