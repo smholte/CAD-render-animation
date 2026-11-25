@@ -448,3 +448,113 @@ def test_undo_keeps_the_step(tmp_path):
     bpy.ops.wm.open_mainfile(filepath=path)
     assert not ops_setup._KEPT
 
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# task 0331 (0328): the Client view says why; a window that did not open never leaves the main window split;
+# the product video's own window shows its settings open
+# ---------------------------------------------------------------------------------------------------------------
+
+def test_in_the_client_view_the_set_up_says_why_its_buttons_are_grey(tmp_path, monkeypatch):
+    """The lead's open point 0213: Back / Next / Find the axes greyed in the Client view with no reason."""
+    from fresing_render.blender import lock
+    new_scene(tmp_path)
+    assert ui_setup.LOCKED_TEXT not in " ".join(draw()["labels"]), "not outside the Client view"
+    monkeypatch.setattr(lock, "ON", [True])
+    monkeypatch.setattr(lock, "scene_locked", lambda context: True)
+    seen = draw()
+    assert ui_setup.LOCKED_TEXT in " ".join(seen["labels"]) and "Full access" in ui_setup.LOCKED_TEXT
+    assert ui_setup.LOCKED_TEXT.endswith(seen["labels"][-1]), "at the bottom: the rows above stay where they are"
+
+
+class _Area:
+    def __init__(self, name):
+        self.name = name
+
+
+class _Screen:
+    def __init__(self, areas):
+        self.areas = list(areas)
+
+
+class _Win:
+    def __init__(self, areas):
+        self.screen = _Screen(areas)
+
+
+class _FakeBpy:
+    """Just what ``ops_setup._tidy`` uses: the windows, an override, and Close area."""
+
+    def __init__(self, wins):
+        import contextlib
+        bpy_ = self
+        self.closed = []
+        self._area = None
+
+        class Ctx:
+            window_manager = type("WM", (), {"windows": wins})()
+
+            @staticmethod
+            @contextlib.contextmanager
+            def temp_override(window=None, screen=None, area=None):
+                bpy_._area, bpy_._screen = area, screen
+                yield
+
+        def area_close():
+            bpy_._screen.areas.remove(bpy_._area)
+            bpy_.closed.append(bpy_._area.name)
+        self.context = Ctx()
+        self.ops = type("Ops", (), {"screen": type("S", (), {"area_close": staticmethod(area_close)})()})()
+
+
+@pytest.mark.parametrize("left, want", [(["main", "n1", "n2"], ["n2", "n1"]),   # both splits left behind
+                                        (["main", "n1"], ["n1"]),                # one
+                                        (["main"], [])])                         # tidy already
+def test_a_dropped_window_job_closes_the_pieces_it_left(left, want, monkeypatch):
+    """0328 row 25: Ctrl+V, X: the window's job was dropped and the main window stayed split."""
+    areas = {n: _Area(n) for n in ("main", "n1", "n2")}
+    win = _Win([areas[n] for n in left])
+    fake = _FakeBpy([win])
+    monkeypatch.setattr(ops_setup, "bpy", fake)
+    job = {"gen": ops_setup._STATE["gen"], "win": win, "pieces": [areas["n1"], areas["n2"]], "areas": 1}
+    ops_setup._tidy(job)
+    assert fake.closed == want and [a.name for a in win.screen.areas] == ["main"]
+
+
+def test_a_job_of_another_project_or_a_closed_window_is_left_alone(monkeypatch):
+    a = [_Area("main"), _Area("n1")]
+    win = _Win(a)
+    fake = _FakeBpy([])                                           # the window is gone
+    monkeypatch.setattr(ops_setup, "bpy", fake)
+    ops_setup._tidy({"gen": ops_setup._STATE["gen"], "win": win, "pieces": [a[1]], "areas": 1})
+    fake = _FakeBpy([win])
+    monkeypatch.setattr(ops_setup, "bpy", fake)
+    ops_setup._tidy({"gen": ops_setup._STATE["gen"] - 1, "win": win, "pieces": [a[1]], "areas": 1})
+    assert fake.closed == [] and len(win.screen.areas) == 2
+
+
+def test_a_second_window_waits_while_one_is_being_made(monkeypatch):
+    monkeypatch.setitem(ops_setup._STATE, "busy", True)
+    calls = []
+    monkeypatch.setattr(ops_setup, "_split", lambda *a: calls.append(a))
+    ops_setup._open_window(None, None)
+    assert calls == [], "no split of the main window while another window is being made"
+
+
+def test_the_product_video_window_shows_its_settings_open(tmp_path):
+    """0328 row 34: Make > Product video opened with its settings fold closed – the window mostly empty."""
+    from fresing_render.blender import ui_motion
+    new_scene(tmp_path)
+
+    class NoFold(Fake):
+        def panel(self, idname, default_closed=False):
+            self.seen["errors"].append(f"a fold {idname}")
+            return Fake(self.seen), None
+
+    seen = NoFold()
+    ui_motion._draw_product_video(seen, bpy.context, window=True)
+    assert not seen.seen["errors"], seen.seen["errors"]
+    assert {"pv_seconds", "pv_sub", "pv_motions", "pv_captions"} <= set(seen.seen["props"])
+    side = NoFold()                                  # the side panel keeps its fold
+    ui_motion._draw_product_video(side, bpy.context)
+    assert any("fr_product_video" in e for e in side.seen["errors"])

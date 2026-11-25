@@ -234,6 +234,19 @@ wait_until("the set-up opens in a window of its own", lambda: bool(wins()) and p
 
 
 @step
+def s_stays():                              # 0328 row 1: it closed itself ~1.5 s after it opened
+    S["t_open"] = time.time()
+    return 4.0
+
+
+@step
+def s_stays2():
+    check("the set-up stays open (4 s after it opened: still there, on Welcome)", bool(wins()) and
+          values().step == "welcome", f"{time.time() - S['t_open']:.1f} s, windows {len(wins())}")
+    return 0.3
+
+
+@step
 def s_page_only():
     ok, other = mod("blender.ops_settings").shows_only_the_page(wins()[0])
     check("the set-up window shows only its page (no tabs, view, headers, left panel)", ok, other)

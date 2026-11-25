@@ -54,8 +54,8 @@ class FRESING_OT_backups_window(bpy.types.Operator):
         else:
             col.label(text="Backups of projects that were never saved", icon="FILE_BACKUP")
         state = (f"every {minutes} min while something changes; the last {keep_last} and one a day for {days} days "
-                 "are kept" if on else "automatic backups are switched off (Edit > Preferences > Add-ons > Fresing "
-                 "Render)")
+                 "are kept" if on else "automatic backups are switched off: Fresing Settings > Backups switches "
+                 "them on")
         col.label(text=state.capitalize() if not on else "Made " + state)
         if not found:
             col.separator()

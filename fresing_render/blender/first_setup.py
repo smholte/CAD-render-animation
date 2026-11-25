@@ -388,16 +388,21 @@ def open_window(context=None, at_start: bool = False) -> str:
     return ""
 
 
-def close_window() -> None:
+def close_window(only=None) -> None:
+    """Close the set-up window(s); ``only`` = the keys (``_window_key``) of the ones to close, else all."""
     from . import ops_make
-    for win in windows():
+
+    def chosen():
+        return [w for w in windows() if only is None or _window_key(w) in only]
+
+    for win in chosen():
         try:
             ops_make.remember(win)
         except Exception:  # noqa: BLE001
             pass
 
     def later():
-        for win in windows():
+        for win in chosen():
             try:
                 with bpy.context.temp_override(window=win, screen=win.screen, area=win.screen.areas[0]):
                     bpy.ops.wm.window_close()
@@ -835,18 +840,29 @@ CLASSES = (FRFirstSetup, FRESING_PT_first_setup, FRESING_OT_first_setup, FRESING
            FRESING_OT_first_setup_finish)
 
 
+def _window_key(win) -> tuple:
+    try:
+        return (win.as_pointer(), win.screen.name)
+    except (AttributeError, ReferenceError):
+        return (0, "")
+
+
 @persistent
 def _on_load(_dummy=None):
-    """A project opened: a set-up window it brought along (saved with it) closes."""
+    """A project opened: a set-up window it brought along (saved with it) closes – only that one (0328 row 1): the
+    windows that are there at this load are the opened file's own, so a set-up window made after it (the first
+    start's own, opened a moment after the start-up file was read) stays until Next / Skip / Close."""
     if bpy.app.background or not _S["at_load"]:
+        return
+    brought = {_window_key(w) for w in windows()}
+    if not brought:
         return
 
     def later():
         from . import editors
         if editors.busy() or ops_setup.busy():
             return 0.1
-        if windows():
-            close_window()
+        close_window(only=brought)
         return None
 
     bpy.app.timers.register(later, first_interval=0.6)

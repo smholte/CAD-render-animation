@@ -5,6 +5,24 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.246 – 25 Nov 2026 – The first-start set-up stays open; windows open in a good place (task 0331)
+
+- **Set up Fresing Render** on a new PC now stays open until you press **Next** to the end, **Skip set-up** or
+  **Close**. Before, it could close itself a second after it opened, and came back (and went again) at every start.
+- **App windows open beside the side panel** the first time (Windows): the set-up, Fresing Settings, Learn…, Restore a
+  backup…, a function's window, Make's output windows and the Set-up window open just left of the side panel, under
+  the top of the 3D view – no longer all in the top-left corner over the left panel and over each other. Each next
+  window opens a little left and lower. A window you moved opens where you left it, as before.
+- **The main window is never left split**: a window that could not open (a key pressed while it was being made) now
+  closes the pieces of the 3D view it had split off; a second window waits until the first is open.
+- **Make > Product video**: its window shows the settings open (length, take apart, motions, cards, captions).
+- **Set-up window in the Client view**: its last line says why the buttons are grey (Workspace > Full access unlocks
+  them).
+- Plain words: **Your PC** in the set-up says who draws the window ("drawn by the graphics card …", or by the
+  processor) instead of "draws: llvmpipe …; renders: CPU"; **Restore a backup…** with backups off points to
+  **Fresing Settings > Backups**.
+- PC check: a new line **app.window_place**.
+
 ## 0.2.245 – 25 Nov 2026 – Adjust a look (task 0314)
 
 - **Adjust** (Materials window, under **Use for <group>**, when the group has the picked material): a few plain

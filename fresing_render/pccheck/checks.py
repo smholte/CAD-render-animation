@@ -6134,6 +6134,42 @@ def app_first_setup(ctx):
     return f"{len(core.STEPS)} steps draw; skip read from a set-up file"
 
 
+@line("app.window_place", "App windows: the first one beside the side panel, the next ones offset; the set-up stays",
+      "0.2.246", what="Checks where the app's windows (the set-up, Settings, function and output windows, the Set-up "
+                      "window) open the first time – beside the side panel, each next one offset, over the view's "
+                      "middle when they do not fit –, that the set-up window is closed at a load only when the opened "
+                      "project brought it, that 'Your PC' says who draws the window in plain words, and that Product "
+                      "video's own window shows its settings open")
+def app_window_place(ctx):
+    import bpy
+
+    from ..blender import first_setup, ops_setup, ui_motion, ui_settings, ui_setup
+    from ..core import first_setup as core
+    from ..core import window_place as P
+    view, size = (100, 50, 1600, 900), (400, 500)
+    places = [P.first_place(view, size, 300, 220, n) for n in range(P.CYCLE)]
+    _check(places[0][0] + size[0] == 100 + 1600 - 300 - P.MARGIN and places[0][0] >= 100 + 220,
+           f"the first window does not stand beside the side panel: {places[0]}")
+    _check(len(set(places)) == P.CYCLE, f"two windows open on top of each other: {places}")
+    _check(P.first_place(view, (1200, 500), 300, 220)[0] == 300, "a wide window is not put over the view's middle")
+    _check(P.moved((0, 0, 400, 500), (10, 700, 400, 500), 60, 1100) == (50, 100, 450, 600),
+           "a place is turned into the wrong outer rectangle")
+    _check(hasattr(first_setup, "_window_key") and hasattr(ops_setup, "_tidy") and hasattr(ops_setup, "first_place"),
+           "the windows' fixes of 0.2.246 are missing")
+    words = core.window_words("draws: llvmpipe (LLVM); renders: CPU")
+    _check(words and "draws:" not in words and "llvmpipe" not in words, f"'Your PC' is not in plain words: {words!r}")
+    _check("Full access" in ui_setup.LOCKED_TEXT, "the Set-up window does not say why it is grey in the Client view")
+    folds = []
+
+    class Watch(ui_settings._Any):
+        def panel(self, idname, *a, **k):
+            folds.append(idname)
+            return self, self
+    ui_motion._draw_product_video(Watch(), bpy.context, window=True)
+    _check(not folds, f"Product video's own window draws its settings in a fold: {folds}")
+    return f"{P.CYCLE} first places apart; set-up kept; words plain"
+
+
 @line("app.tools", "One shortcut only: Fresing Render on the Desktop and in the Start menu, the extras in the Tools folder "
       "and in Fresing > Tools and checks", "0.2.167",
       what="Checks the menu Fresing > Tools and checks (Run the self-test, PC check, Open the app folder) and, in an "

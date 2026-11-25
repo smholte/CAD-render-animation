@@ -133,6 +133,23 @@ def test_a_slow_card():
     assert "slow" in C.pc_summary(probe)["slow"] and not C.pc_summary(probe)["live_preview"]
 
 
+@pytest.mark.parametrize("note, want", [
+    ("draws: llvmpipe (LLVM 15.0.7, 256 bits) (built-in graphics); renders: CPU", "without a graphics card"),
+    ("draws: NVIDIA GeForce RTX 3090 (graphics card); renders: OPTIX: RTX 3090", "by the graphics card NVIDIA GeForce RTX 3090"),
+    ("draws: not known yet (start the app once); renders: CPU", ""),
+    ("renders: CPU", ""),
+    ("The graphics card draws the window", "The graphics card draws the window"),
+    ("", "")])
+def test_your_pc_says_who_draws_the_window_in_plain_words(note, want):
+    """0328 row 32: "draws: llvmpipe …; renders: CPU" was shown as it is; the render device has its own line."""
+    got = C.window_words(note)
+    assert (want in got) if want else got == ""
+    assert "draws:" not in got and "renders:" not in got and "llvmpipe" not in got
+    probe = {"pc": {}, "results": [{"id": "pc.gpu", "status": "OK", "note": note}]}
+    texts = [t for _i, t in C.pc_summary(probe)["lines"]]
+    assert not any("draws:" in t or "renders:" in t for t in texts)
+
+
 @pytest.mark.parametrize("probe", [{}, {"error": "boom"}, {"results": []},
                                    {"results": [{"id": "app.start", "status": "FAILED", "reason": "models missing"}]}])
 def test_a_probe_that_did_not_run_says_why(probe):

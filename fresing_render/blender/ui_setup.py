@@ -426,6 +426,20 @@ def draw_setup(layout, context) -> None:
         op = ui.primary(row, "fresing.setup_go", "Done", "CHECKMARK", ui.MEDIUM)
         op.step = k
         op.done = True
+    if locked(context):                  # 0328 / 0213: Back / Next greyed in the Client view – now with the reason
+        ui.wrap(layout, context, LOCKED_TEXT, icon="LOCKED")
+
+
+LOCKED_TEXT = "Client view: set-ups are locked. Workspace > Full access unlocks them"
+
+
+def locked(context) -> bool:
+    """The Client view's lock is on for this project: the set-up's buttons are refused."""
+    try:
+        from . import lock
+        return bool(lock.ON[0] and lock.scene_locked(context))
+    except Exception:  # noqa: BLE001
+        return False
 
 
 class FRESING_PT_setup(bpy.types.Panel):

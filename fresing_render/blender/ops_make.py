@@ -621,7 +621,7 @@ def draw_output(self, context, key: str) -> None:
                 return
             panels.body_of(cls)(self, context)
         elif key == "product":
-            ui_motion._draw_product_video(self.layout, context)
+            ui_motion._draw_product_video(self.layout, context, window=True)
         else:
             ui_top.draw_anim(self.layout, context)
 

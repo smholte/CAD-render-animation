@@ -550,6 +550,13 @@ def s_reopened():
           and mod("blender.ui_setup").current(bpy.context.scene)[:2] == ("MECH", 1),
           f"{time.time() - S['t']:.2f} s")
     check("the main window's areas are as they were", areas() == S["areas"], str(areas()))
+    main = main_win()                         # 0328 row 12: its first place (moved there on Windows: winplace.py)
+    at = ops().first_place_of(win, main)
+    _w, area, _r, side = view(main)
+    right = main.x + area.x + area.width - side.width
+    check("its first place is beside the main view's side panel, under the view's top edge",
+          at is not None and main.x + area.x <= at[0] and at[0] + win.width <= right
+          and at[1] <= main.y + area.y + area.height, f"{at}, view right edge without the panel {right}")
     res = press("fresing.setup_close")
     check("Close the Set-up window closes it",
           res == {"FINISHED"} and len(bpy.context.window_manager.windows) == 1)
@@ -600,6 +607,33 @@ def s_scale_back():
     check("the main window's areas are as they were (UI scale 1.5)", areas() == S["areas15"], str(areas()))
     bpy.context.preferences.view.ui_scale = 1.0
     return 1.5
+
+
+@step
+def s_fails():                     # 0328 row 25: a window that does not open never leaves the main window split
+    S["areas_f"] = areas()
+    real = ops()._finish
+
+    def broken(job):
+        ops()._finish = real
+        raise RuntimeError("test: the copy failed")
+    ops()._finish = broken
+    S["t"] = time.time()
+    press("fresing.setup_window")
+    w, a, _r, _s = view()
+    ops()._open_window(w, a)              # a second open while the first is being made: refused
+    S["busy_now"] = ops()._STATE["busy"]
+    return 0.3
+
+
+@step
+def s_failed():
+    if ops()._STATE["busy"] and time.time() - S["t"] < 15:
+        return "wait"
+    check("a window that failed to open: no window, the main window's areas as they were, not busy",
+          setup_win() is None and len(bpy.context.window_manager.windows) == 1 and areas() == S["areas_f"]
+          and not ops()._STATE["busy"], f"{areas()} (was {S['areas_f']}), busy while opening {S['busy_now']}")
+    return 1.0
 
 
 @step

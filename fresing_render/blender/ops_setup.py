@@ -408,6 +408,74 @@ def _finish(job) -> None:
             done(new[0])
         except Exception as exc:  # noqa: BLE001
             print("Fresing Render: the window opened, not placed:", exc)
+    _first_place_later(new[0], win)          # 0328 row 12: the first time, beside the side panel – not top left
+
+
+def _first_place_later(new, main, tries: int = 8) -> None:
+    """``first_place`` from a timer: the new window, its handle and the main view's sizes (the pieces were just
+    closed, the left panel comes back a moment later) are only right after a redraw. Tried again while the window's
+    handle is not found yet; never once it was moved or has a kept place (independent review, task 0331)."""
+    if not winplace_available():
+        return
+    left = [tries]
+
+    def later():
+        left[0] -= 1
+        try:
+            wm = bpy.context.window_manager
+            if not any(w == new for w in wm.windows) or not any(w == main for w in wm.windows):
+                return None
+            again = first_place(new, main) is None
+        except Exception as exc:  # noqa: BLE001
+            print("Fresing Render: the window opened, not moved to its first place:", exc)
+            return None
+        return 0.25 if again and left[0] > 0 else None
+
+    bpy.app.timers.register(later, first_interval=0.6)
+
+
+def winplace_available() -> bool:
+    from .. import winplace
+    return winplace.available()
+
+
+def first_place_of(new, main) -> tuple | None:
+    """(x, top) in Blender's coordinates where ``new`` should stand the first time it opens (core/window_place.py):
+    beside the main window's side panel, the next one offset. None when there is no 3D view to go by."""
+    from ..core import window_place
+    views = [a for a in main.screen.areas if a.type == "VIEW_3D"]
+    if not views:
+        return None
+    area = max(views, key=lambda a: a.width * a.height)
+    regions = {r.type: r for r in area.regions}
+    sp = area.spaces.active
+    side = regions["UI"].width if "UI" in regions and sp.show_region_ui else 0
+    left = regions["TOOLS"].width if "TOOLS" in regions and sp.show_region_toolbar else 0
+    others = [w for w in bpy.context.window_manager.windows if w != new and w != main and tab_of(w)]
+    scale = bpy.context.preferences.system.ui_scale or 1.0
+    return window_place.first_place((main.x + area.x, main.y + area.y, area.width, area.height),
+                                    (new.width, new.height), side, left, len(others), scale)
+
+
+def first_place(new, main):
+    """Move a newly opened app window to its first place (Windows: winplace.py) – only when no place is kept for it
+    from an earlier time (that one is put back by ``ops_make._placed``). True = moved, False = not to be moved,
+    None = its handle or the view is not there yet (try again)."""
+    from .. import winplace
+    from ..core import window_place
+    from . import ops_make
+    if not winplace.available():
+        return False
+    key = ops_make.place_key(new)
+    if not key and is_setup_window(new):
+        key = f"setup:{new.as_pointer()}"     # (a key of its own: a closed Set-up window's handle is never taken)
+    if not key or ops_make.kept_place(key) is not None:
+        return False
+    at = first_place_of(new, main)
+    r = winplace.rect(new, key)
+    if at is None or r is None:
+        return None
+    return winplace.place(new, window_place.moved(r, (new.x, new.y, new.width, new.height), *at), key)
 
 
 def _close(job) -> None:
@@ -424,6 +492,9 @@ def _run(job):
     """One timer step of opening the window; returns the wait to the next step, or None when done."""
     try:
         if not _alive(job):
+            _tidy(job)                     # 0328 row 25: a dropped job left the main window split
+            if job.get("restore"):
+                bpy.app.timers.register(_left_back, first_interval=0.5)
             _STATE["busy"] = False
             return None
         from . import editors
@@ -450,10 +521,31 @@ def _run(job):
             _close(job)
         except Exception:  # noqa: BLE001
             pass
+        _tidy(job)
         if job.get("restore"):            # the left panel back on the main view, once it was drawn again
             bpy.app.timers.register(_left_back, first_interval=0.5)
     _STATE["busy"] = False
     return None
+
+
+def _tidy(job) -> None:
+    """Never leave the main window split (0328 row 25): while it has more areas than before the job began, close
+    the job's pieces that are still there, the last split first. Nothing when a project was opened meanwhile (its
+    windows are new ones) or the window is gone."""
+    try:
+        if job["gen"] != _STATE["gen"]:
+            return
+        win = job["win"]
+        if not any(w == win for w in bpy.context.window_manager.windows):
+            return
+        for piece in reversed(job["pieces"]):
+            if len(win.screen.areas) <= job.get("areas", 0):
+                break
+            if any(a == piece for a in win.screen.areas) and len(win.screen.areas) > 1:
+                with bpy.context.temp_override(window=win, screen=win.screen, area=piece):
+                    bpy.ops.screen.area_close()
+    except Exception as exc:  # noqa: BLE001
+        print("Fresing Render: the main window was not tidied after a window did not open:", exc)
 
 
 def _left_back():
@@ -508,13 +600,17 @@ def open_window(window, area, mark: str = MARK, value=1, done=None, size=None) -
 
 
 def _open_window(window, area, mark: str = MARK, value=1, done=None, size=None) -> None:
+    if _STATE["busy"]:                  # 0328 row 25: one window at a time – a second open while one is being made
+        print("Fresing Render: a window is being opened: the next one waits for a new press")
+        return
     scale = bpy.context.preferences.system.ui_scale or 1.0
     w, h = window_size(area, size, STRIP + STRIP_GAP if mark == OUTPUT_MARK and size is None else 0)
     _watch_loads()
     _STATE["busy"] = True
     job = {"win": window, "piece": area, "pieces": [], "pair": None, "close": [], "tries": 0,
            "todo": ["VERTICAL", "HORIZONTAL"], "w": w, "h": h, "keep": int(KEEP * scale),
-           "smallest": int(SMALLEST * scale), "gen": _STATE["gen"], "mark": mark, "value": value, "done": done}
+           "smallest": int(SMALLEST * scale), "gen": _STATE["gen"], "mark": mark, "value": value, "done": done,
+           "areas": len(window.screen.areas)}
     space = area.spaces.active if area.type == "VIEW_3D" else None
     if space is not None and space.show_region_toolbar:
         # task 0260: the toolbar region holds the app's left panel. A split copies it into the piece, and Blender

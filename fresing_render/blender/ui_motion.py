@@ -1041,12 +1041,13 @@ class FRESING_UL_blocks(bpy.types.UIList):
             sub.label(text=f"at {_secs(item.start)} s")
 
 
-def _draw_product_video(layout, context) -> None:
-    """The one-click product video (task 0101): the button and its options in a fold."""
+def _draw_product_video(layout, context, window: bool = False) -> None:
+    """The one-click product video (task 0101): the button and its options in a fold. ``window`` (Make > Product
+    video's own window, 0328 row 34): the options shown open, no fold – the window is there for them."""
     from . import product_video
     scene = context.scene
     s = scene.fresing
-    body = fold(layout, "fr_product_video", "Make a product video", "FILE_MOVIE")
+    body = layout.column() if window else fold(layout, "fr_product_video", "Make a product video", "FILE_MOVIE")
     if body:
         col = split_props(body)
         col.prop(s, "pv_seconds", text="Length")

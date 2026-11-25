@@ -98,6 +98,27 @@ def _num(v, default=0.0) -> float:
         return default
 
 
+SOFTWARE_DRAWING = ("llvmpipe", "softpipe", "swrast", "microsoft basic render", "software")
+
+
+def window_words(note: str) -> str:
+    """The PC check's "Graphics card used" note ("draws: llvmpipe (…); renders: CPU") in plain words for the set-up's
+    "Your PC" (0328 row 32): who draws the window. The render device has a line of its own ("Renders on: …"), so it
+    is left out; '' when nothing is known."""
+    parts = [p.strip() for p in (note or "").split(";") if p.strip()]
+    if not parts:
+        return ""
+    drawn = next((p[len("draws:"):].strip() for p in parts if p.lower().startswith("draws:")), None)
+    if drawn is None:                                   # some other note: a sentence already
+        return "" if all(p.lower().startswith("renders:") for p in parts) else "; ".join(parts)
+    name = drawn.split(" (")[0].strip()
+    if not name or name.lower().startswith("not known"):
+        return ""
+    if any(w in name.lower() for w in SOFTWARE_DRAWING):
+        return "The window is drawn without a graphics card (by the processor): the 3D view may be slow"
+    return f"The window is drawn by the graphics card {name}"
+
+
 def pc_summary(probe: dict) -> dict:
     """What the set-up says about this PC from the probe's results (``first_setup_probe.py``'s file):
     {"lines": [(icon, text)], "gpu": bool, "live_preview": bool, "quality": str, "slow": str}."""
@@ -111,8 +132,8 @@ def pc_summary(probe: dict) -> dict:
         lines.append(("INFO", "No graphics card Cycles can render on: pictures are rendered on the processor"))
     if used.get("status") == "FAILED" and used.get("reason"):
         lines.append(("ERROR", used["reason"]))
-    elif used.get("status") == "OK" and used.get("note"):
-        lines.append(("CHECKMARK", used["note"]))
+    elif used.get("status") == "OK" and window_words(used.get("note") or ""):
+        lines.append(("CHECKMARK", window_words(used["note"])))
     lines.append(("RENDER_STILL", "Renders on: " + ("the graphics card" if gpu else "the processor")))
     hd = None
     if render.get("status") == "OK":

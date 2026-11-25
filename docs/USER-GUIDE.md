@@ -310,7 +310,11 @@ Each icon opens that output's **own window** with its settings and its Make butt
 5 Scene & Render, 6 Animation and 7 Render queue: a change in one shows in the other. Drag the window anywhere, also
 onto a second screen; it stays open while you work in the main window or another output window, until you close it
 (**×** at its top). Pressing the same output again does not open a second one: on Windows it comes to the front, and
-it opens where it was last time. A window left open is saved with the project. The same list is in the header of the
+it opens where it was last time. The first time, a window opens just left of the side panel, under the top of the 3D
+view (over the middle of the view when it does not fit there); each further window opens a little left and lower, so
+none hides another. This goes for every window of the app: the set-up, Fresing Settings, Learn…, Restore a backup…, a
+function's window and the Set-up window. **Product video**'s window shows its settings (length, take apart, motions,
+cards, captions) open, above its Make button. A window left open is saved with the project. The same list is in the header of the
 3D view (**Make**, top of the view): the main button there makes the output at once, the gear beside it opens its
 window.
 
@@ -361,7 +365,9 @@ while you click parts in the main window.
    green tick marks a step that is done.
 
 The step you are on is saved with the project: the window opens where you left off, and a project saved
-with the window open brings it back. Close the window like any other window.
+with the window open brings it back. Close the window like any other window. In the **Client view** the project is
+locked against changes, so the window's buttons are grey: its last line says so (**Workspace > Full access** unlocks
+them).
 
 <a id="start-here"></a>
 ## Start here – the Fresing menu
@@ -729,7 +735,8 @@ in **Fresing > Settings…**.
 3. **Your PC** – a second Blender in the background looks at your PC (the first lines of the PC check: the graphics
    card, which card draws and renders, the test crane imported and one picture rendered on the card – about 20
    seconds to a minute). Then in plain words: graphics card found or not, what renders on, how long the picture
-   took, the processor and memory, a suggestion for **Live preview** (set for you) and the render quality, and a red
+   took, who draws the window (the graphics card, or the processor when there is none – the 3D view is then slower),
+   the processor and memory, a suggestion for **Live preview** (set for you) and the render quality, and a red
    line when big models will be slow on this PC. You can go on while it looks.
 
    <img class="panel" src="img/first_setup_pc.png" alt="Step 3 Your PC: no graphics card found on the test machine, renders on the processor, the suggestion and a red line that big models will be slow">
@@ -752,7 +759,8 @@ in **Fresing > Settings…**.
 
    <img class="panel" src="img/first_setup_done.png" alt="Step 6 Done: Import your first STEP, Open the Learning hub, Make the demo project, Save my set-up as a file, Close">
 
-**Fresing > Set up again…** runs it again any time. Closed with the window's own X or by opening a project, it opens
+The window stays open until you press **Next** to the end, **Skip set-up** or **Close** (or its own ×). **Fresing >
+Set up again…** runs it again any time. Closed with the window's own X or by opening a project, it opens
 again at the next start where you left it (at most three starts). **Skip set-up** closes it for good. It never shows
 after an update (you are set up already: What's new shows instead), in the Client view, or on a PC whose company
 set-up file says to skip it (see `docs/COMPANY-USE.md`).
