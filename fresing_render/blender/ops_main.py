@@ -536,6 +536,8 @@ def _template_from_scene(scene) -> Template:
     t.decals = decals.to_template(scene)
     if s.ws_name:                                # task 0062: which functions the side panel shows
         t.workspace = {"name": s.ws_name, "data": s.ws_data, "ticks": s.ws_ticks}
+    t.materials = [{"key": pm.name, "title": pm.title, "data": pm.data}       # task 0273: the short list
+                   for pm in s.project_materials if pm.listed]
     return t
 
 
@@ -602,6 +604,9 @@ def apply_template(scene, t: Template) -> None:
         placed, notes = decals.from_template(scene, t.decals)
         if notes:
             s.last_message = notes[0] + (f" (and {len(notes) - 1} more)" if len(notes) > 1 else "")
+    if t.materials:                              # task 0273: the template's short list (own materials with their file)
+        from . import material_picker
+        material_picker.from_template(scene, t.materials)
     if t.workspace and t.workspace.get("name"):  # task 0062: the template's workspace and ticks – and whatever
         from ..core import workspaces as W       # this project uses stays shown
         from . import workspaces

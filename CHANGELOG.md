@@ -5,6 +5,40 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.241 – 25 Nov 2026 – The material picker: pictures, this project's materials, your own and your company's materials (task 0273)
+
+- **More materials…** (3 Looks, in the box of the picked group) opens the new **Materials** window: a picture of every
+  material on the same small block with a knurled knob and a round cap. On the left **Find** and the filters
+  **Source** (Built-in, This project, your company's and department's folders, Mine), **Material** (Paint, Steel,
+  Stainless, Aluminium, Plastic, Rubber, Glass & clear …), **Colour** and **Look** (gloss, satin, matte, brushed,
+  machined, textured, knurled / patterned, see-through …). Click a name to see the material large with one line on
+  what it is; click it again (or **Use for <group>**) and the group gets it. The window stays open, can be dragged
+  anywhere and follows the group you pick in 3 Looks. A paint is pictured with a small square of your group's colour.
+- **This project's materials**: the star next to a material puts it in a row of small pictures in 3 Looks, right above
+  Material – one click gives the picked group that material. Saved with the project and in a template (a company
+  template can carry its standard list).
+- **Save as my material…** keeps what a group shows now (material, colour, wear, rust, a finish's settings) as a
+  material of your own, with a picture made in the background. **From a Blender material…** keeps a material you built
+  in Blender's shader editor. Each is one folder in your Materials folder (Fresing Settings > Locations): copy the
+  folder to share it. Your company's and department's materials come from their Materials folders, each with its badge.
+- A project keeps a copy of every own material it uses: it renders on a PC that does not have the folder.
+- **Ready-made material…** is gone: its materials are in the Materials window (paint RAL 7035, black matte plastic …).
+- **Fresing Settings > Materials**: where your materials are saved, how many each folder has, folders with a problem.
+## 0.2.240 – 25 Nov 2026 – Copies take their welds, weld symbols and a weld list (task 0320)
+
+- **Copy and paste takes the welds along**: copy a welded model, subassembly or some parts (right-click > Copy,
+  Paste / Paste here, Ctrl+C / Ctrl+V) and every weld whose two parts are both in the copy comes with it – same seams,
+  size, metal and finish, named "… (2)". A weld with one part outside the copy is left out and named in the line after
+  the paste. Ctrl+Z takes the copied welds away with the copy.
+- **Weld symbols** (3 Looks > Welds, **off** until you tick it, kept with the project): an ISO 2553 symbol beside each
+  weld – arrow, reference line, the fillet triangle or butt symbol, a5, the length or "n × l (e)" for an intermittent
+  weld, the all-round circle, both sides, the process number (135 MAG, 131 MIG, 141 TIG, 111 stick) and the weld's
+  number. Same size on the screen at any zoom. Not in renders unless you tick **Show in renders** (then each symbol is
+  a label pointing at its seam).
+- **Weld list…**: a window with one row per weld (number, parts, type, size, length, process, finish, symbol) and
+  **Export CSV…** for Excel.
+- **Fixed**: updating one model to a new STEP revision marked the welds of every *other* model (and of copies) as
+  "lost". Now only the updated model's welds are looked at.
 ## 0.2.239 – 24 Nov 2026 – Real-looking models for "Painted faces" and "Logos and stickers" (task 0235)
 
 - **Painted faces** now shows a gearbox housing (rounded corners, a base flange, an oil-filler boss) with its red top

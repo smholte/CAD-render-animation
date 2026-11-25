@@ -1235,7 +1235,7 @@ and the web 3D model.
   once, like a repeated bolt. A mesh with several materials becomes one part per material.
 - **The look "From file"**: every part shows the colour, shine and pictures (textures) its file gave it.
   The pictures are packed into the project, so it stays one file. The material groups are named after the
-  file's materials; pick another **Ready-made material…** for a group and it replaces the file's look as usual
+  file's materials; pick another material for a group (More materials…) and it replaces the file's look as usual
   (pick **From file (the model's own look)** under *Other* to have it back). A part that lands in a group an
   earlier model already made (a pin among your own machine's pins) takes that group's look; pick **From file** for
   that group if its parts should keep their file's looks (parts without one show the group's colour).
@@ -1393,11 +1393,11 @@ and mechanisms**:
 
 **What comes along:** its parts (they **share their shapes** with the original, so the project hardly grows), their
 looks and groups, its **joints** (limits, the pose it is in, couplings between them), **cylinders**, **mechanisms**,
-**way covers**, **hoses and drag chains** whose both ends are in the copy, **labels** on its parts and **logos and
-stickers**. Names count up: the copy of "TEST.CRANE" is "TEST.CRANE (2)", its joint "Boom (2)", the next one "(3)".
+**way covers**, **hoses and drag chains** whose both ends are in the copy, **labels** on its parts, **logos and
+stickers** and **welds** whose two parts are both in the copy ([Welds](#weld-copies)). Names count up: the copy of "TEST.CRANE" is "TEST.CRANE (2)", its joint "Boom (2)", the next one "(3)".
 
 **What reaches outside the copy is left out – the copy moves by itself:** a joint that also moves parts outside the
-copy, a cylinder, mechanism, hose or way cover with a piece outside, and a coupling to a joint outside the copy (the
+copy, a cylinder, mechanism, hose, way cover or weld with a piece outside, and a coupling to a joint outside the copy (the
 copied joint then moves on its own). A joint that sat on something outside sits on the copy. **Cables, drums,
 tracks**, trail lines, animation steps and cameras stay with the original: add them on the copy where you need them.
 
@@ -1469,10 +1469,13 @@ keeps it, and the rest of the part gets the part's material (see [Paint faces](#
 
 1. Click the group in the list (the number is how many parts it has; a brush with a number: a group
    used only by painted faces).
-2. **Ready-made material…**: pick a machine material (aluminium profile, anodised, stainless, ground
-   or turned steel, chrome, hydraulic chrome rod, cast iron, galvanised, rubber, POM, RAL paint…). Or choose a **Material** yourself and, for paints and
-   plastics, a **Colour**: a RAL code (RAL 5010) or a hex code (#13447C). The magnifier picks from the
-   RAL list.
+2. **More materials…** (in the group's box, above Material) opens the **Materials** window: a picture of every
+   material – aluminium profile, anodised, stainless, ground or turned steel, chrome, hydraulic chrome rod, cast
+   iron, galvanised, rubber, POM, RAL paints, knurls, carbon fibre … – and your own (see
+   [The material picker](#material-picker)). Click a name twice to give the group that material. The materials you
+   use often in this project sit right above Material as small pictures (**This project's materials**): one click.
+   Or choose a **Material** in the drop-down yourself and, for paints and plastics, a **Colour**: a RAL code
+   (RAL 5010) or a hex code (#13447C). The magnifier picks from the RAL list.
 3. The view shows the new colour at once (the real material in **Live preview**, top left).
 4. **Wear** (slider under the material, 0 = new): how used the parts look. Sharp edges turn lighter or
    bare metal in places and corners get a little dirt. 0 is right for marketing pictures; 0.2–0.4 looks
@@ -1528,6 +1531,64 @@ material and colour.
 - **Sort parts into groups** sorts everything again with the rules. Parts you put in a group yourself
   stay there.
 
+<a id="material-picker"></a>
+### The material picker: pictures, this project's materials, your own materials
+
+<img src="img/material_picker.png" alt="The Materials window: filters on the left, a picture of every material, the picked one large on the right">
+
+**More materials…** (3 Looks, in the box of the picked group) opens the **Materials** window. It is a window of its
+own: drag it anywhere (also onto a second screen); it stays open while you work and comes back where it was. It
+always works on the group picked in 3 Looks (its name is in the window's title): pick another group in 3 Looks and
+the window follows, so you can walk through the groups with the window open.
+
+- **The pictures**: every material on the same small block with a knurled knob and a round cap – metals, paints,
+  plastics, glass, finishes. A paint or coloured plastic is pictured in a typical colour; a small square in its
+  corner shows the colour your group has now (that is the colour it gets).
+- **Filters** on the left: **Find** (words in the name, description or tags: "blue gloss", "knurl"), **Source**
+  (Built-in, This project, your company's and department's folders, Mine), **Material** (Paint, Steel, Stainless,
+  Aluminium, Other metals, Fastener finish, Plastic, Rubber, Glass & clear, Light, Fabric, Other), **Colour** ("Any
+  colour (the group's)" = paints that take your colour, or white, grey, black, red … metal-coloured) and **Look**
+  (gloss, satin, matte, brushed, machined / turned, polished, textured, knurled / patterned, see-through, glowing,
+  weathered). **Show all** clears them. **Size** makes the pictures larger or smaller.
+- **Click a name**: the material shows large on the right with where it comes from, its tags and one line on what
+  it is. **Click it again** (or **Use for <group>**) and the group gets it – every part and painted face of the
+  group changes at once. A paint keeps the group's colour; change it right there (**Colour**), and **Wear**.
+- **The star** next to a name (or **Add to this project**) puts the material on **This project's materials**: the
+  row of small pictures in 3 Looks above Material. A click there gives the picked group that material; the **×**
+  takes it off the list (groups that use it keep it). Materials the groups use show there too, with a link mark.
+  The list is saved with the project and in a **template** (3 Looks > Templates): a company template can carry its
+  standard list.
+- The ready-made materials of before (paint RAL 7035, black matte plastic, tinted grey glass …) are built-in
+  entries of the window, each with its colour.
+
+<a id="own-materials"></a>
+**Your own materials – and your department's and company's**
+
+- **Save as my material…** keeps what the picked group shows now – its material, colour, wear, rust and a
+  finish's settings – as a material of your own: give it a name and a line of description. It goes into your
+  Materials folder (Fresing Settings > Locations > Materials; when you may write to more than one, you choose). The
+  group then uses it, and every project lists it under **Mine**. Its picture is made in the background (a few
+  seconds; the app does not wait); **Make the picture again** makes it once more.
+- **From a Blender material…** is for users who build materials in Blender's own shader editor (Fresing > Show all
+  of Blender): pick a material of the project, give it a name. It is kept as a Blender file in its own folder.
+  When a group uses it, it is **copied into the project** (not linked), so the project still renders on a PC
+  without that folder. Its colour and wear come from the material itself (the group shows "its own look, made in
+  Blender"). If it uses picture files that are not packed into the project, the window says so: on another PC
+  they are missing – File > External Data > Pack Resources packs them first.
+- **One folder per material**: `material.json` (name, tags, description, author, the built-in it starts from and
+  what it changes), `picture.png`, and for a Blender material `material.blend`. Copy the folder to give the material
+  to a colleague; **Show in folder** opens it.
+- **Your company's and your department's materials** come from the Materials folders of their set-up (Fresing
+  Settings > Locations): each is marked with its badge, and the same name in two places shows twice. A folder on a
+  server that does not answer is never waited for; **Look in the folders again** reads them once more. A broken
+  material folder (a file that cannot be read, made by a newer version) is listed greyed with what is wrong, never
+  used.
+- **A project keeps a copy** of every own material its groups use (and of the ones on its list): it renders on a PC
+  without the folder, and the window then lists it under **This project**. Paint schemes, the render queue's paint
+  schemes, model updates, rule sets and the Web 3D model see an ordinary group.
+- **Fresing Settings > Materials** says where Save as my material saves, how many materials each folder has, and
+  which folders have a problem.
+
 <a id="finishes"></a>
 ### Finishes: knurls, spun ends, plate patterns, blasted metal, textures
 
@@ -1535,7 +1596,7 @@ material and colour.
 
 **Finishes** are ready-made materials with a pattern of their own: a knurled knob, the rings of a spun
 cap, a tread plate, a perforated sheet, a moulded plastic texture. Pick one as a group's **Material**
-(they are in the lists with the other metals, plastics and paints, or under **Ready-made material…**).
+(they are in the lists with the other metals, plastics and paints, and in the Materials window).
 Nothing else to set up: the pattern finds its own direction and size on every part, without UV maps,
 and looks the same on every copy of a part and after a model update.
 
@@ -1589,8 +1650,8 @@ Good to know:
 
 <img src="img/carbon.jpg" alt="Carbon fibre on a cup, a tube with a cone, a folded U-panel and a free-form hood">
 
-**Carbon fibre (twill / plain weave)** is a material like the others (in **Other**, or **Ready-made
-material…** > Carbon fibre). The weave lies on **every CAD face of its own**: round the round faces (a whole
+**Carbon fibre (twill / plain weave)** is a material like the others (in **Other**, or in the Materials window:
+search "carbon"). The weave lies on **every CAD face of its own**: round the round faces (a whole
 number of tows round a tube, so they meet without a seam), draped over a dome from its middle, flat on flat
 faces – and it runs on across a fold or a bend into the next face, as a draped ply would. It never switches
 direction in the middle of a curved face (the 45° seam other programs show). Where two faces cannot continue
@@ -1821,6 +1882,43 @@ Good to know:
 - The [web 3D model](#web3d) has the beads in their colour (and paint); the ripples and the heat tint are only in
   renders.
 - In the Client view welds show but cannot be changed.
+
+<a id="weld-copies"></a>
+#### Copies take their welds along
+
+Copy a welded subassembly, some welded parts or a whole model (right-click > **Copy**, then **Paste** or **Paste
+here**; <kbd>Ctrl</kbd>+<kbd>C</kbd> / <kbd>Ctrl</kbd>+<kbd>V</kbd> – see [Copy and paste](#copy-paste)): every weld
+whose **two parts are both in the copy** comes along, with its seams, ticks and settings; its name gets the copy's
+number ("BASE PLATE – FIN (2)"). A weld with **one part outside** the copy is left out – the line in the Move / turn
+window after the paste names it. <kbd>Ctrl</kbd>+<kbd>Z</kbd> takes the copied welds away with the copy. A copy of a
+whole model follows a model update of the original: its welds find their faces again, as the original's do.
+
+<a id="weld-symbols"></a>
+#### Weld symbols
+
+Tick **Weld symbols** (under **Weld two parts**; off by default, kept with the project): every weld that is shown
+gets an ISO 2553 symbol (system A, as on a European drawing) beside its longest seam – an arrow to the seam, the
+reference line with the dashed line, and on it:
+
+- the **symbol**: the triangle of a fillet weld, ‖ for a square butt (plates up to 4 mm), V for a single-V butt;
+- left of it the **size** (a5 = throat 5 mm), right of it the **length** in mm, or **n × l (e)** for an intermittent
+  weld (n pieces of l mm, e mm between them);
+- a symbol on **both sides** of the line (and no dashed line) when the weld is on both sides – a fin welded left and
+  right, a double-V butt; a **circle** at the bend when it goes **all round**; a bar over the symbol when it is
+  **ground flush**;
+- the **tail** (<) with the process number of ISO 4063 – 135 MAG, 131 MIG, 141 TIG, 111 stick – and the weld's
+  **number** (its place in the list).
+
+The symbols keep their size on the screen however far you zoom. They are **not in renders** unless you tick **Show
+in renders** – then each symbol is a label pointing at its seam, in the label style of the brand kit. A symbol
+describes the weld's longest ticked seam; the weld list has all of them.
+
+<a id="weld-list"></a>
+#### Weld list
+
+**Weld list…** opens a window with one row per weld: its number (the one on the symbol), the two parts, the type
+(fillet, butt, both sides, all round, intermittent), the size, the length of all its ticked seams, the process, the
+finish and the symbol. **Export CSV…** writes it as a file that opens in Excel (the metal is in it too).
 
 <a id="xray"></a>
 ### X-ray look

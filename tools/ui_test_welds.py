@@ -1,6 +1,7 @@
 """Real-app test, welds (task 0319): 3 Looks > Welds. 'Add weld…' and real clicks on the model – the base plate's top
 (1 of 2), Enter, the fin's side (2 of 2), the seam shown, Enter makes the weld; a click on the side panel while picking
-picks nothing; Esc cancels a second pick; the right-click entry starts the picker with the clicked face; undo / redo.
+picks nothing; Esc cancels a second pick; the right-click entry starts the picker with the clicked face; undo / redo. Task 0320: the weld symbols (off at the start, drawn when
+switched on), Copy / Paste of the model takes the weld along, Ctrl+Z takes it away.
 
 Install the extension and the app template first (see ui_test_app.py), then run:
     xvfb-run -a -s "-screen 0 1800x1400x24" blender --app-template fresing_render --enable-event-simulate \\
@@ -106,6 +107,7 @@ def weld_objects():
 
 
 STEPS = []
+S = {}
 
 
 def step(fn):
@@ -293,6 +295,57 @@ def s_redone():
         it.size = 0.007                                               # a change after redo rebuilds the bead
     check("a change after redo rebuilds it", it is not None and not it.lost and len(weld_objects()) == 2)
     shot("05_redo")
+    return 0.5
+
+
+@step
+def s_symbols():
+    """Task 0320: the weld symbols' switch (off by default) draws them in the view without an error."""
+    s = bpy.context.scene.fresing_welds
+    check("the weld symbols start off", not s.symbols and not s.symbols_render)
+    mod("blender.weld_symbols").LAST_ERROR[0] = ""
+    s.symbols = True
+    return 1.0
+
+
+@step
+def s_symbols_drawn():
+    win, area, region, sb = ui()
+    with override():
+        bpy.ops.wm.redraw_timer(type="DRAW_WIN", iterations=1)
+    ws = mod("blender.weld_symbols")
+    check("the symbols draw in the view (no error)", ws._HANDLE[0] is not None and ws.DRAWN[0] >= 1
+          and not ws.LAST_ERROR[0], (ws.DRAWN[0], ws.LAST_ERROR[0]))
+    shot("06_symbols")
+    return 0.5
+
+
+@step
+def s_copy():
+    """Task 0320: Copy / Paste of the whole model takes the weld along; Ctrl+Z takes it away again."""
+    root = next(o for o in bpy.context.scene.objects if o.get("fr_root"))
+    S["welds_before"] = len(items())
+    with override():
+        for o in bpy.context.scene.objects:
+            o.select_set(False)
+        root.select_set(True)
+        bpy.context.view_layer.objects.active = root
+        bpy.ops.fresing.copy()
+        res = bpy.ops.fresing.paste("EXEC_DEFAULT", True, open_place=False)
+    copied = [it for it in items() if it.name.endswith("(2)")]
+    check("Paste copies the model with its weld", res == {"FINISHED"} and len(items()) == 2 * S["welds_before"]
+          and len(copied) == S["welds_before"] and all(it.part_a.name != items()[0].part_a.name for it in copied),
+          (res, len(items())))
+    shot("07_copy")
+    with override():
+        bpy.ops.ed.undo()
+    return 1.0
+
+
+@step
+def s_copy_undone():
+    check("Undo takes the copied weld away", len(items()) == S["welds_before"]
+          and len(weld_objects()) == 2 * S["welds_before"], (len(items()), len(weld_objects())))
     return 0.5
 
 

@@ -321,14 +321,14 @@ fn(id="structure.visibility", title="Visibility sets", family="import", panel="F
    workspaces=("cnc", "offshore", "product", "education", "lifting"))
 
 # ----- 3 Looks -----
-fn(id="looks.materials", short="Materials", title="Material groups and ready-made materials", family="looks", panel="FRESING_PT_looks",
-   button="fresing.group_preset", guide="looks", tour=("materials",), pccheck=("looks.materials",), lesson="mill:6", since="0.2.8",
-   changed="0.2.237", manual_estimate=("part", 5, "pick the part and give it its material"))
+fn(id="looks.materials", short="Materials", title="Material groups and their materials", family="looks", panel="FRESING_PT_looks",
+   button="fresing.materials", guide="looks", tour=("materials",), pccheck=("looks.materials",), lesson="mill:6", since="0.2.8",
+   changed="0.2.241", manual_estimate=("part", 5, "pick the part and give it its material"))
 fn(id="looks.marine", title="Marine looks: growth, streaks, concrete", family="looks", panel="FRESING_PT_looks",
-   button="fresing.group_preset", guide="looks", tour=("marine",), pccheck=("looks.marine",), since="0.2.94",
+   button="fresing.materials", guide="looks", tour=("marine",), pccheck=("looks.marine",), since="0.2.94",
    changed="0.2.237")
 fn(id="looks.finishes", title="Finishes: knurls, spun, plates, blasted, grains, perlage", family="looks",
-   panel="FRESING_PT_looks", button="fresing.group_preset", guide="finishes", tour=("finishes",),
+   panel="FRESING_PT_looks", button="fresing.materials", guide="finishes", tour=("finishes",),
    pccheck=("looks.finishes",), since="0.2.229", changed="0.2.237")
 # task 0318: carbon fibre that follows every CAD face, the group's Rust slider, better existing looks
 fn(id="looks.carbon", title="Carbon fibre that follows curved parts and folds (no seam)", family="looks",
@@ -337,6 +337,14 @@ fn(id="looks.carbon", title="Carbon fibre that follows curved parts and folds (n
 fn(id="looks.rust", title="Rust: a slider per group, only where steel rusts", family="looks",
    panel="FRESING_PT_looks", prop="rust", guide="rust", tour=("finishes",), pccheck=("looks.rust",),
    since="0.2.237")
+# task 0273: the material picker (a window of pictures), this project's materials, own / department / company materials
+fn(id="looks.picker", short="Material picker",
+   title="Material picker: pictures, filters, this project's list, your own and your company's materials",
+   family="looks", panel="FRESING_PT_looks", button="fresing.materials", guide="material-picker",
+   tour=("material_picker",), pccheck=("looks.picker",), since="0.2.241")
+fn(id="looks.own_materials", title="Your own materials: Save as my material, From a Blender material", family="looks",
+   panel="FRESING_PT_looks", button="fresing.mat_save", guide="own-materials", pccheck=("looks.picker",),
+   since="0.2.241")
 fn(id="looks.rule_sets", title="Rule sets", family="looks", panel="FRESING_PT_looks",
    button="fresing.rule_set_switch", guide="rule-sets", pccheck=("rules.switch",), since="0.2.13")
 fn(id="looks.faces", title="Paint faces", family="looks", panel="FRESING_PT_faces", button="fresing.paint_faces",
@@ -345,6 +353,14 @@ fn(id="looks.decals", title="Logos & stickers", family="looks", panel="FRESING_P
    button="fresing.decal_add", guide="decals", tour=("decals",), pccheck=("decals.add",), since="0.2.21")
 fn(id="looks.welds", title="Welds", family="looks", panel="FRESING_PT_welds", button="fresing.weld_add",
    guide="welds", tour=("welds",), pccheck=("looks.welds",), since="0.2.231", changed="0.2.237")
+fn(id="looks.weld_copy", short="Weld copies", title="Copies take their welds along", family="import", panel="FRESING_PT_place",
+   button="fresing.paste", guide="weld-copies", pccheck=("looks.weld_symbols",), since="0.2.240",
+   workspaces=("cnc", "offshore", "product", "education", "lifting"))
+fn(id="looks.weld_symbols", short="Weld symbols", title="Weld symbols (ISO 2553): one switch, off by default", family="looks",
+   panel="FRESING_PT_welds", prop="symbols", guide="weld-symbols", tour=("welds",), pccheck=("looks.weld_symbols",),
+   since="0.2.240")
+fn(id="looks.weld_list", short="Weld list", title="Weld list and CSV", family="looks", panel="FRESING_PT_welds", button="fresing.weld_list",
+   guide="weld-list", tour=("welds",), pccheck=("looks.weld_symbols",), since="0.2.240")
 fn(id="looks.xray", title="X-ray look", family="looks", panel="FRESING_PT_xray", button="fresing.xray_selected",
    guide="xray", tour=("fade",), pccheck=("motion.fade",), since="0.2.59")
 fn(id="looks.cutaway", title="Slice", family="looks", panel="FRESING_PT_cutaway", button="fresing.cut_add",

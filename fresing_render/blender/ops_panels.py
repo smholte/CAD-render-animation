@@ -343,30 +343,6 @@ class FRESING_OT_show_only_group(bpy.types.Operator):
         return {"FINISHED"}
 
 
-class FRESING_OT_group_preset(bpy.types.Operator):
-    """Give the selected group a ready-made machine material"""
-
-    bl_idname = "fresing.group_preset"
-    bl_label = "Ready-made material"
-    bl_options = {"REGISTER", "UNDO"}
-    bl_property = "preset"
-
-    preset: EnumProperty(name="Material", items=[(p[0], p[1], "") for p in finder.PRESETS])
-
-    def execute(self, context):
-        s = context.scene.fresing
-        if not (0 <= s.groups_index < len(s.groups)):
-            return {"CANCELLED"}
-        _pid, label, mat, color = next(p for p in finder.PRESETS if p[0] == self.preset)
-        g = s.groups[s.groups_index]
-        g.material = mat
-        if color:
-            g.color = color
-        logic.refresh_group_materials(context.scene)
-        self.report({"INFO"}, f"{g.name}: {label}")
-        return {"FINISHED"}
-
-
 class FRESING_OT_part_move_group(bpy.types.Operator):
     """Put the selected parts in another material group"""
 
@@ -613,5 +589,5 @@ CLASSES = (
     FRESING_OT_tree_toggle, FRESING_OT_tree_open_all, FRESING_OT_tree_row, FRESING_OT_show_only_selected,
     FRESING_OT_show_only_end, FRESING_OT_find_tick, FRESING_OT_find_word, FRESING_OT_find_select,
     FRESING_OT_find_assign, FRESING_OT_find_new_group, FRESING_OT_find_rule, FRESING_OT_rule_from_subassembly,
-    FRESING_OT_show_only_group, FRESING_OT_group_preset, FRESING_OT_part_move_group,
+    FRESING_OT_show_only_group, FRESING_OT_part_move_group,
 )

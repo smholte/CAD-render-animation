@@ -53,9 +53,9 @@ def usage():
 
 def test_the_tabs_in_order_with_room_for_locations_exports_and_materials():
     from fresing_render.blender import ui_settings
-    assert [t[1] for t in ui_settings.TABS] == ["General", "Locations", "Exports", "Side panel", "Lessons", "Backups",
-                                               "Updates", "My usage", "About"]      # task 0272: Locations, Exports
-    assert ui_settings.LATER == ("materials",)                                  # task 0273 adds this page
+    assert [t[1] for t in ui_settings.TABS] == ["General", "Locations", "Exports", "Materials", "Side panel", "Lessons", "Backups",
+                                               "Updates", "My usage", "About"]      # 0272: Locations, Exports; 0273: Materials
+    assert ui_settings.LATER == () and "materials" in ui_settings.KEYS          # task 0273 added this page
     assert not set(ui_settings.LATER) & set(ui_settings.KEYS)
     assert ui_settings.DEFAULT in ui_settings.KEYS
 

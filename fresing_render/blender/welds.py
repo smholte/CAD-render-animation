@@ -182,8 +182,22 @@ class FRWeld(PropertyGroup):
     #                                            the second part in the first part's coordinates when they were found
 
 
+def _symbols_changed(self, context):
+    try:
+        from . import weld_symbols
+        weld_symbols.redraw()
+    except Exception:  # noqa: BLE001
+        pass
+
+
 class FRWeldSettings(PropertyGroup):
     items: CollectionProperty(type=FRWeld)
+    symbols: BoolProperty(name="Weld symbols", default=False, update=_symbols_changed,
+                          description="Shows an ISO 2553 weld symbol beside each weld in the view (arrow, reference "
+                                      "line, a5, length, all round, both sides, the process number). Off: no symbols")
+    symbols_render: BoolProperty(name="Show in renders", default=False, update=_symbols_changed,
+                                 description="Puts the weld symbols into rendered pictures and videos too, as labels "
+                                             "pointing at the seams. Off: they show only in the view")
     index: IntProperty(name="Weld", default=0, description="The weld whose settings show below the list")
     picking: StringProperty(default="")          # "" / "A" / "B" / "PARTS": the picker's step
     preview: CollectionProperty(type=FRWeldSeam)
@@ -197,12 +211,16 @@ def register():
     for c in CLASSES:
         bpy.utils.register_class(c)
     bpy.types.Scene.fresing_welds = PointerProperty(type=FRWeldSettings)
+    from . import weld_symbols
+    weld_symbols.register()                  # task 0320: the symbols' draw handler (does nothing while they are off)
     for lst, fn in ((bpy.app.handlers.load_post, _after_load), (bpy.app.handlers.depsgraph_update_post, _depsgraph)):
         if fn not in lst:
             lst.append(fn)
 
 
 def unregister():
+    from . import weld_symbols
+    weld_symbols.unregister()
     for lst, fn in ((bpy.app.handlers.load_post, _after_load), (bpy.app.handlers.depsgraph_update_post, _depsgraph)):
         while fn in lst:
             lst.remove(fn)
@@ -830,6 +848,73 @@ def set_faces(item, faces_a, faces_b, part_a=None, part_b=None) -> None:
 
 
 # ---------------------------------------------------------------------------
+# copies (task 0320): a pasted copy takes the welds whose two parts are both in it
+# ---------------------------------------------------------------------------
+
+def for_copy(scene, names) -> tuple[list, list]:
+    """Which welds a copy of the objects ``names`` takes along: (weld keys, lines of what is left out). A weld whose
+    two parts are both in the copy comes along; one with only one part inside is left out (said)."""
+    keys, left = [], []
+    for it in items(scene):
+        a = it.part_a.name if it.part_a is not None else None
+        b = it.part_b.name if it.part_b is not None else None
+        ina, inb = a in names, b in names
+        if ina and inb:
+            keys.append(it.key)
+        elif ina or inb:
+            out = part_name(it.part_b if ina else it.part_a)
+            left.append(f"Weld '{it.name}': '{out}' is outside the copy – not copied")
+    return keys, left
+
+
+def copy_to(scene, keys, copies: dict) -> list:
+    """Copies of the welds ``keys`` on the copied parts (``copies``: original object name -> copy). The parts share
+    their meshes with the originals, so the picked faces, the seams kept where they were found (``seam_data``, ``rel``)
+    and every setting stay true: only the parts change. Returns the new weld keys."""
+    s = settings(scene)
+    new = []
+    for key in keys:
+        src = find_item(scene, key)
+        if src is None or src.part_a is None or src.part_b is None:
+            continue
+        a, b = copies.get(src.part_a.name), copies.get(src.part_b.name)
+        if a is None or b is None:
+            continue
+        nk = _new_key(scene)
+        name = _copy_name(scene, src.name)
+        dst = s.items.add()                 # (an item held across add() is no longer valid: CLAUDE.md 8)
+        src = find_item(scene, key)
+        _BUSY[0] = True
+        try:
+            for k in src.keys():
+                v = src[k]
+                if hasattr(v, "to_dict"):
+                    v = v.to_dict()
+                elif hasattr(v, "to_list"):
+                    v = v.to_list()
+                dst[k] = v
+            dst.key, dst.name = nk, name
+            dst.part_a, dst.part_b = a, b
+            if src.get("fr_rust_seen") is not None:
+                dst["fr_rust_seen"] = src["fr_rust_seen"]
+        finally:
+            _BUSY[0] = False
+        new.append(nk)
+    for nk in new:
+        it = find_item(scene, nk)
+        if not it.lost:
+            rebuild(it)
+    count(scene)
+    return new
+
+
+def _copy_name(scene, base: str) -> str:
+    """'Plate – Fin' -> 'Plate – Fin (2)' (the copy's own number, as copied parts and joints are named)."""
+    from . import copy
+    return copy.next_name(base, {it.name for it in items(scene)})
+
+
+# ---------------------------------------------------------------------------
 # motion: welded parts that move apart
 # ---------------------------------------------------------------------------
 
@@ -880,11 +965,27 @@ def carry_over(scene, pairs) -> tuple[list, object]:
     prints; a weld whose part or faces are gone is listed ('lost its faces – pick again'), never dropped. Returns
     (report lines, undo) – ``undo()`` puts every weld back on the old parts (the update failed later)."""
     by_name = {o.name: n for o, n in pairs}
+    updated = {build.model_root_of(o) for o, _n in pairs} - {None}   # the models being updated (task 0320)
+
+    def new_of(ob):
+        """The part's new revision; the part itself when it belongs to a model that is not updated now (another
+        model, a copy that is not in this update); None when it is gone."""
+        if ob is None:
+            return None
+        if ob.name in by_name:
+            return by_name[ob.name]
+        return None if build.model_root_of(ob) in updated else ob
+
     before = []
     notes = []
     for it in items(scene):
         before.append((it, it.part_a, it.part_b, it.faces_a, it.faces_b, it.lost, it.note))
     for it in items(scene):
+        if not ((it.part_a is not None and it.part_a.name in by_name)
+                or (it.part_b is not None and it.part_b.name in by_name)
+                or (it.part_a is not None and build.model_root_of(it.part_a) in updated)
+                or (it.part_b is not None and build.model_root_of(it.part_b) in updated)):
+            continue                                      # a weld of another model: left as it is (task 0320)
         for ob in objects_of(it):                         # the old beads go; the new parts get new ones
             me = ob.data
             bpy.data.objects.remove(ob)
@@ -893,8 +994,7 @@ def carry_over(scene, pairs) -> tuple[list, object]:
         _CACHE.pop(it.key, None)
         if it.lost:
             continue
-        na = by_name.get(it.part_a.name) if it.part_a is not None else None
-        nb = by_name.get(it.part_b.name) if it.part_b is not None else None
+        na, nb = new_of(it.part_a), new_of(it.part_b)
         if na is None or nb is None:
             gone = part_name(it.part_a if na is None else it.part_b)
             _BUSY[0] = True

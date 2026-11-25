@@ -296,6 +296,11 @@ MATERIALS: dict[str, dict] = {
                          finish="carbon_fibre"),
     "perlage": dict(label="Perlage (engine-turned spots)", category="Metal", base_color=(0.72, 0.72, 0.73),
                     metallic=1.0, roughness=0.2, finish="perlage"),
+    # ---- task 0273: a group whose look is a material made in Blender's own shader editor (an own material's
+    # material.blend, appended into the project): blender/materials.own_blend_material copies it; this entry is only
+    # its name in the Material drop-down and a plain grey stand-in when the appended material is missing
+    "blender_material": dict(label="Own Blender material (pick it in Materials)", category="Other",
+                             base_color=(0.6, 0.6, 0.6), roughness=0.5),
 }
 
 # Fixed numbers stored in .blend files for each material. NEVER change or reuse a number;
@@ -387,9 +392,64 @@ UIDS: dict[str, int] = {
     "as_cast": 84,
     "carbon_fibre": 85,
     "perlage": 86,
+    "blender_material": 87,
 }
 
 DEFAULT_COLOR = "RAL 7035"
+
+#: task 0273: library materials the material picker does not list (they are chosen another way)
+NOT_PICKED = ("blender_material",)
+
+# The ready-made materials of before (the "Ready-made material…" menu, now entries of the material picker):
+# id, label, library material, colour. Those with a colour are listed in the picker as entries of their own
+# (key "preset:<id>"); those without are the library material itself.
+PRESETS = [
+    ("profile", "Aluminium profile", "aluminium_profile", ""),
+    ("alu", "Aluminium, anodised", "aluminium_anodized", ""),
+    ("alu_black", "Aluminium, black anodised", "aluminium_anodized_black", ""),
+    ("alu_machined", "Aluminium, machined", "aluminium_machined", ""),
+    ("stainless", "Stainless, brushed", "stainless_brushed", ""),
+    ("steel", "Steel, machined", "steel_machined", ""),
+    ("steel_ground", "Steel, ground (ways, shafts)", "steel_ground", ""),
+    ("steel_turned", "Steel, turned", "steel_turned", ""),
+    ("chrome", "Chrome", "chrome", ""),
+    ("chrome_rod", "Hydraulic chrome rod (piston rods)", "chrome_rod", ""),
+    ("galvanized", "Galvanised", "galvanized", ""),
+    ("zinc", "Zinc plated", "zinc_plated", ""),
+    ("black_oxide", "Black oxide", "black_oxide", ""),
+    ("brass", "Brass", "brass", ""),
+    ("copper", "Copper", "copper", ""),
+    ("cast_iron", "Cast iron, as cast", "cast_iron", ""),
+    ("cast_iron_painted", "Cast iron, painted RAL 7035", "cast_iron_painted", "RAL 7035"),
+    ("rubber", "Rubber, black (seals, O-rings)", "rubber_black", ""),
+    ("pom", "POM / PE, white", "pom_white", ""),
+    ("plastic_black", "Plastic, black matte", "plastic_matte", "RAL 9005"),
+    ("cable", "Cable / hose, black", "cable_black", ""),
+    ("pc_clear", "Polycarbonate, clear (guards)", "polycarbonate_clear", ""),
+    ("wire_mesh", "Wire mesh panel, black (see-through)", "wire_mesh", "RAL 9005"),
+    ("glass_tinted", "Glass / PC, tinted grey", "glass_tinted", "RAL 7016"),
+    ("paint_7035", "Paint RAL 7035 light grey", "paint_satin", "RAL 7035"),
+    ("paint_7016", "Paint RAL 7016 anthracite", "paint_satin", "RAL 7016"),
+    ("paint_9005", "Paint RAL 9005 black", "paint_satin", "RAL 9005"),
+    ("paint_9010", "Paint RAL 9010 white", "paint_satin", "RAL 9010"),
+    ("paint_5010", "Paint RAL 5010 blue", "paint_satin", "RAL 5010"),
+    ("paint_3020", "Paint RAL 3020 red", "paint_satin", "RAL 3020"),
+    ("paint_1003", "Paint RAL 1003 yellow", "paint_satin", "RAL 1003"),
+    ("paint_6018", "Paint RAL 6018 green", "paint_satin", "RAL 6018"),
+    ("led", "Light / LED (glowing)", "emission_light", "RAL 9010"),
+    # task 0274: finishes (their own settings – pitch, metal, kind … – are under the material in the group box)
+    ("knurl", "Knurled knob, diamond (steel)", "knurl_diamond", ""),
+    ("spun", "Spun aluminium (caps, discs)", "spun", ""),
+    ("tread", "Tread plate, aluminium", "tread", ""),
+    ("perforated", "Perforated sheet, galvanised (see-through)", "perforated", ""),
+    ("shot_blasted", "Steel, shot-blasted (before paint)", "shot_blasted", ""),
+    ("hammertone", "Paint, hammertone RAL 7031 blue grey", "hammertone", "RAL 7031"),
+    ("crosshatch", "Plastic housing, moulded cross-hatch, black", "crosshatch", "RAL 9005"),
+    ("antiskid", "Deck paint, anti-skid RAL 7040 grey", "antiskid", "RAL 7040"),
+    # task 0318
+    ("carbon", "Carbon fibre, 2x2 twill, glossy", "carbon_fibre", ""),
+    ("perlage", "Perlage, stainless (engine-turned spots)", "perlage", ""),
+]
 
 
 def get(material_id: str) -> dict:
@@ -469,3 +529,223 @@ def no_rust_why(material_id: str, base: str = "", kind: str = "") -> str:
     if get(material_id).get("category") in ("Plastic & rubber", "Glass"):
         return NO_RUST_WHY["PLASTIC"]
     return NO_RUST_WHY["NONMETAL"]
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Task 0273: tags and one-line descriptions for the Materials window (filters Material / Colour / Look).
+# TAGS[id] = (kind, colour family, looks). "any" = the group's own colour is used (every ``needs_color`` material);
+# clear glass and plastic count as "white" (nearly colourless), mill-scale / cast iron / concrete as "grey".
+# ---------------------------------------------------------------------------------------------------------------------
+
+KINDS = ("Paint", "Steel", "Stainless", "Aluminium", "Other metals", "Fastener finish", "Plastic", "Rubber",
+         "Glass & clear", "Light", "Fabric", "Other")
+
+COLOURS = ("any", "white", "grey", "black", "red", "orange", "yellow", "green", "blue", "purple", "brown", "metal")
+
+COLOUR_LABELS = {
+    "any": "Any colour (the group's)", "white": "White", "grey": "Grey", "black": "Black", "red": "Red",
+    "orange": "Orange", "yellow": "Yellow", "green": "Green", "blue": "Blue", "purple": "Purple", "brown": "Brown",
+    "metal": "Metal-coloured",
+}
+
+LOOKS = ("gloss", "satin", "matte", "brushed", "machined", "polished", "textured", "patterned", "see-through",
+         "glowing", "weathered")
+
+LOOK_LABELS = {
+    "gloss": "Gloss", "satin": "Satin", "matte": "Matte", "brushed": "Brushed", "machined": "Machined / turned",
+    "polished": "Polished", "textured": "Textured", "patterned": "Knurled / patterned", "see-through": "See-through",
+    "glowing": "Glowing", "weathered": "Weathered",
+}
+
+TAGS: dict[str, tuple[str, str, tuple[str, ...]]] = {
+    "paint_gloss": ("Paint", "any", ("gloss",)),
+    "paint_satin": ("Paint", "any", ("satin",)),
+    "paint_matte": ("Paint", "any", ("matte",)),
+    "powder_coat": ("Paint", "any", ("satin", "textured")),
+    "paint_marine": ("Paint", "any", ("satin",)),
+    "steel_machined": ("Steel", "metal", ("satin", "machined")),
+    "steel_raw": ("Steel", "grey", ("matte", "weathered")),
+    "stainless_brushed": ("Stainless", "metal", ("satin", "brushed")),
+    "stainless_polished": ("Stainless", "metal", ("gloss", "polished")),
+    "aluminium_machined": ("Aluminium", "metal", ("satin", "machined")),
+    "aluminium_anodized": ("Aluminium", "metal", ("satin",)),
+    "aluminium_anodized_color": ("Aluminium", "any", ("satin",)),
+    "aluminium_profile": ("Aluminium", "metal", ("matte", "brushed")),
+    "cast_iron": ("Steel", "grey", ("matte", "textured")),
+    "chrome": ("Other metals", "metal", ("gloss", "polished")),
+    "copper": ("Other metals", "metal", ("satin",)),
+    "brass": ("Other metals", "metal", ("satin",)),
+    "bronze": ("Other metals", "metal", ("satin",)),
+    "galvanized": ("Fastener finish", "metal", ("satin", "textured")),
+    "zinc_plated": ("Fastener finish", "metal", ("satin",)),
+    "zinc_yellow": ("Fastener finish", "yellow", ("satin",)),
+    "zinc_flake": ("Fastener finish", "grey", ("matte",)),
+    "black_oxide": ("Fastener finish", "black", ("satin",)),
+    "rubber_black": ("Rubber", "black", ("matte",)),
+    "plastic_gloss": ("Plastic", "any", ("gloss",)),
+    "plastic_matte": ("Plastic", "any", ("matte", "textured")),
+    "pom_white": ("Plastic", "white", ("satin",)),
+    "cable_black": ("Plastic", "black", ("matte",)),
+    "glass_clear": ("Glass & clear", "white", ("gloss", "see-through")),
+    "polycarbonate_clear": ("Glass & clear", "white", ("gloss", "see-through")),
+    "glass_tinted": ("Glass & clear", "any", ("gloss", "see-through")),
+    "acrylic_frosted": ("Glass & clear", "white", ("satin", "see-through")),
+    "emission_light": ("Light", "any", ("glowing",)),
+    "nickel_plated": ("Other metals", "metal", ("gloss", "polished")),
+    "aluminium_anodized_black": ("Aluminium", "black", ("satin",)),
+    "zinc_diecast": ("Other metals", "metal", ("satin",)),
+    "belt_rubber": ("Rubber", "black", ("matte", "textured")),
+    "foam": ("Rubber", "grey", ("matte", "textured")),
+    "felt": ("Fabric", "grey", ("matte", "textured")),
+    "mannequin_matte": ("Plastic", "white", ("matte",)),
+    "wood": ("Other", "brown", ("matte", "textured")),
+    "wire_mesh": ("Paint", "any", ("satin", "patterned", "see-through")),
+    "steel_ground": ("Steel", "metal", ("gloss", "brushed")),
+    "steel_turned": ("Steel", "metal", ("satin", "machined")),
+    "cast_iron_painted": ("Paint", "any", ("satin", "textured")),
+    "chrome_rod": ("Other metals", "metal", ("gloss", "polished")),
+    "aluminium_sawn": ("Aluminium", "metal", ("matte", "brushed")),
+    "pom_black": ("Plastic", "black", ("satin",)),
+    "cable_power": ("Plastic", "black", ("matte", "patterned")),
+    "wire_rope": ("Steel", "metal", ("satin", "patterned")),
+    "cable_served": ("Plastic", "black", ("matte", "textured", "patterned")),
+    "hose_hydraulic": ("Rubber", "any", ("matte", "patterned")),
+    "hose_braided": ("Stainless", "metal", ("satin", "patterned")),
+    "hose_sleeve": ("Plastic", "any", ("satin", "patterned")),
+    "pu_tube_clear": ("Plastic", "white", ("gloss", "see-through")),
+    "wire_rope_galv": ("Steel", "metal", ("matte", "patterned")),
+    "concrete": ("Other", "grey", ("matte", "textured")),
+    "from_file": ("Other", "any", ("satin",)),
+    "paint_marine_growth": ("Paint", "any", ("satin", "weathered")),
+    "paint_marine_streaks": ("Paint", "any", ("satin", "weathered")),
+    "paint_blade_eroded": ("Paint", "any", ("satin", "weathered")),
+    "knurl_diamond": ("Steel", "metal", ("satin", "machined", "patterned")),
+    "knurl_straight": ("Steel", "metal", ("satin", "machined", "patterned")),
+    "rubber_grip": ("Rubber", "any", ("matte", "patterned")),
+    "spun": ("Aluminium", "metal", ("gloss", "machined", "patterned")),
+    "faced": ("Steel", "metal", ("satin", "machined", "patterned")),
+    "honed": ("Steel", "metal", ("gloss", "machined", "patterned")),
+    "crosshatch": ("Plastic", "any", ("satin", "patterned")),
+    "fabric": ("Fabric", "any", ("matte", "patterned")),
+    "grille": ("Plastic", "any", ("satin", "patterned", "see-through")),
+    "tread": ("Aluminium", "metal", ("satin", "patterned")),
+    "perforated": ("Steel", "metal", ("satin", "patterned", "see-through")),
+    "expanded": ("Steel", "metal", ("satin", "patterned", "see-through")),
+    "scraped": ("Steel", "metal", ("gloss", "machined", "patterned")),
+    "soft_touch": ("Plastic", "any", ("matte", "textured")),
+    "bead_blasted": ("Aluminium", "metal", ("matte", "textured")),
+    "shot_blasted": ("Steel", "grey", ("matte", "textured")),
+    "hammertone": ("Paint", "any", ("satin", "textured")),
+    "wrinkle": ("Paint", "any", ("matte", "textured")),
+    "antiskid": ("Paint", "any", ("matte", "textured")),
+    "vdi": ("Plastic", "any", ("matte", "textured")),
+    "leather": ("Plastic", "any", ("satin", "textured")),
+    "spangle": ("Fastener finish", "metal", ("satin", "textured")),
+    "as_cast": ("Steel", "grey", ("matte", "textured")),
+    "carbon_fibre": ("Other", "black", ("gloss", "patterned")),
+    "perlage": ("Stainless", "metal", ("satin", "patterned")),
+    "blender_material": ("Other", "any", ("matte",)),
+}
+
+DESCRIPTIONS: dict[str, str] = {
+    "paint_gloss": "Smooth glossy paint in the group's colour: housings, covers, painted machine bodies",
+    "paint_satin": "Semi-gloss paint in the group's colour: the usual look of painted machines and frames",
+    "paint_matte": "Flat paint with almost no shine in the group's colour: dull covers, primer, military looks",
+    "powder_coat": "Powder coating with a fine orange-peel structure: cabinets, guards, frames",
+    "paint_marine": "Tough glossy epoxy / polyurethane paint system: ship hulls, decks, offshore steelwork",
+    "steel_machined": "Bright milled steel with fine tool lines: machined blocks, plates, brackets",
+    "steel_raw": "Dark steel with mill scale and a little rust-brown: raw plate, welded frames before painting",
+    "stainless_brushed": "Stainless steel with long brushed lines: covers, kitchen and food machines, trim",
+    "stainless_polished": "Mirror-like stainless steel: shafts, hygienic parts, decorative trim",
+    "aluminium_machined": "Light, bright aluminium with milling lines: machined housings, plates, brackets",
+    "aluminium_anodized": "Natural anodized aluminium, calm and slightly satin: covers, enclosures, profiles",
+    "aluminium_anodized_color": "Anodized aluminium dyed in the group's colour: knobs, covers, design parts",
+    "aluminium_profile": "Matte anodized aluminium extrusion with long brushed lines: frame profiles, rails",
+    "cast_iron": "Dark grey cast iron with a fine sand texture: machine beds, gearbox housings",
+    "chrome": "Mirror-bright chromium plating: trim, handles, decorative parts",
+    "copper": "Warm reddish copper: busbars, pipes, electrical parts, heat exchangers",
+    "brass": "Yellow brass with a soft shine: fittings, valves, bushings, nameplates",
+    "bronze": "Darker golden bronze: bearings, bushings, gears, ship fittings",
+    "galvanized": "Hot-dip zinc coating, dull grey and slightly uneven: steel frames, grating, outdoor steel",
+    "zinc_plated": "Bright silver zinc plating: bolts, nuts, washers, small brackets",
+    "zinc_yellow": "Yellow-gold zinc plating with a rainbow shimmer: bolts and nuts, pressed parts",
+    "zinc_flake": "Matte dark-silver zinc flake coating: high-strength bolts, automotive and offshore fasteners",
+    "black_oxide": "Dark black oxide on steel with a light oily sheen: screws, pins, tools",
+    "rubber_black": "Black rubber, matte with a faint sheen: seals, bumpers, feet, mats",
+    "plastic_gloss": "Smooth glossy plastic in the group's colour: housings, caps, covers",
+    "plastic_matte": "Matte moulded plastic with a fine grain in the group's colour: enclosures, guards, knobs",
+    "pom_white": "White engineering plastic (POM / PE), slightly waxy: sliders, gears, wear strips",
+    "cable_black": "Black plastic jacket, slightly satin: power cables, signal cables, hoses",
+    "glass_clear": "Clear window glass: windows, sight glasses, doors, covers",
+    "polycarbonate_clear": "Clear, tough polycarbonate sheet: machine guards, safety windows, lenses",
+    "glass_tinted": "Glass or polycarbonate tinted in the group's colour: coloured windows, smoked guards",
+    "acrylic_frosted": "Frosted white acrylic that lets light through: light covers, diffusers, panels",
+    "emission_light": "Glowing surface in the group's colour: LEDs, indicator lamps, signal lights, displays",
+    "nickel_plated": "Bright pale nickel plating, slightly warmer than chrome: brass fittings, connectors",
+    "aluminium_anodized_black": "Black anodized aluminium: camera and instrument housings, covers, dark trim",
+    "zinc_diecast": "Grey die-cast zinc with a dull satin finish: small housings, handles, hardware",
+    "belt_rubber": "Black rubber with a fine texture: timing belts, flat belts, conveyor belts",
+    "foam": "Dark grey open foam, very matte and slightly rough: padding, insulation, filters",
+    "felt": "Grey felt, completely matte and fibrous: wipers, pads, sound damping",
+    "mannequin_matte": "Matte beige figure material: people and mannequins for scale",
+    "wood": "Light brown wood with a soft grain: pallets, plywood, crates, workbenches",
+    "wire_mesh": "Powder-coated wire grid with open gaps, in the group's colour: guard fences, safety panels",
+    "steel_ground": "Bright ground steel with very fine long lines: machine ways, shafts, guide rails",
+    "steel_turned": "Steel with fine circular lathe marks: turned shafts, pins, bushings",
+    "cast_iron_painted": "Painted cast iron with a slightly rough surface: machine columns, pump housings, gearboxes",
+    "chrome_rod": "Hydraulic piston rod, hard chrome with faint axial lines: cylinders, guide rods",
+    "aluminium_sawn": "Aluminium plate with faint saw and brush lines: cut plate, base plates, fixtures",
+    "pom_black": "Black engineering plastic (POM), slightly satin: gears, sliders, bushings",
+    "cable_power": "Black power cable with yellow spiral stripes: motor and mains cables",
+    "wire_rope": "Bright steel wire rope with visible strands: cranes, winches, lifting slings",
+    "cable_served": "Black woven-yarn cable cover with yellow marker spirals: subsea and umbilical cables",
+    "hose_hydraulic": "Rubber hose in the group's colour with a printed line: hydraulic and air lines",
+    "hose_braided": "Hose covered in braided stainless steel wire: hydraulic lines, flexible connections",
+    "hose_sleeve": "Plastic spiral protection sleeve in the group's colour: bundled cables and hoses",
+    "pu_tube_clear": "Clear flexible polyurethane tube, slightly cloudy: pneumatic air lines",
+    "wire_rope_galv": "Dull galvanized steel wire rope: stays, lashings, crane and mooring ropes",
+    "concrete": "Pale grey concrete with a rough surface: floors, foundations, walls, quays",
+    "from_file": "Keeps the colours and look the model brought along from its CAD file",
+    "paint_marine_growth": "Marine paint with sea growth below the waterline: ship hulls and foundations in the water",
+    "paint_marine_streaks": "Marine paint with rust run-down streaks above the waterline: hulls and towers at sea",
+    "paint_blade_eroded": "Painted blade surface with a worn, eroded leading edge: wind turbine blades",
+    "knurl_diamond": "Diamond-pattern knurled metal: knobs, handles, grip rings on turned parts",
+    "knurl_straight": "Straight-ridged knurled metal: adjusting knobs, thumb screws, handles",
+    "rubber_grip": "Moulded rubber grip pattern in the group's colour: handles, grips, hand wheels",
+    "spun": "Bright metal with circular lines round the centre: spun covers, caps, round lids",
+    "faced": "Turned end face with a spiral cutting pattern: ends of shafts, flanges, bushings",
+    "honed": "Shiny bore with a fine cross-hatch: cylinder barrels, hydraulic tubes",
+    "crosshatch": "Moulded plastic with a crossed-line pattern in the group's colour: housings, panels",
+    "fabric": "Woven cloth in the group's colour: speaker covers, seats, curtains, filter cloth",
+    "grille": "Plastic grille with fine holes in the group's colour: fan guards, speaker and vent grilles",
+    "tread": "Aluminium tread plate with a raised lens pattern: floors, steps, walkways, truck beds",
+    "perforated": "Metal sheet with round holes: guards, ventilation covers, filters, screens",
+    "expanded": "Expanded metal mesh with diamond openings: guards, walkway grating, fences",
+    "scraped": "Machine ways with flaked scraping marks: sliding surfaces of machine tools",
+    "soft_touch": "Soft-touch coated plastic in the group's colour, velvety and matte: grips, device housings",
+    "bead_blasted": "Fine matte sand-blasted metal: aluminium housings, instrument cases",
+    "shot_blasted": "Grey shot-blasted steel, rough and dull: steel prepared for painting",
+    "hammertone": "Hammered metallic paint in the group's colour: control boxes, old-style machine covers",
+    "wrinkle": "Wrinkle-finish paint with a fine crinkled pattern: instrument and electronics housings",
+    "antiskid": "Rough grit paint in the group's colour: decks, walkways, steps",
+    "vdi": "Fine spark-eroded plastic texture in the group's colour: moulded housings, car interiors",
+    "leather": "Plastic with a leather grain in the group's colour: seats, grips, dashboards",
+    "spangle": "Hot-dip galvanized with a visible crystal pattern: sheet metal, ducts, outdoor frames",
+    "as_cast": "Rough sand-cast metal surface, dull grey: untreated castings, pump and gearbox housings",
+    "carbon_fibre": "Black woven carbon fibre under clear lacquer: light structures, covers, trim",
+    "perlage": "Stainless steel with overlapping engine-turned spots: decorative plates, instrument faces",
+    "blender_material": "A material you built yourself in Blender's shader editor",
+}
+
+
+def tags(material_id: str) -> tuple:
+    """(kind, colour family, looks) of a material; a plain default for an unknown id."""
+    return TAGS.get(material_id, ("Other", "any", ("matte",)))
+
+
+def describe(material_id: str) -> str:
+    """The material's one-line description (its label when it has none)."""
+    text = DESCRIPTIONS.get(material_id)
+    if text:
+        return text
+    return MATERIALS.get(material_id, {}).get("label", material_id)

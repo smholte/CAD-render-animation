@@ -109,7 +109,7 @@ def finishing_for_still(scene, watermark: bool = False) -> Finishing:
     from . import callouts
     size = callouts.picture_size(scene)
     kit = _kit_fields(s)
-    draws = callouts.draws_at(scene, size, None, None, kit["font"]) if s.callouts_on else []
+    draws = callouts.draws_at(scene, size, None, None, kit["font"]) if callouts.any_labels(scene) else []
     return Finishing(label_track={1: draws} if draws else {}, label_px=C.font_px(size[1], s.callout_size),
                      logo_corner=s.still_logo, logo_file=_logo_path(s), logo_size=s.still_logo_size,
                      **_wm_fields(s, watermark), **_kit_fields(s))

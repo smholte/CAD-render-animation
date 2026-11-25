@@ -970,7 +970,7 @@ def _check_shapes(scene):
 
 # ----- the other test models -----
 
-@tour_set("looks", "Materials", "test_crane_a.step", added="0.2.47", changed="0.2.203")
+@tour_set("looks", "Materials", "test_crane_a.step", added="0.2.47", changed="0.2.241")
 def build_materials(b: Build):
     from . import logic
     sc, s = b.scene, b.s
@@ -996,6 +996,31 @@ def build_materials(b: Build):
     pts = np.array([(x, y, z) for x in (mn[0], mx[0]) for y in (mn[1], mx[1]) for z in (mn[2], mx[2])])
     _camera(b, "ISO", "Tour view", lens=60.0, points=pts)
     _shot(b, "@materials")
+    # task 0273: this project's materials – four on the short list (3 Looks, above Material)
+    from ..core import material_files
+    from . import material_picker
+    for key in PICKER_LIST:
+        material_picker.add_to_project(sc, material_files.builtin(key))
+    s.groups_index = next((i for i, g in enumerate(s.groups) if g.name.startswith("Welded frames")), 0)
+    _shot(b, "@material_picker")
+
+
+PICKER_LIST = ("builtin:chrome", "preset:paint_5010", "builtin:knurl_diamond", "builtin:rubber_black")
+
+
+def _check_picker(scene):
+    """Task 0273: the short list and the Materials window's list (its draw, with a stand-in layout)."""
+    import bpy
+
+    from ..core import material_files
+    from . import material_picker, ui_material_picker, ui_settings
+    listed = [e for e, on, _u in material_picker.short_list(scene) if on]
+    _check([e.key for e in listed] == list(PICKER_LIST), f"this project's list is {[e.key for e in listed]}")
+    _check(all(e.picture for e in listed), "a material on the list has no picture")
+    every = ui_material_picker.visible(bpy.context)
+    _check(len(every) >= len(material_files.builtin_keys()), f"the window lists {len(every)} materials")
+    ui_material_picker.draw_window(ui_settings._Any(), bpy.context)
+    return f"{len(listed)} on this project's list, {len(every)} materials in the window"
 
 
 def _check_materials(scene):
@@ -1066,12 +1091,13 @@ def _round_face(ob) -> int:
     return -1
 
 
-@tour_set("welds", "Welds", "test_weldment.step", added="0.2.231")
+@tour_set("welds", "Welds", "test_weldment.step", added="0.2.231", changed="0.2.240")
 def build_welds(b: Build):
     from . import welds
     sc = b.scene
     _look("PRODUCT")
     welds.set_up_test_model(sc)
+    welds.settings(sc).symbols = True             # task 0320: the ISO 2553 symbols (view only)
     _camera(b, "ISO", "Tour view")
     _shot(b, "@welds")
 
@@ -1084,7 +1110,14 @@ def _check_welds(scene):
     beads = sum(1 for it in welds.items(scene) for o in welds.objects_of(it) if o.get("fr_kind") == welds.KIND)
     _check(beads == st["welds"], f"only {beads} of {st['welds']} welds have a bead")
     _check(2.0 < st["metres"] < 2.5, f"{st['metres']:.2f} m of bead, not about 2.2 m")
-    return f"{st['welds']} welds, {st['seams']} seams, {st['metres']:.2f} m of bead"
+    from ..core import weld_symbols as core_symbols     # task 0320: the symbols are on, in the view only
+    from . import weld_symbols
+    s = welds.settings(scene)
+    _check(s.symbols and not s.symbols_render, "the weld symbols are not on (view only)")
+    texts = [core_symbols.one_line(weld_symbols.symbol_of(it, i + 1)) for i, it in enumerate(welds.items(scene))]
+    _check(texts[0] == "a5 ◺/◸ 200 < 135", f"weld 1's symbol reads '{texts[0]}'")
+    _check(sum(t.startswith("○") for t in texts) == 3, f"{sum(t.startswith('○') for t in texts)} all-round symbols, not 3")
+    return f"{st['welds']} welds, {st['seams']} seams, {st['metres']:.2f} m of bead; symbols {', '.join(texts[:2])} …"
 
 
 def _check_decals(scene):
@@ -4854,7 +4887,13 @@ stop("materials", LOOK, "looks", "Ready-made materials and Wear",
      "and trolley (both with Wear: in a rendered picture their sharp edges look worn and corners a little dirty), "
      "ground steel pins, a black anodised cylinder barrel with a chrome rod, rubber wheels, blue anodised cover, "
      "zinc flake bolts. The camera is close on the worn base and trolley, where Wear shows.",
-     where="3 Looks: the material groups, Ready-made material…, Wear", check=_check_materials, since="0.2.47", changed="0.2.199")
+     where="3 Looks: the material groups, More materials…, Wear", check=_check_materials, since="0.2.47", changed="0.2.199")
+stop("material_picker", LOOK, "looks", "Material picker, project list",
+     "3 Looks, pick a group: above Material, 'This project's materials' shows four small pictures – chrome, blue "
+     "paint RAL 5010, a diamond knurl, black rubber; a click on one gives the group that material. More materials… "
+     "opens the Materials window: a picture of every material, filters Source / Material / Colour / Look on the left, "
+     "the picked one large on the right with Use for <group>, Add to this project and Save as my material….",
+     where="3 Looks > a group > This project's materials, More materials…", check=_check_picker, since="0.2.241")
 stop("faces", LOOK, "faces", "Painted faces",
      "The housing's two faces painted in CAD keep their own colours; one face of the cover is painted red by hand, "
      "the rest of the cover keeps its colour.", where="3 Looks > Paint faces", check=_check_faces, since="0.2.47")
@@ -4865,8 +4904,10 @@ stop("welds", LOOK, "welds", "Welds",
      "A small invented weldment: a blue painted fillet along the fin's foot (the paint over the ripples), a grey MAG "
      "weld with spatter under the gusset, a rusty one up its side, a stainless all-round weld with straw, purple and "
      "blue heat tint round the post, a pickled (matt, no tint) one round the branch, a bright aluminium saddle where "
-     "the branch meets the tube and a butt joint ground flush to the extension plate.",
-     where="3 Looks > Welds", check=_check_welds, since="0.2.231")
+     "the branch meets the tube and a butt joint ground flush to the extension plate. Beside each weld its ISO 2553 "
+     "symbol with its number 1–7: 'a5' and a triangle on both sides of the line for the fin, a circle at the bend for "
+     "the three all-round welds, the process number (135, 141, 131) in the tail. They show in the view only.",
+     where="3 Looks > Welds (Weld symbols, Weld list…)", check=_check_welds, since="0.2.231", changed="0.2.240")
 stop("cutaway", LOOK, "cutaway", "Slice: the pedestal opens up",
      "A slice slides in from the front and takes away the front half of the crane's pedestal and boom: the cut faces "
      "are red with hatch lines, the steel pin shows inside the fork. The other parts are not cut. Look in rendered "

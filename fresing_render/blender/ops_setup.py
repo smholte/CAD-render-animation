@@ -226,7 +226,10 @@ FORM_MARK = "fr_form"          # task 0282: a function window (form_window.py): 
 FORM_TAB = "Window"
 FIRST_SETUP_MARK = "fr_first_setup"   # task 0276: the first-start set-up window (first_setup.py)
 FIRST_SETUP_TAB = "Set up"
-PAGE_MARKS = (SETTINGS_MARK, FORM_MARK, FIRST_SETUP_MARK)    # windows whose page is in the toolbar region (no tab strip)
+MATERIALS_MARK = "fr_materials"       # task 0273: the Materials window (ops_material_picker.py)
+MATERIALS_TAB = "Materials"
+PAGE_MARKS = (SETTINGS_MARK, FORM_MARK, FIRST_SETUP_MARK, MATERIALS_MARK)    # windows whose page is in the toolbar
+#                                                                             region (no tab strip)
 STRIP_SETTLE = "fr_strip_settle"           # task 0308: an output window whose strip is being made narrow
 STRIP = 46                     # task 0308: the outputs strip of an output window, px at UI scale 1 (one large icon)
 STRIP_GAP = 12                 # … and the room a side panel needs beside it (one that only just fits is drawn empty)
@@ -258,6 +261,8 @@ def tab_of(window) -> str:
             return FORM_TAB
         if screen.get(FIRST_SETUP_MARK):
             return FIRST_SETUP_TAB
+        if screen.get(MATERIALS_MARK):
+            return MATERIALS_TAB
         return TAB if screen.get(MARK) else (OUTPUT_TAB if screen.get(OUTPUT_MARK) else "")
     except (AttributeError, ReferenceError):
         return ""
@@ -275,7 +280,7 @@ def _show_tab(window) -> bool:
     ok = True
     tab = tab_of(window) or TAB
     _dress(window)
-    if tab in (SETTINGS_TAB, FORM_TAB):      # task 0271 / 0282: the page is in the toolbar region, which has no tabs
+    if tab in (SETTINGS_TAB, FORM_TAB, MATERIALS_TAB):   # task 0271 / 0282 / 0273: the page is in the toolbar region (no tabs)
         return True
     for area in window.screen.areas:
         if area.type != "VIEW_3D":

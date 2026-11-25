@@ -83,6 +83,7 @@ ALLOWED = {
     "fresing.lead_keep_open",                    # move the model in the Client view (nothing else is changed)
     "fresing.view_menu", "fresing.ctx_zoom", "fresing.ctx_tree",   # task 0253: the right-click menu's viewing entries
     "fresing.ctx_hide", "fresing.ctx_only", "fresing.ctx_show_all",   # (in the Client view they hide in the view only)
+    "fresing.weld_list", "fresing.weld_list_csv",  # task 0320: reading the weld list changes nothing
 }
 ALLOWED_PREFIXES = ("fresing.update_", "fresing.workspace_", "fresing.family_", "fresing.panel_", "fresing.next_",
                     "fresing.make_", "fresing.usage_", "fresing.learn_",
