@@ -1,6 +1,6 @@
 # 0323 – Welds from the CAD file: solid weld beads in a STEP are recognised, split per weld, sized, and get the app's weld looks
 
-**Who:** worker · **Status:** waits for 0320 (same files: `core/welds.py`, `blender/welds.py`, `ui_welds.py`) ·
+**Who:** worker · **Status:** done (0.2.246) ·
 **Branch:** `task/0323-welds-from-cad`
 **Started by:** lead, 24 Nov 2026 (owner 12:47: "Could we also recognize welds from the imported cad model? Like the
 welds placed in inventor or other cad programs." – and: "Could the app recognize the size and material automatically?
@@ -95,10 +95,78 @@ file carries any, say what is there – a later task), 2D drawings.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 25 Nov 2026 (one worker session, one independent-tester subagent).
 
 **What changed:**
+- `core/weld_cad.py` (new, no Blender): weld names (EN/NL/DE/FR/IT/ES …; never Weld nut, Weldment, Welded frame,
+  Weld-on hinge), split a body into its pieces, contact per bead face (7 points per triangle, facing the part), the
+  root line read from the bead's own mesh (where its faces on part A meet those on B) with 0319's corner at every point
+  – 0319's seam finder only as a fallback, cut to where the bead lies; kind (fillet / groove = the bead fills both
+  faces to their ends; its line moved up to the plates' faces where 0319's butt weld lies / OTHER), legs z1 / z2,
+  throat a = min(z)·cos(θ/2) or the depth along the middle (concave), cap width, length, all round (a ring, or seams
+  round a square post in a loop), intermittent (pieces on one line, regular within 15 %), metal from the CAD material
+  name, the shape check for unnamed beads (two parts, a seam under ≥ 60 % of it, legs ≤ 40 mm, section ≤ 1.5 × the
+  legs' triangle), UVs along / across, model-update matching. An inside-out piece is turned the right way.
+- `blender/weld_cad.py` (new): at the end of an import (`ops_import.finish_import`, after the rules) the model's beads
+  become `FRWeld`s with `from_cad` (parts, seams in part A's coordinates, sizes, intermittent, metal, finish by 0319's
+  rule); the CAD shape is kept as a mesh in part A's coordinates (`cad_mesh`, UV `fr_weld`), the source part is left
+  out (excluded + `fr_weld_source`; Clean-up's "show all" keeps it out). Message: "6 welds from the CAD file …; found N
+  by their shape – check them". Model update (`reimport`): kept with the user's settings / lost / new, with undo.
+- `blender/welds.py` (additive): the `cad_*` properties, `rebuild` uses the CAD shape (or the app's bead), CAD welds
+  never refind their seams, `carry_over` leaves them to `weld_cad`, `remove` drops the CAD mesh. `weld_symbols.py`: a
+  loop of seams is one all-round weld. `ui_welds.py`: import icon in the list, the weld's "From the CAD file …" line,
+  *Use the app's bead instead* / *Use the CAD shape again*, Kind / Size greyed while the CAD shape is used, *Find in CAD
+  file*, fold **From the CAD file** (CAD shape / App's bead / Painted / Bare / Back to the CAD part). 4 operators in
+  `ops_welds.py`.
+- Part type **Weld beads** (`part_types_data.py`). `tools/make_test_weldment.py --cad inventor|creo|unnamed [B]`
+  (the CAD-weld frame: 6 welds incl. intermittent, ring, square-post ring, unequal legs, V groove; 5 look-alikes) and
+  `--heavy N --beads`. Guide section *Welds from the CAD file*, function `looks.weld_cad`, tour stop **welds_cad** in
+  the Welds set, PC-check line **looks.weld_cad** (Full), real-app welds test +3 checks (import, all App's bead, undo).
+- **Inventor's names**: not read from the owner's file (it was not in the session). Autodesk's forum: an Inventor
+  weldment's solid welds are an assembly feature and leave a STEP export as one part / one body; the beads have the
+  weldment's bead material. The imitation calls the part "Welds" with material "Welded Steel Mild"; the finder takes
+  any name with weld / welds / weld bead / Schweißnaht / Lasnaad … and finds unnamed beads by shape anyway.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine):
+- Tests: `test_weld_cad_core.py` 53, `test_weld_cad_independent.py` 70 (independent tester), `test_weld_cad.py` 15
+  (Blender), the 0319 / 0320 weld tests unchanged (237 passed), real-app welds 23/23, tour set welds built + its 3 stops'
+  checks, precheck. All three exports give the same 6 welds within 0.5 mm; look-alikes never taken, also when every
+  part goes through the full shape check.
+- **Import time, 300-weld frame** (`--heavy 100 --beads`, 301 parts, Normal): 1.0 s without the welds → 32 s with them
+  (30.3 s finding and making 300 welds: ~0.1 s per weld, about half of it 0319's heat-zone strips). First version took
+  > 10 min there: the new parts had no world place yet at the import (all cells on top of each other) – fixed, test
+  `test_placed_parts_in_a_grid`. The 6-weld frame: ~1 s.
+- Independent tester (subagent, Sonnet): 70 tests from the brief; 1 fault found and fixed (a bead whose triangles face
+  inward was not found). No other subagents; nothing re-done after merging.
+- **Every other test model** (55 STEP files in tests/data): no weld found; the finder costs 0.02 s on most imports
+  (0.67 s at most, test_finishes) – it reads the parts' meshes only when a body may be a bead. The first GitHub run
+  found two faults this way: a way-cover flange strip (3 x 40 mm in a corner) taken for a groove weld by shape
+  (now: legs at most 3:1, a groove's section at most 1.8 x its V; test over 11 models), and Thor's import (the
+  site's robot arm, 517 parts) taking 890 s in the finder – screws and printed shells went through the full check.
+  Now: no known part words (screw, washer, pin …), at most 40 CAD faces, 5 x as long as wide, a quick 96-point contact
+  look first, contact checks only near the bead, and at an import the search by shape stops after 10 s (said; Find in
+  CAD file has no limit). Thor's candidates: 108 → 8, the finder ~20 s (stopped at 10 s at an import).
+- GitHub runs: 1st (full) – real-app way covers failed (the flange above), one pytest group stopped at 40 min (Thor in
+  `test_site_projects.py`; every group ran 1.5–2 x slower than usual that hour). 2nd: see the merge commit.
+
+**Owner's test steps** (on your PC, after the update):
+1. Inventor: open your small weldment (2 plates, 1 solid fillet weld, 1 cosmetic weld), **File > Export > CAD
+   Format**, choose **STEP**, save.
+2. Fresing Render: **Import STEP…**, pick that file. The message under Import should say "1 weld from the CAD file".
+3. Open **3 Looks > Welds**: one weld with the import icon. Click it: the line "From the CAD file (by its name) ·
+   fillet a… " shows the size – compare it with Inventor's weld (a and length). The cosmetic weld is not there (it is not
+   in the STEP file) – that is expected.
+4. Press **Use the app's bead instead**, then **Use the CAD shape again**: the bead changes and comes back.
+5. Send the lead the line from step 3, and – only if no weld was found – the part names you see in **2 Structure**.
 
 **Open points / follow-up tasks:**
+- The owner's Inventor file was not checked in this session (not attached): steps above. If its welds part is named
+  differently and not found, the fix is one word in `core/weld_cad.py`.
+- **Guide pictures of the Welds panel are wrong** (since 0319): `tools/guide_screens.py welds_panel` grabs the 3D view's
+  toolbar ("Active Tool") instead of the side panel – `docs/img/panel_3_welds.png` shows that. Not fixed here (guide
+  tool); no picture for the new section either. Follow-up for the guide lane.
+- Speed: 0.1 s per weld at the import (300 welds = 30 s on 4 cores). Could be cut by sharing the heat-zone work
+  (0319's `_heat`) or doing the welds in helper processes.
+- Not read: AP242 weld PMI; a square groove with a root gap (no common edge, the finder does not see a corner) comes
+  as OTHER (own shape only) when named, and is not found by shape.
+- The tour stop's camera frames both weldments (the close camera fits wider than asked).

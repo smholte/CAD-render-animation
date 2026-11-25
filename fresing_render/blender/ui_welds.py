@@ -16,6 +16,8 @@ class FRESING_UL_welds(bpy.types.UIList):
             sub = row.row(align=True)
             sub.alert = True
             sub.label(text="", icon="ERROR")
+        elif item.from_cad:                          # task 0323: from the CAD file
+            row.label(text="", icon="IMPORT")
         row.prop(item, "name", text="", emboss=False)
         row.prop(item, "hidden", text="", icon="HIDE_ON" if item.hidden else "HIDE_OFF", emboss=False)
 
@@ -35,27 +37,39 @@ def _seam_rows(layout, coll, key: str = "", preview: bool = False) -> None:
 def draw_details(layout, context, item) -> None:
     box = layout.box()
     wrap(box, context, welds.describe(item), icon="MOD_BEVEL", inset=12)
+    if item.from_cad:                                # task 0323: what came from the CAD file, and its shape switch
+        from . import weld_cad
+        wrap(box, context, weld_cad.describe(item), icon="IMPORT", inset=12)
     if item.lost:
         wrap(box, context, item.note or "Weld lost its faces – pick again", icon="ERROR", inset=12, alert=True)
         row = box.row(align=True)
         row.scale_y = MEDIUM
-        row.operator("fresing.weld_add", text="Pick again", icon="RESTRICT_SELECT_OFF").key = item.key
+        if not item.from_cad:
+            row.operator("fresing.weld_add", text="Pick again", icon="RESTRICT_SELECT_OFF").key = item.key
         row.operator("fresing.weld_remove", text="Remove", icon="X").key = item.key
         return
+    if item.from_cad and item.cad_kind != "OTHER":
+        row = box.row(align=True)
+        row.operator("fresing.weld_cad_shape", icon="MOD_BEVEL" if item.cad_shape else "IMPORT",
+                     text="Use the app's bead instead" if item.cad_shape else "Use the CAD shape again").key = item.key
     body = fold(box, "fr_weld_seams", "Seams", "IPO_LINEAR", state=plural(len(item.seams), "seam"))
     if body is not None:
         _seam_rows(body, item.seams, key=item.key)
-        col = split_props(body)
-        col.prop(item, "gap")
-        row = body.row(align=True)
-        row.operator("fresing.weld_refind", text="Find seams again", icon="FILE_REFRESH").key = item.key
-        row.operator("fresing.weld_add", text="Pick again", icon="RESTRICT_SELECT_OFF").key = item.key
+        if not item.from_cad:
+            col = split_props(body)
+            col.prop(item, "gap")
+            row = body.row(align=True)
+            row.operator("fresing.weld_refind", text="Find seams again", icon="FILE_REFRESH").key = item.key
+            row.operator("fresing.weld_add", text="Pick again", icon="RESTRICT_SELECT_OFF").key = item.key
     gap(box)
     col = split_props(box)
-    col.prop(item, "kind")
-    col.prop(item, "size")
+    sizes = col.column(align=True)
+    # a CAD shape keeps its own size: the settings stay in their place, greyed (the app's bead uses them)
+    sizes.active = not (item.from_cad and item.cad_shape)
+    sizes.prop(item, "kind")
+    sizes.prop(item, "size")
     if item.kind != "FILLET" and any(s.kind == "BUTT" for s in item.seams) or item.kind == "BUTT":
-        col.prop(item, "butt_width")
+        sizes.prop(item, "butt_width")
     col.prop(item, "craters")
     col.prop(item, "intermittent")
     if item.intermittent:
@@ -89,6 +103,26 @@ def draw_details(layout, context, item) -> None:
         wrap(box, context, "These parts are welded but move apart (a joint moves one of them)", icon="ERROR",
              inset=12, alert=True)
         box.operator("fresing.weld_move_as_one", text="Make them move as one", icon="LINKED").key = item.key
+
+
+def draw_cad_all(layout, context, s) -> None:
+    """Task 0323: the welds from the CAD file all at once – their shape, painted or bare, back to the CAD part."""
+    n = sum(1 for it in s.items if it.from_cad)
+    if not n:
+        return
+    body = fold(layout, "fr_weld_cad_all", "From the CAD file", "IMPORT", state=plural(n, "weld"))
+    if body is None:
+        return
+    shape = sum(1 for it in s.items if it.from_cad and it.cad_shape)
+    painted = sum(1 for it in s.items if it.from_cad and it.finish == "PAINTED")
+    hint(body, context, f"{shape} with their CAD shape, {painted} painted. Cosmetic welds are not in a STEP file")
+    row = body.row(align=True)
+    row.operator("fresing.weld_cad_all", text="CAD shape").what = "CAD"
+    row.operator("fresing.weld_cad_all", text="App's bead").what = "APP"
+    row = body.row(align=True)
+    row.operator("fresing.weld_cad_all", text="Painted").what = "PAINTED"
+    row.operator("fresing.weld_cad_all", text="Bare").what = "BARE"
+    body.operator("fresing.weld_cad_put_back", text="Back to the CAD part", icon="LOOP_BACK")
 
 
 def draw_symbols(layout, s) -> None:
@@ -149,12 +183,16 @@ class FRESING_PT_welds(_Panel, bpy.types.Panel):
                                 "Press Enter, then click the faces of the part it is welded to",
                                 "Untick the seams you do not want and press Done – or select two parts and press "
                                 "'Weld two parts'",
-                                "Choose the size, the metal and the finish below"],
+                                "Choose the size, the metal and the finish below",
+                                "A STEP file with solid welds (Inventor, Creo) brings them along: they are in the "
+                                "list after the import (Find in CAD file: look again)"],
               key="fr_how_welds", used=bool(len(s.items)))
         gap(layout)
         big(layout, "fresing.weld_add", "Add weld…", "MOD_BEVEL")
         row = layout.row(align=True)
         row.operator("fresing.weld_parts", text="Weld two parts", icon="LINKED")
+        row.operator("fresing.weld_cad_find", text="Find in CAD file", icon="IMPORT")
+        draw_cad_all(layout, context, s)             # task 0323: every weld from the CAD file at once
         if len(s.items):
             gap(layout)
             draw_symbols(layout, s)                      # task 0320: symbols switch, Show in renders, Weld list

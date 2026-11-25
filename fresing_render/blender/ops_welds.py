@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import bpy
 import numpy as np
-from bpy.props import BoolProperty, FloatVectorProperty, StringProperty
+from bpy.props import BoolProperty, EnumProperty, FloatVectorProperty, StringProperty
 from mathutils import Vector
 
 from ..core.words import plural
@@ -608,6 +608,105 @@ class FRESING_OT_weld_list_csv(bpy.types.Operator):
         return {"FINISHED"}
 
 
+# ---------------------------------------------------------------------------
+# task 0323: welds from the CAD file
+# ---------------------------------------------------------------------------
+
+class FRESING_OT_weld_cad_find(bpy.types.Operator):
+    """Looks for solid weld beads in the imported models (Inventor's welds body, Creo's weld bodies, parts named
+    Weld …, beads by their shape) and makes each one a weld with the app's looks. Beads already made are skipped"""
+
+    bl_idname = "fresing.weld_cad_find"
+    bl_label = "Find welds in the CAD file"
+    bl_options = {"REGISTER", "UNDO"}
+
+    @classmethod
+    def poll(cls, context):
+        return bool(build.model_roots(context.scene))
+
+    def execute(self, context):
+        from . import weld_cad
+        made, by_shape = weld_cad.find_again(context.scene)
+        if not made:
+            self.report({"INFO"}, "No weld beads found in the CAD file (cosmetic welds are not in a STEP file)")
+            return {"FINISHED"}
+        s = welds.settings(context.scene)
+        s.index = len(s.items) - 1
+        text = f"{plural(len(made), 'weld')} from the CAD file"
+        if by_shape:
+            text += f"; {plural(by_shape, 'weld')} found by shape – check them"
+        self.report({"INFO"}, text)
+        return {"FINISHED"}
+
+
+class FRESING_OT_weld_cad_shape(bpy.types.Operator):
+    """Switches this weld from the CAD file between the bead's own shape from the CAD file and the app's bead laid on
+    the same seam (with its size)"""
+
+    bl_idname = "fresing.weld_cad_shape"
+    bl_label = "Use the app's bead instead"
+    bl_options = {"REGISTER", "UNDO"}
+
+    key: StringProperty(options={"HIDDEN", "SKIP_SAVE"})
+
+    def execute(self, context):
+        it = _item(context, self.key)
+        if it is None or not it.from_cad:
+            return {"CANCELLED"}
+        it.cad_shape = not it.cad_shape
+        self.report({"INFO"}, f"Weld '{it.name}': " + ("the CAD shape" if it.cad_shape else "the app's bead"))
+        return {"FINISHED"}
+
+
+class FRESING_OT_weld_cad_all(bpy.types.Operator):
+    """The same for every weld from the CAD file at once: the CAD shape or the app's bead, painted (with the paint of
+    the painted part) or bare"""
+
+    bl_idname = "fresing.weld_cad_all"
+    bl_label = "All welds from the CAD file"
+    bl_options = {"REGISTER", "UNDO"}
+
+    what: EnumProperty(items=[("CAD", "CAD shape", "Every weld from the CAD file keeps its bead's own shape"),
+                              ("APP", "App's bead", "Every weld from the CAD file gets the app's bead on its seam"),
+                              ("PAINTED", "Painted", "Every weld from the CAD file painted over (where a part is "
+                                                     "painted)"),
+                              ("BARE", "Bare", "Every weld from the CAD file as welded, not painted")],
+                       options={"SKIP_SAVE"})
+
+    @classmethod
+    def description(cls, context, properties):
+        return {"CAD": "Every weld from the CAD file keeps its bead's own shape from the CAD file",
+                "APP": "Every weld from the CAD file gets the app's bead laid on its seam instead of its CAD shape",
+                "PAINTED": "Every weld from the CAD file painted over with its painted part's paint (the ripples "
+                           "show through); a weld between bare parts stays bare",
+                "BARE": "Every weld from the CAD file as welded: bare metal with its heat tint, not painted"}[
+            properties.what]
+
+    def execute(self, context):
+        from . import weld_cad
+        values = {"CAD": {"cad_shape": True}, "APP": {"cad_shape": False}, "PAINTED": {"finish": "PAINTED"},
+                  "BARE": {"finish": "AS_WELDED"}}[self.what]
+        n = weld_cad.set_all(context.scene, **values)
+        self.report({"INFO"}, f"{plural(n, 'weld')} changed")
+        return {"FINISHED"}
+
+
+class FRESING_OT_weld_cad_put_back(bpy.types.Operator):
+    """Removes every weld that came from the CAD file and shows the CAD part they came from again (as it was
+    imported). Find welds in the CAD file makes them again"""
+
+    bl_idname = "fresing.weld_cad_put_back"
+    bl_label = "Back to the CAD part"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        from . import weld_cad
+        n = weld_cad.put_back(context.scene)
+        self.report({"INFO"}, f"{plural(n, 'weld')} from the CAD file removed; the CAD part shows again")
+        return {"FINISHED"}
+
+
 CLASSES = (FRESING_OT_weld_list, FRESING_OT_weld_list_csv, FRESING_OT_weld_add, FRESING_OT_weld_next, FRESING_OT_weld_cancel, FRESING_OT_weld_parts,
            FRESING_OT_weld_remove, FRESING_OT_weld_refind, FRESING_OT_weld_ticks, FRESING_OT_weld_move_as_one,
-           FRESING_OT_ctx_weld)
+           FRESING_OT_ctx_weld, FRESING_OT_weld_cad_find, FRESING_OT_weld_cad_shape, FRESING_OT_weld_cad_all,
+           FRESING_OT_weld_cad_put_back)
