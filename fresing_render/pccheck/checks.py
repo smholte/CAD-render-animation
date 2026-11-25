@@ -2520,7 +2520,7 @@ def couplings_motor(ctx):
     return "motor → trolley → wheel; 12 rpm × 5 s = 1 turn"
 
 
-@line("view.measure", "Measure in the 3D view: the crane's base measures its drawn sizes", "0.2.239",
+@line("view.measure", "Measure in the 3D view: the crane's base measures its drawn sizes", "0.2.240",
       what="On the test crane's base (5000 x 3000 x 500 mm, bolt holes Ø33 4500 mm apart), clicked as a user would: "
            "face to face, hole centre to hole centre (snapped), a hole's rim, and through a slice the cut face to the "
            "back face – each within 0.01 mm of the drawing; the measurement follows the part when it moves; a mouse "

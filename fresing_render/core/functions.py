@@ -701,7 +701,7 @@ fn(id="motion.lead_motions", short="Lead motions", title="Lead motions: one slid
 # task 0322: measuring in the 3D view – on the top bar in every workspace and in the Client view, keys M / Alt+M
 fn(id="view.measure", short="Measure", title="Measure in the 3D view: distance, edge, gap, angle, Ø, point to axis",
    family="scene", panel="TOPBAR_PT_fresing_measure", button="fresing.measure", guide="measure", tour=("measure",),
-   pccheck=("view.measure",), since="0.2.239", headline=True,
+   pccheck=("view.measure",), since="0.2.240", headline=True,
    workspaces=_WORK + ("client", "lifting"),         # (and every task workspace: _COMMON)
    manual_estimate=("use", 90, "read the size off the drawing or measure it in the CAD program and type it in"))
 fn(id="animation.lead_motion_step", short="Lead motion step", title="Lead motion step", family="animation",

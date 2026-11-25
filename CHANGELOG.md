@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.239 – 24 Nov 2026 – Measure in the 3D view (task 0322)
+## 0.2.240 – 25 Nov 2026 – Measure in the 3D view (task 0322)
 
 - **Measure** (new, on the top bar right of Lead motions, or the key **M** over the 3D view – **Alt+M** in Full
   access, where M stays Blender's own): click the model and read the value, the way the 3D page's measure tool does.
@@ -19,6 +19,14 @@ installer of that version was built from.
   **Units** (mm, m, inch), **Keep measurements** (saved with the project) and **Show in renders** – off by default:
   labels are never in a picture or video unless you tick it.
 - Works through a **Slice** (measures on the cut face) and in the **Client view** (there it is never saved).
+## 0.2.239 – 24 Nov 2026 – Real-looking models for "Painted faces" and "Logos and stickers" (task 0235)
+
+- **Painted faces** now shows a gearbox housing (rounded corners, a base flange, an oil-filler boss) with its red top
+  and blue front painted in CAD, a sheet cover with screw holes that you paint by hand, and small plates with holes –
+  in a clean studio.
+- **Logos and stickers** now works on a real-size machine door panel (1.2 x 0.8 m) and two 200 l drums with a hot-surface
+  sticker wrapped round each, in a machine hall. The sticker's and the text's sizes fit the big parts.
+- The old small test models stay for the tests; only the two learning sets use the new ones.
 ## 0.2.238 – 24 Nov 2026 – The lead motions as sliders on the web 3D page (task 0310)
 
 - **Motions on the web 3D page:** a project with lead motions (top bar > Lead motions) puts them on its exported page.
