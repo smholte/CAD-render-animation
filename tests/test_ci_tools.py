@@ -763,7 +763,7 @@ def test_files_that_skip_on_github_never_share_a_pytest_group():
     files = [f"tests/test_big_{i}.py" for i in range(3)] + skippy
     secs = {f"tests/test_big_{i}.py": 600.0 for i in range(3)}
     secs.update({f: 1.0 for f in skippy})
-    groups = ci_groups.pytest_groups(files, secs, n=4, selftest=False)
+    groups = ci_groups.pytest_groups(files, secs, n=max(4, len(skippy)), selftest=False)   # (0322: 5 such files)
     owners = [g["name"] for f in skippy for g in groups if f in g["files"]]
     assert len(owners) == len(skippy) == len(set(owners))
     for g in ci_groups.matrix_pytest():                                     # and in the real split
