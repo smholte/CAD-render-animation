@@ -600,6 +600,16 @@ def _remove_new(before: dict, root=None) -> None:
             bpy.data.collections.remove(col)
 
 
+def _both(first, second):
+    """Two undo functions as one (the welds of 0319, then those from the CAD file, task 0323)."""
+    def undo():
+        if second is not None:
+            second()
+        if first is not None:
+            first()
+    return undo
+
+
 def update_model(context, old_root, cache_dir: str, copies: bool = True) -> dict:
     """Replace ``old_root`` by the model in ``cache_dir``, keeping all work. Returns a summary.
 
@@ -895,6 +905,11 @@ def _carry_over(context, st) -> dict:
     decal_notes = decals.carry_over([(o["ob"], n["ob"]) for o, n in pairs if o["kind"] == "part"], old_objs)
     from . import welds                          # task 0319: welds find their faces again on the new parts
     weld_notes, st.welds_undo = welds.carry_over(scene, [(o["ob"], n["ob"]) for o, n in pairs if o["kind"] == "part"])
+    from . import weld_cad                       # task 0323: welds from the CAD file follow the new model's beads
+    cad_notes, cad_undo = weld_cad.carry_over(scene, [(o["ob"], n["ob"]) for o, n in pairs if o["kind"] == "part"],
+                                              new_root)
+    weld_notes = list(weld_notes) + cad_notes
+    st.welds_undo = _both(st.welds_undo, cad_undo)
     lap("faces, decals, welds")
 
     matched_new = {id(n) for _o, n in pairs}

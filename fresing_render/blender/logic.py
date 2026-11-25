@@ -433,7 +433,8 @@ def exclude(objs, excluded: bool = True) -> int:
 
 
 def restore_excluded(scene) -> int:
-    objs = [ob for ob in scene.objects if ob.get(build.PROP_EXCLUDED)]
+    # (a CAD part whose beads became welds stays out: 3 Looks > Welds > Back to the CAD part shows it, task 0323)
+    objs = [ob for ob in scene.objects if ob.get(build.PROP_EXCLUDED) and not ob.get("fr_weld_source")]
     for ob in objs:
         ob[build.PROP_EXCLUDED] = False
         ob.hide_select = False

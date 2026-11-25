@@ -34,7 +34,7 @@ Fix 0328's rows **1, 12, 25, 34 + the 0213 open point (Set-up window Back / Next
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web, 25 Nov 2026 · branch `claude/bold-edison-5jujsc` (the session's branch) · 0.2.251
+**Chat / date:** Claude Code on the web, 25 Nov 2026 · branch `claude/bold-edison-5jujsc` (the session's branch) · 0.2.252
 
 **What changed:**
 - **Row 1** – `first_setup._on_load` closed *every* set-up window a moment after any load, also the start-up file's own
@@ -54,7 +54,7 @@ Fix 0328's rows **1, 12, 25, 34 + the 0213 open point (Set-up window Back / Next
 - **Row 32 words** – `core/first_setup.window_words` ("The window is drawn by the graphics card …" / "… without a
   graphics card (by the processor) …"); `ops_backups`: "switched off: Fresing Settings > Backups switches them on".
 - Guide (App windows' first place, Set-up window in the Client view, Your PC, set-up stays), CHANGELOG, function list
-  `changed="0.2.251"` (help.first_setup, panel.setup_window, animation.product_video), PC-check line `app.window_place`
+  `changed="0.2.252"` (help.first_setup, panel.setup_window, animation.product_video), PC-check line `app.window_place`
   (MIN_LINES_FULL 156), real-app checks: firstsetup 43, setup 48.
 
 **Tested and measured** (4-core web machine, Linux, Blender 5.2.3 under xvfb; test crane / gantry):

@@ -61,6 +61,9 @@ def _thickness(item) -> float:
 def data_of(item, number: int, thickness: bool = True) -> core.Weld:
     """What the symbol and the list need of one weld (``number``: its place in the list, from 1)."""
     seams = [core.Seam(kind=s.kind, length=float(s.length), closed=bool(s.closed)) for s in item.seams if s.enabled]
+    if getattr(item, "from_cad", False) and item.cad_closed and len(seams) > 1:
+        # task 0323: a CAD bead round a square post (seams round in a loop) is one weld all round
+        seams = [core.Seam(kind=seams[0].kind, length=sum(x.length for x in seams), closed=True)]
     lost = bool(item.lost or item.part_a is None or item.part_b is None)
     metal, process = "STEEL", "MAG"
     if not lost:
