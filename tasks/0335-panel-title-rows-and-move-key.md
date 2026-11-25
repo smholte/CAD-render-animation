@@ -40,7 +40,7 @@ Fix 0328's row **17** (row 29 moved to 0338: unlock / lock-again popups, owner 2
 and the state text, and a small layout wrapper (`_Toggling`) turns the panel's header icon and its state text
 ("3 removed") into the same toggle button. So the icon, the words, the empty right part and the state all open / fold
 the panel (Ctrl+click still keeps only this one open). The lesson's pixel marker (an `icon_value` label) and the tab's
-own fixed section stay plain labels. The "header" hook now draws right after the icon, before the title. CHANGELOG 0.2.251.
+own fixed section stay plain labels. The "header" hook now draws right after the icon, before the title. CHANGELOG 0.2.252.
 Guide, tour, function list, PC-check line: not needed (no new function; the click target of an existing one grew).
 
 **Tested and measured** (2-core-class web machine, no graphics card): `tests/test_panel_title_rows.py` (new, 2 tests),
