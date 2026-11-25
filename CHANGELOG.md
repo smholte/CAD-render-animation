@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.249 – 25 Nov 2026 – Uninstall shortcut asks first; landing page publishes again (task 0339)
+## 0.2.250 – 25 Nov 2026 – Uninstall shortcut asks first; landing page publishes again (task 0339)
 
 - **"Uninstall Fresing Render" asks first.** The shortcut in the install folder and next to Fresing Render.exe, and
   Uninstall.bat, now ask "Remove Fresing Render from this PC? Your projects, renders and backups are kept. (Y/N)".
@@ -15,6 +15,12 @@ installer of that version was built from.
 - **The landing page shows every release again.** Its publish step failed on and off since 25 Nov (GitHub listed the
   page's files a moment too late); it now waits for them and tries once more.
 
+## 0.2.249 – 25 Nov 2026 – Removing a crane or a load's model (task 0337)
+
+- **Remove… on a placed crane takes all of it.** The hoist rope, drum, sheaves, joints, poses and its entry in
+  8 Lifting plan went on showing; now they go with the crane, and the Remove window says it is a lifting crane.
+- **A load with no parts left says so.** Remove the load's model and the load showed a stale centre of gravity and a
+  green "within limits". Now a red line says "has no parts left" and the load is not used.
 ## 0.2.248 – 25 Nov 2026 – One undo step per action, messages beside their own button (task 0334)
 - Ctrl+Z now undoes one thing at a time after picking a RAL colour, loading a template (also from the library) and
   picking a 360° photo – before, one Ctrl+Z took the colour pick back together with the step before it.

@@ -761,8 +761,13 @@ def _key(scene, crane, load):
     return (crane.name, vals, R, st, ld, _mtime(item_at(path_of(crane)).path or path_of(crane)))
 
 
+NO_PARTS = "Load '{name}' has no parts left: its model was removed. Remove this load or use other parts."
+
+
 def readout(scene, crane, load=None) -> LR.Readout | str:
     """The crane's live readout, or the reason there is none (a sentence)."""
+    if load is not None and load.kind == "PARTS" and not load_parts(load):      # task 0337 (0328 row 24)
+        return NO_PARTS.format(name=load.name)
     try:
         key = _key(scene, crane, load)
     except Exception as exc:  # noqa: BLE001
