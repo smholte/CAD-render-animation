@@ -5,6 +5,23 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.245 – 25 Nov 2026 – Adjust a look (task 0314)
+
+- **Adjust** (Materials window, under **Use for <group>**, when the group has the picked material): a few plain
+  sliders for the ready-made look, only the ones that mean something for it – **Colour**, **Shine** (duller ↔
+  shinier), **Metal ↔ paint**, **Wear and edges**, **Rust**, **Dirt** (dust and grime in soft patches), a finish's
+  pattern **size** and **angle**, **Relief** (how strongly the texture shows) and **Clear coat**. The group's parts
+  change while you move them; the large picture is made again with your changes a moment later. Safe limits: nothing
+  turns black, mirror-like or glowing.
+- **Reset** puts the look back as the material came. **Save as my material…** keeps the sliders you moved; another
+  group that uses it gets them too.
+- **Open in the shader editor** (workspace Full access only): the group's material in Blender's own shader editor;
+  the node **FR adjust** holds the same sliders under the same names.
+- **Which looks render slower**: every look was timed (Cycles on the processor). A small clock next to a name marks
+  the 3 looks that take 1.5 x the time of plain paint or more (frosted acrylic, clear PU tube, eroded blade paint);
+  the picked material says how much. The sliders themselves cost nothing measurable. Looks nobody adjusts are
+  exactly as before.
+
 ## 0.2.244 – 25 Nov 2026 – Measure in the 3D view (task 0322)
 
 - **Measure** (new, on the top bar right of Lead motions, or the key **M** over the 3D view – **Alt+M** in Full
