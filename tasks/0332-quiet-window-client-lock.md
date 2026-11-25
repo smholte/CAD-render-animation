@@ -1,6 +1,6 @@
 # 0332 – Quiet window and Client view lock (0328 F3)
 
-**Who:** worker · **Status:** open – waits for 0295 (`lock.py`) · **Branch:** `task/0332-quiet-window-client-lock`
+**Who:** worker · **Status:** running · **Branch:** `task/0332-quiet-window-client-lock`
 **Started by:** lead, 25 Nov 2026 (from 0328's report, owner's focus: user friendliness) · **Model:** Opus · effort Medium
 **Area:** Start & learn lane (quiet window) – after **0295** (both change `lock.py`) – `blender/quiet.py`, `blender/lock.py` (key lists: F2 / Ctrl+F2 / Ctrl+, and the render key), `blender/ops_settings.py` (`quiet_panels`, its use for the main view only), `blender/ops_workspace.py`, their tests, guide, CHANGELOG.
 **Not:** the Keys tab (0295, done before you), menus and side-panel tabs as a whole (0222 package C later).
