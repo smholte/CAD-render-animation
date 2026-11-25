@@ -5,6 +5,16 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.258 – 25 Nov 2026 – Joints move much faster on big models (task 0326)
+
+- **Moving a joint on a big model is about 4–5 times faster.** On the 11,000-part stress model one step of the crane's
+  slew took 75 ms on a 4-core test machine; now 16 ms. Every way a joint is moved from the app gets it: poses, the
+  lead motions' slider, saved scenes, the PC check. The app told Blender "everything about this part changed" at each
+  step, and Blender then went over every object in the model again; now it says only "it moved".
+- What is left (about 15 ms there) is Blender's own work for any change in a model that big – playing the animation
+  costs the same per frame.
+- PC check: the Stress line **Stress model: dragging a joint** shows the new time.
+
 ## 0.2.257 – 25 Nov 2026 – The first-start set-up stays open; windows open in a good place (task 0331)
 
 - **Set up Fresing Render** on a new PC now stays open until you press **Next** to the end, **Skip set-up** or
