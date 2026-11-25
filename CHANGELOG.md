@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.246 – 25 Nov 2026 – All keys in one list, change Fresing's own (task 0295)
+## 0.2.247 – 25 Nov 2026 – All keys in one list, change Fresing's own (task 0295)
 
 - **Fresing > Keys…** (also at the end of Help) opens Fresing Settings on its new tab **Keys**: every key and mouse
   action of the app in five groups – moving the view (mouse, touchpad, number pad, Home), selecting, **Fresing's own
@@ -17,6 +17,18 @@ installer of that version was built from.
   warning naming what Blender does with it. The round arrow puts one key back, **Reset all** all of them.
 - **Print key sheet:** one A4 page with every key – your own marked – opens in your browser to print or save as PDF.
 - **Blender's own key settings** opens Blender's Preferences > Keymap (Blender's keys, used in Full access).
+
+## 0.2.246 – 25 Nov 2026 – "Uninstall Fresing Render" where the app is (task 0329)
+
+- **Uninstall Fresing Render** is now a shortcut in the install folder (`%LOCALAPPDATA%\FresingRender`) and next to
+  **Fresing Render.exe** – so you can remove the app even when the downloaded installer folder is long deleted. A
+  double-click does exactly what Uninstall in Settings > Apps > Installed apps does: its window shows what was removed;
+  your projects, renders and backups are kept.
+- A PC installed earlier gets both shortcuts at its next start; Update now keeps them right.
+- Install.bat's last lines say where uninstall is.
+- Uninstall run a second time after the folder is gone says so plainly (and clears a leftover entry in Installed apps);
+  after a removal that was stopped halfway (a file in use), Uninstall works again after a restart.
+- The self-test has a new line: "Windows: Uninstall shortcut in the install folder".
 
 ## 0.2.245 – 25 Nov 2026 – Adjust a look (task 0314)
 

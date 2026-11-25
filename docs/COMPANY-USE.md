@@ -26,12 +26,13 @@ It is free software under **GPL-3.0-or-later** (see "The licence in plain words"
 | the in-app update's log | `…\portable\config\fresing_update\update.log` |
 | shortcuts | Desktop and Start menu: Fresing Render only; `%LOCALAPPDATA%\FresingRender\Tools` (self test, PC checks, safe start, user guide) |
 | `Fresing Render.exe` | next to `blender.exe`: Blender's own program under the app's name and icon (made by the app; not signed, see below) |
+| `Uninstall Fresing Render.lnk` (task 0329) | two shortcuts: in `%LOCALAPPDATA%\FresingRender\` and next to `Fresing Render.exe`; each runs the Installed-apps entry's `UninstallString` (Windows PowerShell with `Tools\Uninstall-FresingRender.ps1`); made by the installer, and by the app at its start when missing or wrong |
 | the **Toolbox folder** (task 0217) | `%USERPROFILE%\Toolbox\` (made when missing; `TOOLBOX_HOME` names another folder): `toolbox-folder.json` and the app's own `tools\nl.fresing.render\` – its description `toolbox.json`, `alive.json` while it runs, and `inbox\` where other tools on this PC (House Planner) leave files for it. `Uninstall.bat` removes only `tools\nl.fresing.render\` |
 
 What it writes while it works: the user's **projects** (`.blend`) where the user saves them; **renders** in a "Renders"
 folder next to the saved project (or `Pictures\Fresing Render`; or an export place of Fresing > Settings… > Exports); a **cache** of read STEP files in the extension's user
 folder (`…\cache\`, so the same file opens fast the next time); the **self-test and PC-check reports** on the Desktop;
-the **logs** named above. `Uninstall.bat` (or Uninstall in Installed apps) removes the install folder; projects and renders are not touched. The installer writes **one registry key, per user** (no admin
+the **logs** named above. `Uninstall.bat` (or Uninstall in Installed apps, or the shortcut "Uninstall Fresing Render" in the install folder) removes the install folder; projects and renders are not touched. The installer writes **one registry key, per user** (no admin
 rights): `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\FresingRender`, so the app is listed in Settings > Apps > Installed apps with its version, size and an Uninstall button (task 0265; the app updates its version at **Update now** and checks it at start; the uninstaller removes the key last). It starts no service (searched in `Install-FresingRender.ps1`).
 
 ## The user's settings (one file)
