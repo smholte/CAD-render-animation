@@ -973,8 +973,9 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
 - **Project format and the upgrade chain (task 0352).** Every save stamps each local scene with `fr_format`
   (`core/compat.FORMAT`) and `fr_saved_by` (the app version) – plain custom properties, readable by any version.
   **From the baseline on:** a change in what a project stores (a new, renamed or re-meant choice) = raise `FORMAT` by
-  one + ONE step in `core/compat.STEPS` (from the old number to the new one; it gets a scene and changes only that
-  scene's data; `changes=` names the summary paths it changes on purpose) + the test project of the new number
+  one + ONE step in `core/compat.STEPS` (from the old number to the new one; it runs once per file with the scenes
+  below it, touches shared data once, is safe to run again – the chain stops at a failing step and retries at the next
+  open –; `changes=` names the summary paths it changes on purpose) + the test project of the new number
   (`tools/make_compat_project.py`, section 7). Derived data never gets a step. **No new load-time upgrade outside the
   chain** once the baseline is set – the chain runs first in `load_post` (`blender/compat.py`), before every other
   Fresing load handler. A project from a newer app opens look-only (`compat.blocked()`): anything new that writes the

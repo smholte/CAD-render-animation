@@ -40,9 +40,11 @@ class Step:
     """One upgrade step: a project at ``from_format`` comes out at ``to_format`` (= from_format + 1).
 
     ``function`` = "module:function" inside ``fresing_render.blender`` (resolved only when it runs, so this list is
-    plain data the precheck can read); it gets one scene and changes only that scene's own data, so running it on a
-    scene that is already done changes nothing. ``changes`` = the summary paths (``summary_paths``) the step changes on
-    purpose – the test projects' comparison allows exactly those."""
+    plain data the precheck can read). It runs ONCE per file and gets the list of local scenes that are below
+    ``to_format`` (objects, meshes, materials two scenes share are one datablock: change each once). It must be safe
+    to run again on its own output (a later step failing makes the next open run the chain from the last format
+    reached). ``changes`` = the summary paths the step changes on purpose ("scenes.Scene.settings.fresing.x") – the
+    test projects' comparison allows exactly those."""
 
     from_format: int
     to_format: int
@@ -105,16 +107,23 @@ def plan(found, steps=None, fmt: int | None = None, baseline=None, *, use_baseli
 
 
 def run(steps, call, say=print) -> tuple[list, list]:
-    """Run ``steps`` in order with ``call(step)``; each in its own try / except with one plain line, so one failing
-    step never skips the others (as handlers._on_load since 0055). Returns (names done, names failed)."""
+    """Run ``steps`` in order with ``call(step)``, each in its own try / except: a failing step gives one plain line
+    and never stops the project from opening (as handlers._on_load since 0055). Unlike _on_load's independent
+    per-lane upgrades, the chain's steps build on each other – step n+1 expects data at format n+1 –, so the chain
+    stops at a failing step and the project stays at the format it reached (a fixed version tries again).
+    Returns (names done, names failed)."""
     done, failed = [], []
-    for s in steps:
+    steps = list(steps)
+    for i, s in enumerate(steps):
         try:
             call(s)
             done.append(s.name)
-        except Exception as exc:  # noqa: BLE001 - one step never stops the others
+        except Exception as exc:  # noqa: BLE001 - the project opens whatever a step does
             failed.append(s.name)
-            say(f"Fresing Render: upgrade step '{s.name}' ({s.from_format} → {s.to_format}) failed: {exc}")
+            rest = len(steps) - i - 1
+            say(f"Fresing Render: upgrade step '{s.name}' ({s.from_format} → {s.to_format}) failed: {exc}"
+                + (f" – the {rest} step(s) after it wait for a fixed version" if rest else ""))
+            break
     return done, failed
 
 
@@ -218,20 +227,27 @@ def family_problems(families: dict, covered) -> list[str]:
 # the summary of a project's stored choices, and comparing two of them
 # ---------------------------------------------------------------------------
 
-# Settings of ``scene.fresing`` (and of the object / mesh / material groups) that are not choices: messages, progress,
-# UI state, measured or worked-out values. The summary leaves them out. Dotted names: "<group>.<property>"; a bare
-# name is left out in every group.
+# Settings that are not choices: messages, progress, UI state, measured or worked-out values. The summary leaves them
+# out. "<PropertyGroup class>.<property>" (exact: a name means one setting of one group); a bare name only for the
+# few that are never a choice in any group (a test checks no bare name hides a collection of choices).
 NOT_CHOICES = frozenset({
-    # messages, progress, UI state (any group)
-    "last_message", "progress", "progress_text", "status", "message", "busy", "running", "error",
-    "panels_open", "saved_by", "rendered_once", "next_hidden", "last_render",
-    # worked out again from the choices (the saved derived data of the task's findings, cleanups 0350)
-    "tree", "found", "unmatched", "model_count", "bounds_valid", "bounds_min", "bounds_max", "anim_baked",
-    "queue_dir", "queue_pid", "report_new", "report_missing", "report_notes", "report_title",
-    "rows", "signature", "result", "program_sig", "stock_mesh", "cut_mesh", "path_sig", "cad_mesh",
-    "rig_result", "volume_mass", "last_path", "last_html", "last_text", "last_size", "last_bake", "last_seconds",
-    "last_problems",
+    "last_message", "progress", "progress_text", "busy", "running", "error",
+    # the scene's own group: UI state and what an import / Build / the queue worked out
+    *(f"FRSceneSettings.{p}" for p in (
+        "panels_open", "saved_by", "rendered_once", "next_hidden", "last_render", "tree", "found", "unmatched",
+        "model_count", "bounds_valid", "bounds_min", "bounds_max", "anim_baked", "queue_dir", "queue_pid",
+        "report_new", "report_missing", "report_notes", "report_title")),
+    "FRQueueJob.status", "FRQueueJob.message", "FRMechanism.status", "FRLifting.message", "FRCraneSetup.message",
+    "FRClash.rows", "FRClash.signature", "FRToolpath.result", "FRToolpath.program_sig",
+    "FRMilling.stock_mesh", "FRMilling.cut_mesh", "FRMilling.path_sig", "FRWeld.cad_mesh",
+    "FRLiftLoad.rig_result", "FRLiftLoad.volume_mass", "FRCraneGroup.volume_mass",
+    "FRWeb3D.last_path", "FRWeb3D.last_html", "FRWeb3D.last_text", "FRWeb3D.last_size",
+    "FRHouse.last_bake", "FRHouse.last_seconds", "FRHouse.last_problems", "FRHouse.last_text",
 })
+
+
+def not_a_choice(group_class: str, prop: str) -> bool:
+    return prop in NOT_CHOICES or f"{group_class}.{prop}" in NOT_CHOICES
 
 
 def round_value(v):

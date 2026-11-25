@@ -48,7 +48,7 @@ def test_plan_runs_nothing_before_the_baseline_or_without_a_stamp():
     assert C.plan(3) == []                                  # the shipped chain: nothing
 
 
-def test_run_keeps_the_order_and_one_failing_step_skips_nothing():
+def test_run_keeps_the_order_and_stops_at_a_failing_step():
     calls, said = [], []
 
     def call(step):
@@ -56,9 +56,10 @@ def test_run_keeps_the_order_and_one_failing_step_skips_nothing():
         if step.name == "s3":
             raise ValueError("broken")
     done, failed = C.run(steps((2, 3), (3, 4), (4, 5)), call, said.append)
-    assert calls == ["s2", "s3", "s4"]
-    assert done == ["s2", "s4"] and failed == ["s3"]
+    assert calls == ["s2", "s3"]                     # s4 builds on s3: it waits for a fixed version
+    assert done == ["s2"] and failed == ["s3"]
     assert len(said) == 1 and "'s3'" in said[0] and "broken" in said[0] and "3 → 4" in said[0]
+    assert "1 step(s) after it wait" in said[0]
 
 
 def test_reading_stamps():
@@ -139,10 +140,12 @@ def test_the_precheck_wants_the_test_project_and_the_step_from_the_baseline_on(t
     monkeypatch.setattr(C, "FORMAT", 2)
     found = ci_precheck.check_compat(str(tmp_path))
     assert any("no upgrade step from format 1 to 2" in p for p in found)
-    assert any("format_1/ is missing" in p for p in found) and any("format_2/ is missing" in p for p in found)
+    assert any("format_1/summary.json is missing" in p for p in found)
+    assert any("format_2/summary.json is missing" in p for p in found)
     for n in (1, 2):
         d = tmp_path / "tests" / "data" / "compat" / f"format_{n}"
         d.mkdir(parents=True)
-        (d / "summary.json").write_text("{}")
+        (d / "summary.json").write_text('{"format": %d, "projects": {"crane": {}}}' % n)
+        (d / "crane.blend").write_bytes(b"BLENDER")
     monkeypatch.setattr(C, "STEPS", (C.Step(1, 2, "one", "m:f"),))
     assert ci_precheck.check_compat(str(tmp_path)) == []

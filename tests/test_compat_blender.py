@@ -114,38 +114,46 @@ def test_our_handlers_run_first(fresh, tmp_path):
                 lst.remove(other)
 
 
-def test_the_chain_runs_first_in_order_once_and_survives_a_failing_step(fresh, tmp_path, monkeypatch):
-    from fresing_render.blender import compat
-    from fresing_render.core import compat as core
-    calls = []
-
-    def ok(name):
-        def f(scene):
-            calls.append((name, scene.name, scene.get(core.STAMP)))
-        return f
-
-    def broken(scene):
-        calls.append(("s2", scene.name, scene.get(core.STAMP)))
-        raise RuntimeError("step two broke")
-
-    funcs = {"t:s1": ok("s1"), "t:s2": broken, "t:s3": ok("s3")}
-    chain = (core.Step(1, 2, "s1", "t:s1"), core.Step(2, 3, "s2", "t:s2"), core.Step(3, 4, "s3", "t:s3"))
+def _two_scene_file(tmp_path, compat, core):
+    """A file whose scenes were saved at formats 1 ("Scene") and 3 ("Second"), sharing one object."""
     bpy.data.scenes.new("Second")
+    shared = bpy.data.objects.new("Shared", None)
+    for sc in bpy.data.scenes:
+        sc.collection.objects.link(shared)
     p = str(tmp_path / "f1.blend")
     bpy.ops.wm.save_as_mainfile(filepath=p)
     bpy.ops.wm.open_mainfile(filepath=p)
-    for sc in bpy.data.scenes:
-        sc[core.STAMP] = 1
-    bpy.data.scenes["Second"][core.STAMP] = 3                  # two scenes at two numbers
+    bpy.data.scenes["Scene"][core.STAMP] = 1
+    bpy.data.scenes["Second"][core.STAMP] = 3
     bpy.app.handlers.save_pre.remove(compat._before_save)      # as older versions saved them
     try:
         bpy.ops.wm.save_as_mainfile(filepath=p, copy=True)
     finally:
         bpy.app.handlers.save_pre.insert(0, compat._before_save)
+    return p
+
+
+def _chain(monkeypatch, compat, core, funcs):
+    chain = (core.Step(1, 2, "s1", "t:s1"), core.Step(2, 3, "s2", "t:s2"), core.Step(3, 4, "s3", "t:s3"))
     monkeypatch.setattr(core, "STEPS", chain)
     monkeypatch.setattr(core, "FORMAT", 4)
     monkeypatch.setattr(core, "BASELINE_FORMAT", 1)
     monkeypatch.setattr(compat, "_resolve", lambda s: funcs[s.function])
+
+
+def test_the_chain_runs_first_in_order_and_once_per_file(fresh, tmp_path, monkeypatch):
+    from fresing_render.blender import compat
+    from fresing_render.core import compat as core
+    calls = []
+
+    def ok(name):
+        def f(scenes):
+            calls.append((name, sorted(sc.name for sc in scenes), [sc.get(core.STAMP) for sc in scenes]))
+            for ob in {ob for sc in scenes for ob in sc.objects}:      # shared data: once
+                ob["fr_steps"] = ob.get("fr_steps", 0) + 1
+        return f
+    p = _two_scene_file(tmp_path, compat, core)
+    _chain(monkeypatch, compat, core, {"t:s1": ok("s1"), "t:s2": ok("s2"), "t:s3": ok("s3")})
     seen_by_others = []
 
     @bpy.app.handlers.persistent
@@ -156,13 +164,38 @@ def test_the_chain_runs_first_in_order_once_and_survives_a_failing_step(fresh, t
         bpy.ops.wm.open_mainfile(filepath=p)
     finally:
         bpy.app.handlers.load_post.remove(later)
-    first = [c for c in calls if c[1] != "Second"]
-    assert [c[0] for c in first] == ["s1", "s2", "s3"]
-    assert [c[0] for c in calls if c[1] == "Second"] == ["s3"]
-    assert compat.STATE["failed"] and all("s2" in f for f in compat.STATE["failed"])
-    assert seen_by_others[-1] == {name: 4 for name in seen_by_others[-1]}   # stamped before the others ran
+    assert calls == [("s1", ["Scene"], [1]), ("s2", ["Scene"], [1]), ("s3", ["Scene", "Second"], [1, 3])]
+    assert bpy.data.objects["Shared"]["fr_steps"] == 3          # three steps, each once
+    assert seen_by_others[-1] == {"Scene": 4, "Second": 4}      # stamped before the others ran
+    assert compat.STATE["ran"] == ["s1", "s2", "s3"] and compat.STATE["failed"] == []
     calls.clear()
     assert compat.run_chain() == ([], []) and calls == []      # it runs once
+
+
+def test_a_failing_step_stops_the_chain_and_the_project_keeps_the_format_it_reached(fresh, tmp_path, monkeypatch):
+    from fresing_render.blender import compat
+    from fresing_render.core import compat as core
+    calls = []
+
+    def ok(name):
+        def f(scenes):
+            calls.append(name)
+        return f
+
+    def broken(scenes):
+        calls.append("s2")
+        raise RuntimeError("step two broke")
+    p = _two_scene_file(tmp_path, compat, core)
+    _chain(monkeypatch, compat, core, {"t:s1": ok("s1"), "t:s2": broken, "t:s3": ok("s3")})
+    bpy.ops.wm.open_mainfile(filepath=p)                       # the project opens
+    assert calls == ["s1", "s2"]                               # s3 builds on s2: it waits
+    assert compat.STATE["failed"] == ["s2"]
+    assert bpy.data.scenes["Scene"][core.STAMP] == 2 and bpy.data.scenes["Second"][core.STAMP] == 3
+    q = str(tmp_path / "saved.blend")
+    bpy.ops.wm.save_as_mainfile(filepath=q)                    # a save keeps what was reached
+    calls.clear()
+    bpy.ops.wm.open_mainfile(filepath=q)                       # a fixed version would try again from there
+    assert calls == ["s2"]
 
 
 def test_a_newer_project_is_never_saved_over_itself(fresh, tmp_path):
