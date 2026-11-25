@@ -1283,6 +1283,16 @@ def workspace_round3(ctx):
         joints.set_value(jb, 0.0)
         _update()
         _check(moved > 1.0, f"the boom did not move in Sales (tip moved {moved * 1000:.0f} mm)")
+        # task 0333: the right-click menu, Make and a colleague's project follow the workspace
+        from ..blender import ui_top
+        _check("anim" in [o[0] for o in ui_top._outputs(scene)], "Make has no Animation output in Sales")
+        scene.fresing.saved_by = "A colleague"
+        workspaces.switch(scene, "Video producer")
+        _check(workspaces.take_in(scene) and workspaces.name_of(scene) == workspaces.default_name(),
+               "a colleague's project did not open in your own workspace")
+        _check(bpy.ops.fresing.workspace_theirs() == {"FINISHED"} and workspaces.name_of(scene) == "Video producer",
+               "Switch to theirs did not bring back their workspace")
+        scene.fresing.saved_by = ""
         return ", ".join(counts) + f" functions; in Sales the boom's tip moved {moved * 1000:.0f} mm at 20°"
     finally:
         try:
@@ -5767,7 +5777,9 @@ def backups_makes_one(ctx):
       what="Checks that the quiet drawings swap only Blender's own part of the 3D view header, the splash and File > "
            "New (an add-on's appended items stay, also after switching back and forth), the splash's lines, and "
            "Fresing > Show all of Blender / Back to the Fresing window on a project: Full access and back to the "
-           "workspace it came from, greyed in the Client view")
+           "workspace it came from, greyed in the Client view. Task 0332: Edit without Rename and Preferences, "
+           "the rendered picture's header in the app's words, F2 / Ctrl+F2 / Ctrl+, swallowed, no redo panel for "
+           "the workspace buttons, a Blender workspace to go back to")
 def app_quiet(ctx):
     import bpy
 
@@ -5808,6 +5820,19 @@ def app_quiet(ctx):
     lines = quiet.splash_lines()
     _check(lines[:3] == ["wm.read_homefile", "wm.open_mainfile", "wm.recover_last_session"],
            f"the splash does not start with New project, Open, Recover ({lines})")
+    # task 0332: Edit without Rename / Preferences, the picture's header in the app's words, F2 / Ctrl+F2 / Ctrl+,
+    # swallowed, no redo panel for the workspace buttons, Back to the app's own Blender workspace
+    from ..blender import lock, ops_workspace
+    for cls in (bpy.types.TOPBAR_MT_edit, bpy.types.TOPBAR_MT_file_context_menu, bpy.types.IMAGE_HT_header):
+        _check(quiet._own(cls, quiet.draw_funcs(cls)) >= 0 or quiet.blender_draw(cls) is not None,
+               f"Blender's own drawing of {cls.__name__} is not found: the quiet window cannot replace it")
+    _check(not set(quiet.EDIT_DROPS) & set(quiet.EDIT_KEEPS), "the quiet Edit menu keeps Rename or Preferences")
+    swallowed = {lock.key_label(k, m) for _n, _sp, k, m, _w in lock.BLENDER_KEYS}
+    _check({"F2", "Ctrl+F2", "Ctrl+,"} <= swallowed, "F2 / Ctrl+F2 / Ctrl+, are not swallowed outside Full access")
+    _check("REGISTER" not in ops_workspace.FRESING_OT_workspace_pick.bl_options,
+           "picking a workspace still offers Blender's redo panel")
+    _check(bpy.data.workspaces.get(quiet.back_workspace() or "-") is not None or not bpy.data.workspaces.get("Layout"),
+           "no Blender workspace to go back to from Full access")
     scene = bpy.context.scene
     before = workspaces.name_of(scene)
     try:

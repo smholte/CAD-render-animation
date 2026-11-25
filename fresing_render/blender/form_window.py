@@ -62,6 +62,7 @@ WINDOWS = (
 # elsewhere is "no"), a search list, or a file that belongs to another task (``tests/test_form_window.py`` checks
 # that every dialog of the app is in one of the two lists)
 POPUPS = {
+    "fresing.colleague_workspace": "a notice when a colleague's project opens: OK or Switch to theirs (task 0333)",
     "fresing.backup_offer": "a question when a project opens: Open the backup or not",
     "fresing.save_as": "one name, selected to type over, then Save (task 0291)",
     "fresing.lifting_understand": "one click: I understand",

@@ -30,7 +30,8 @@ the owner's pick: these stay).
 
 **Blender's keys** (task 0253, study 0222 package B): outside Full access – every workspace but Full access, the same
 switch as the quiet window (``blender_ui``) – Blender's harmful keys (``BLENDER_KEYS``: delete, duplicate, join,
-parent, apply, collections, add, modes, subdivision, workspace, keyframes) run ``fresing.blender_key``, which changes
+parent, apply, collections, add, modes, subdivision, workspace, keyframes; task 0332: F2 / Ctrl+F2 rename, Ctrl+,
+Preferences) run ``fresing.blender_key``, which changes
 nothing and says how to get them back; F12 / Ctrl+F12 are the app's Render image / Render animation
 (``fresing.key_render``); the right mouse opens the Fresing menu (``context_menu.py``). Their ``poll`` asks
 ``keys_quiet``, so in Full access every key is Blender's at once. In the Client view the swallowed keys give the lock's
@@ -516,6 +517,11 @@ BLENDER_KEYS = (
     ("Object Mode", "EMPTY", "K", {}, "keyframe menu"),
     ("User Interface", "EMPTY", "I", {}, "keyframe on a setting"),
     ("User Interface", "EMPTY", "I", {"alt": True}, "keyframe on a setting"),
+    # task 0332 (0328 row 7): renaming and Blender's Preferences (an extension can be switched off there) – Fresing
+    # Settings has the app's own settings; Full access gives them back
+    ("Window", "EMPTY", "F2", {}, "rename"),
+    ("Window", "EMPTY", "F2", {"ctrl": True}, "batch rename"),
+    ("Screen", "EMPTY", "COMMA", {"ctrl": True}, "Blender's Preferences"),
     ("Outliner", "OUTLINER", "X", {"any": True}, "delete"),
     ("Outliner", "OUTLINER", "DEL", {"any": True}, "delete"),
 )
@@ -543,7 +549,7 @@ APP_KEYS = (("Screen", "EMPTY", "F12", {}, "fresing.key_render", {"animation": F
 
 def key_label(key: str, mods: dict) -> str:
     """"Shift+D", "Ctrl+0" …: how a key of the list is written for people."""
-    names = {"DEL": "Delete", "TAB": "Tab", "PAGE_UP": "Page Up", "PAGE_DOWN": "Page Down", "ZERO": "0", "ONE": "1",
+    names = {"DEL": "Delete", "TAB": "Tab", "COMMA": ",", "PAGE_UP": "Page Up", "PAGE_DOWN": "Page Down", "ZERO": "0", "ONE": "1",
              "TWO": "2", "THREE": "3", "FOUR": "4", "FIVE": "5"}
     out = [m.capitalize() for m in ("ctrl", "shift", "alt") if mods.get(m)]
     return "+".join(out + [names.get(key, key)])
@@ -567,8 +573,8 @@ class FRESING_OT_client_locked(bpy.types.Operator):
 
 
 class FRESING_OT_blender_key(bpy.types.Operator):
-    """That is one of Blender's own keys (delete, duplicate, join, parent, apply, add, modes, keyframes): outside Full
-    access it does nothing, so no part is lost or changed by accident. Fresing > Show all of Blender gives you
+    """That is one of Blender's own keys (delete, duplicate, join, parent, apply, add, modes, keyframes, rename,
+    Preferences): outside Full access it does nothing, so no part is lost or changed by accident. Fresing > Show all of Blender gives you
     Blender's keys"""
 
     bl_idname = "fresing.blender_key"

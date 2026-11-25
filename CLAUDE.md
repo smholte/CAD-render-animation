@@ -620,7 +620,9 @@ fresing_render/            the Blender extension (Python package)
                            timer after `editors.settled`), the top bar's right part without Scene / View Layer, the splash
                            with Fresing's lines, File > New / Ctrl+N = New project; switched by `lock.blender_ui`; only
                            Blender's own entry of a class's `draw._draw_funcs` is swapped (`swap`), so appended items stay;
-                           Fresing > Show all of Blender / Back to the Fresing window (`fresing.blender_all`, scene["fr_ws_before_all"])
+                           Fresing > Show all of Blender / Back to the Fresing window (`fresing.blender_all`, scene["fr_ws_before_all"]); task 0332: Edit / F4 menus without Rename and Preferences, a render's image-editor header in the app's words, no
+                           redo panel, the main window back on the app's Blender workspace (`LOUD_WS`, "Layout") when it
+                           turns quiet; ops_settings.quiet_main hides Blender's side-panel tabs in the main view
     context_menu.py        task 0253: the right-click menu in the 3D view outside Full access – ``fresing.view_menu`` (right
                            mouse / Menu key, lock.APP_KEYS) picks the part under the mouse (``HIT``), selects it as a left
                            click would and opens Blender's object menu with its own draw swapped (``quiet.swap``) for
@@ -937,7 +939,21 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
   run here. Have it reviewed independently (a helper agent or review chat that did not write
   it) before a release, and add a self-test line when the owner's PC can confirm it.
 - Do not change the cache format or saved-project data silently: bump `CACHE_VERSION` in
-  `importer/step_reader.py` when the cache changes; old projects must keep opening.
+  `importer/step_reader.py` when the cache changes.
+- **Old projects – the baseline (owner 25 Nov 2026 22:4x).** There are no real user projects yet. **Full backward
+  compatibility starts at the baseline: the first version that has the Fresing assets pack's groundwork in it** (0344's
+  invisible groundwork – pack format, the asset registry with code fallback, looks copied into projects). The lead
+  writes that version number here when it is released. Until then:
+  - a project from an older version only has to **open without a crash**; where something cannot be carried over, say
+    so in one plain line ("Made with an early test version – re-import the model to get <what>"), never a traceback;
+  - do **not** add new upgrade / conversion code or new old-project tests for projects older than the baseline, and
+    don't keep an old path alive only for old projects – a brief's "old project opens / builds the same" item means
+    "opens without a crash" until the baseline;
+  - old upgrade code and old-project tests are removed **per lane, by small cleanup tasks (0350a, b …) when the lane is
+    free** – never as a side job in another task;
+  - unchanged: a project never changes its look by itself, the app runs without the pack, a project opens on a
+    client's PC – these are user-friendliness rules, not backward compatibility.
+  From the baseline on, every saved project must keep opening and keep its look in every later version.
 - UI follows the layout rules at the top of `blender/ui.py`: steps top to bottom, choices
   above their button, details of the selected list item under the list, no cut-off labels at the
   default side-panel width, rarely used settings in folds, a state in every panel header (sub-panels
@@ -1584,6 +1600,10 @@ the release → Delete); the next run on `main` publishes it again.
   (1.5 GB). Only a few hundred parts ever reach a test: meshes wait as Blender's float32 / int32 numbers
   (``clash._Meshes``) and the motion is grouped a chunk of parts at a time (``core.rigid_groups_of``): 3.8 → 1.0 GB
   extra, same rows. Make per-part work lazy when most parts are standing.
+- Setting a 3D view's `show_region_hud` (the "Adjust Last Operation" box) back to True from a timer crashed Blender 5.2.3
+  (segfault, also in a plain Blender with --factory-startup; task 0332); False worked. Its update needs the area in the
+  context: set it inside `context.temp_override(window=, screen=, area=, region=)` (`quiet._set_hud`). A finished
+  render's "Frame / Time / Mem" text is the image editor's `overlay.show_text_info`, not its header.
 - `ci_status.py --wait` judges a commit by its OWN change: for a commit that changes only `TASKS.md` / `tasks/` (a
   report, or a merge of the lead's task files) it prints "No test run for this commit" – even when GitHub DID start a
   run for the push because the push brought code (task 0289: the fast-forward of report + merge to `main` ran in docs

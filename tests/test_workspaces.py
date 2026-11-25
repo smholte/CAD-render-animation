@@ -51,9 +51,9 @@ def test_client_view_shows_only_looking_and_rendering_and_locks():
     ws = W.builtin("client")
     assert ws.lock and not ws.blender_ui
     hidden = W.hidden_panels(ws)
-    for shown in ("import", "scene", "camera", "shots", "turntable", "output", "queue"):
+    for shown in ("scene", "camera", "shots", "turntable", "output", "queue"):
         assert "FRESING_PT_" + shown not in hidden, shown
-    for gone in ("structure", "looks", "motion", "animation", "cnc", "cables", "web3d", "props", "labels"):
+    for gone in ("import", "structure", "looks", "motion", "animation", "cnc", "cables", "web3d", "props", "labels"):
         assert "FRESING_PT_" + gone in hidden, gone
     assert not any(w.lock for w in W.builtins() if w.key != "client")
 

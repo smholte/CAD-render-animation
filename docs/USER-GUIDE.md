@@ -179,18 +179,27 @@ the Fresing tab picks what the side panel shows:
 | **CNC & machining** | CNC machine, tools, tool changes, milling, way covers, clash check | sea, vessel, cables and drums, weather, exploded views |
 | **Offshore & cable laying** | sea and seabed, vessel motion, cables, drums and carousels, weather | CNC machine, milling, way covers |
 | **Product design & R&D** | looks, exploded views, assembly sequence, slice, turntable, web 3D model | CNC, milling, cables, sea, weather |
-| **Client view** | import, surroundings, camera views, saved scenes, turntable, render, queue | everything else – and the project is locked (below) |
+| **Client view** | surroundings, camera views, saved scenes, turntable, render, queue | everything else – and the project is locked (below) |
 | **Education & training** | every kind of motion, animation, camera | web 3D model |
 | **Lifting plans** | 8 Lifting plan, import, structure, looks, scene, animation, render queue | CNC, milling, cables, sea, joints by hand |
 | **Sales** | saved scenes, looks and paint schemes, logos, surroundings and weather, pictures, turntable, product video, video finishing, 3D page, render queue; **moving the joints** (sliders, poses, back to CAD) to show the machine working | import, structure, adding and setting up joints (the project is **not** locked: unlike the Client view you can still move joints and change looks, scenes and outputs) |
 | **Quick render** | import a STEP, sort into groups and looks, surroundings, light, camera, one picture or a turntable | everything else |
-| **Animator** | joints, cylinders, mechanisms, poses, animation steps, cameras and camera paths, labels, video finishing, render queue | CNC, milling, cables, sea, web 3D model |
+| **Animator** | joints, cylinders, mechanisms, poses, animation steps, cameras and camera paths, light, saved scenes, weather, turntable, labels, video finishing, render queue | CNC, milling, cables, sea, web 3D model |
 | **Reviewer** | saved scenes, slice, X-ray, poses and exploded views, labels, visibility sets, Build & play, clash check | import, joints, looks, outputs |
 | **Welding** | import, structure, the parts' looks, Welds, surroundings, light, camera, picture, Render this view | motion, animation, video, queue |
 | **Machine builder** | import, structure, place, joints, cylinders, mechanisms, way covers, hoses and drag chains, tracks, Set-up window, clash check | looks beyond materials, video finishing, 3D page |
-| **Video producer** | animation steps, camera paths, labels, picture cards, music, brand kit, watermark, captions, render queue | import, structure, making joints |
+| **Video producer** | animation steps, camera paths, weather and time (with its presets and the change at the playhead), turntable, Render this view, the joint sliders, Save start scene, labels, picture cards, music, brand kit, watermark, captions, render queue | import, structure, making joints |
 | **Houses** | House from House Planner, surroundings, weather and time, light, camera, picture, turntable, 3D page | machine motion, CNC, cables |
 | **Full access** | everything, plus Blender's own tabs, toolbar and menus | – |
+
+<a id="colleague-project"></a>
+**A colleague's project opens in your workspace.** A project that someone else saved in another workspace opens in
+**your own** workspace (the one you chose for new projects), so a sales person is never greeted by a machine builder's
+panels. A small window says whose workspace it was and offers **Switch to theirs**; **OK** keeps yours. Tick
+**Don't show this again**, or turn the window off in **Fresing Settings > General > Say when a colleague's project opens
+in my workspace**. A Client view project stays locked and keeps its own workspace. The right-click menu and **Make**
+follow the workspace as well: Sales sees no *Add joint here…*, Make has **Render animation**, and the Client view
+has a **Play** button once the animation is built.
 
 <a id="essentials"></a>
 **Essentials is the start.** Anyone who has not chosen a workspace yet starts new projects in Essentials. If you used
@@ -280,7 +289,10 @@ For showing a finished project, or handing the PC to someone who should only loo
   out of the Client view (undo of earlier work still happens; only the Workspace switcher leaves the Client view);
 - <kbd>X</kbd> and <kbd>Delete</kbd> do nothing, also with <kbd>Shift</kbd>, and a part that was selected before you
   switched is no longer selected;
-- File > Save As, Import and Export are off.
+- File > Save As, Import and Export are off;
+- nothing can be renamed and Blender's Preferences do not open: <kbd>F2</kbd>, <kbd>Ctrl</kbd>+<kbd>F2</kbd> (Batch
+  Rename) and <kbd>Ctrl</kbd>+<kbd>,</kbd> give the lock's message in the status bar, and the **Edit** menu has no Rename
+  or Preferences entries (the app's own settings are under **Fresing Settings**).
 
 Importing, the surroundings, camera views (also **New camera view**), saved scenes (also **Save scene**),
 the turntable, **Render image** and the queue (also **Every paint scheme**) still work. A new camera is
@@ -592,14 +604,26 @@ are hidden, so the window shows only what you need to look at your model and mak
   not shown.
 - **File > New** (and **Ctrl+N**) offers only **New project**: a new project starts exactly like the app does –
   millimetres, Cycles and the app's layout. (Blender's **General** template opened in metres with another render engine.)
+- **The Edit menu** has **Undo**, **Redo**, **Undo History**, **Menu Search** and **Fresing Settings…** – no Rename,
+  Batch Rename or Blender's Preferences (<kbd>F2</kbd>, <kbd>Ctrl</kbd>+<kbd>F2</kbd> and <kbd>Ctrl</kbd>+<kbd>,</kbd> do
+  nothing either). <kbd>F4</kbd>'s file menu has New, Open and Open Recent.
+- **The side panel** shows only the **Fresing** tab: Blender's tabs Tool, View and Animation are hidden. (Blender's
+  **Item** tab still appears while a part is selected – Blender draws it itself.)
+- **No "Adjust Last Operation" box** at the bottom left of the 3D view after a button (picking a workspace, Build & play
+  …): it only offered the same choice again.
+- **After a render** (the blue **Render image** button or <kbd>F12</kbd>) the picture shows whole, fitted into its
+  window, and the window's top row says what was saved: **Saved: <file name>**, **Open**, **Show in folder**,
+  **Close** (and **View** / **Fit** to zoom). Blender's slots, view layer, passes and its *Frame / Time / Mem* line are
+  not shown.
 
 <img src="img/quiet_splash.png" alt="The start-up screen with the app's own lines">
 
 **To get it all back:** **Fresing > Show all of Blender**. It switches the project to the workspace **Full access**:
 Blender's menus, tools, workspace tabs, the Scene and View Layer fields, its start-up screen and File > New list come
 back at once. Nothing in your project is changed. The entry then says **Back to the Fresing window**: it hides them
-again and puts the project back in the workspace it was in before. Picking **Workspace > Full access** at the top of
-the Fresing tab does the same; leaving it hides everything again.
+again and puts the project back in the workspace it was in before – and the window back in the app's layout, also
+when you picked one of Blender's own tabs (Animation, Shading …) meanwhile. Picking **Workspace > Full access** at the
+top of the Fresing tab does the same; leaving it hides everything again.
 
 - In the **Client view** the entry is greyed (Workspace > Full access unlocks the project first).
 - If you are in Blender's **Edit Mode** (or another mode) when you go back, the header stays Blender's own until you
@@ -615,7 +639,8 @@ Fresing > Show all of Blender gives you Blender's keys"*:
 - **Shift+D**, **Alt+D** (copies), **Ctrl+J** (join), **Ctrl+P**, **Alt+P** (parent),
   **Ctrl+A** (apply), **M**, **Shift+M** (collections), **Shift+A** (add), **Ctrl+H**, **Ctrl+0 … Ctrl+5**, **Tab**,
   **Ctrl+Tab** (Edit Mode and the other modes), **Ctrl+Page Up / Page Down** (Blender's workspaces) and **I**,
-  **Alt+I**, **K** (keyframes – they would mix with the keys Build makes).
+  **Alt+I**, **K** (keyframes – they would mix with the keys Build makes), **F2** and **Ctrl+F2** (rename, batch
+  rename) and **Ctrl+,** (Blender's Preferences – the app's own settings are in **Fresing Settings**).
 - **Delete** and **X** (also with Shift) open the app's **Remove** window for what is selected: it lists what goes,
   and nothing is lost until you click Remove ([Remove](#remove-model)).
 - **Ctrl+C** copies what is selected and **Ctrl+V** pastes a copy beside it, with its joints and mechanisms

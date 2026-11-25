@@ -1,6 +1,6 @@
 # 0327 – Lower clash-check memory
 
-**Who:** worker · **Status:** running · **Branch:** `task/0327-lower-clash-memory`
+**Who:** worker · **Status:** done · **Branch:** `task/0327-lower-clash-memory`
 **Started by:** lead, 25 Nov 2026 (0315's slow place 4, the owner's Stress run on his PC) · **Model:** Opus · effort Medium
 **Area:** Clash lane – `core/clash.py`, `blender/clash.py`, `blender/ops_clash.py` (only if the run's progress needs it),
 their tests, CHANGELOG.
@@ -40,7 +40,7 @@ The clash check of a big model fits on an ordinary office PC or a sales person's
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web (worker), 25 Nov 2026. Released as **0.2.258**.
+**Chat / date:** Claude Code on the web (worker), 25 Nov 2026. Released as **0.2.260**.
 
 **Where the memory went** (stress model, 11,228 placed / 1,995 unique parts, 13.9 M triangles; the check alone, project
 opened from a saved .blend, process memory sampled every 50 ms; 4-core web machine, 16 GB, no graphics card):
@@ -64,7 +64,7 @@ opened from a saved .blend, process memory sampled every 50 ms; 4-core web machi
   grouping (`_group_moving`) and is unchanged for its callers (the windows child, tests).
 - Tests: `test_rigid_groups_in_chunks_give_the_same_groups` (chunk sizes 1 … 5,000, far from the origin, a late and a
   creeping part), `test_meshes_are_made_only_when_a_test_needs_them` (made meshes equal the whole ones, boxes equal,
-  never-tested ones not made). CLAUDE.md section 8: one line. CHANGELOG 0.2.258.
+  never-tested ones not made). CLAUDE.md section 8: one line. CHANGELOG 0.2.260.
 
 **Tested and measured** (4-core web machine, Intel Xeon 2.1 GHz, 16 GB, Linux, real Blender 5.2.3 in the background):
 - The table above (same saved stress project, before and after, run one after the other).
@@ -74,8 +74,8 @@ opened from a saved .blend, process memory sampled every 50 ms; 4-core web machi
   53.7 s – the A/B above is).
 - All clash test files locally (`test_clash_core`, `test_clash`, `_faster`, `_rim`, `_tag`, `_turning`: 68 passed,
   every expected clash unchanged); GitHub: lane run green (incl. `test_tour_clash`, `test_clash_windows`, the demo),
-  then the full run of 0.2.258.
-- Runs: 2 (lane run while building, full run with the version).
+  then the full run of 0.2.260.
+- Runs: 3 (lane run while building, full run with the version, and again after 0.2.258 and 0.2.259 took the version numbers meanwhile).
 
 **Owner's re-check:** after the update, Help > Fresing Render PC check… > **Stress**, then in the table the line
 **stress.clash**: same 791 moments and 42 clashes, peak memory expected about 3 GB lower than your 7,024 MB of 25 Nov

@@ -40,7 +40,7 @@ class FRESING_OT_workspace_pick(bpy.types.Operator):
     bl_idname = "fresing.workspace_pick"
     bl_label = "Workspace"
     bl_property = "name"
-    bl_options = {"REGISTER", "UNDO"}
+    bl_options = {"UNDO"}         # task 0332 (0328 row 28): no redo panel offering the choice again
 
     name: EnumProperty(name="Workspace", items=_workspace_items,
                        description="The workspace this project uses from now on")
@@ -159,7 +159,7 @@ class FRESING_OT_family_toggle(bpy.types.Operator):
 
     bl_idname = "fresing.family_toggle"
     bl_label = "Show or hide a function family"
-    bl_options = {"REGISTER", "UNDO"}
+    bl_options = {"UNDO"}         # task 0332 (0328 row 28): no redo panel offering the choice again
 
     family: StringProperty(options={"SKIP_SAVE"})
     warning: StringProperty(options={"SKIP_SAVE", "HIDDEN"})
@@ -205,7 +205,7 @@ class FRESING_OT_workspace_show_used(bpy.types.Operator):
 
     bl_idname = "fresing.workspace_show_used"
     bl_label = "Show what the project uses"
-    bl_options = {"REGISTER", "UNDO"}
+    bl_options = {"UNDO"}         # task 0332 (0328 row 28): no redo panel offering the choice again
 
     def execute(self, context):
         shown = workspaces.show_used(context.scene)
@@ -221,7 +221,7 @@ class FRESING_OT_workspace_all(bpy.types.Operator):
 
     bl_idname = "fresing.workspace_all"
     bl_label = "Show everything"
-    bl_options = {"REGISTER", "UNDO"}
+    bl_options = {"UNDO"}         # task 0332 (0328 row 28): no redo panel offering the choice again
 
     def execute(self, context):
         workspaces.switch(context.scene, W.DEFAULT)
@@ -412,7 +412,51 @@ class FRESING_OT_next_go(bpy.types.Operator):
         return {"FINISHED"}
 
 
-CLASSES = (FRESING_OT_workspace_pick, FRESING_OT_workspace_default, FRESING_OT_workspace_star, FRESING_MT_workspaces,
+class FRESING_OT_colleague_workspace(bpy.types.Operator):
+    """Says that a colleague's project was opened in your own workspace, and lets you switch to theirs"""
+
+    bl_idname = "fresing.colleague_workspace"
+    bl_label = "A colleague's project"
+    bl_options = {"INTERNAL"}
+
+    dont_show: BoolProperty(name="Don't show this again", default=False,
+                            description="Opens such projects in your workspace without this window. You can turn it "
+                                        "on again in Fresing Settings > General")
+
+    def invoke(self, context, event):
+        if not workspaces.THEIRS:
+            return {"CANCELLED"}
+        return context.window_manager.invoke_props_dialog(self, width=420, confirm_text="OK")
+
+    def draw(self, context):
+        t = workspaces.THEIRS
+        _lines(self.layout, workspaces.colleague_text(t.get("who", ""), t.get("theirs", ""), t.get("mine", "")))
+        self.layout.operator("fresing.workspace_theirs", text="Switch to theirs", icon="WORKSPACE")
+        self.layout.prop(self, "dont_show")
+
+    def execute(self, context):
+        if self.dont_show:
+            from . import prefs
+            prefs.get().ask_colleague_workspace = False
+        return {"FINISHED"}
+
+
+class FRESING_OT_workspace_theirs(bpy.types.Operator):
+    """Puts the project back in the workspace the person who saved it last was using"""
+
+    bl_idname = "fresing.workspace_theirs"
+    bl_label = "Switch to theirs"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        if not workspaces.switch_to_theirs(context.scene):
+            self.report({"INFO"}, "There is no other workspace to go back to")
+            return {"CANCELLED"}
+        self.report({"INFO"}, f"Back in '{workspaces.name_of(context.scene)}'")
+        return {"FINISHED"}
+
+
+CLASSES = (FRESING_OT_colleague_workspace, FRESING_OT_workspace_theirs, FRESING_OT_workspace_pick, FRESING_OT_workspace_default, FRESING_OT_workspace_star, FRESING_MT_workspaces,
            FRESING_OT_family_toggle,
            FRESING_OT_workspace_show_used, FRESING_OT_workspace_all, FRESING_OT_workspace_save,
            FRESING_OT_workspace_rename, FRESING_OT_workspace_delete, FRESING_OT_workspace_refresh,

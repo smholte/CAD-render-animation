@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.258 – 25 Nov 2026 – The clash check needs much less memory on big models (task 0327)
+## 0.2.260 – 25 Nov 2026 – The clash check needs much less memory on big models (task 0327)
 
 - **6 Animation > Clash check** on a big model now needs about a quarter of the extra memory it needed: on the stress
   model (11,228 parts) about 1.0 GB on top of the open project instead of 3.8 GB, so it fits on a 16 GB office PC
@@ -13,6 +13,32 @@ installer of that version was built from.
   clashes.
 - Why: the check prepared every part's shape for testing at its start, also the thousands of parts that never come
   near a moving one. It now prepares a part's shape only when a moving part comes near it.
+## 0.2.259 – 25 Nov 2026 – Workspaces match their job (task 0333)
+
+- **A colleague's project opens in your own workspace.** A small window says whose workspace it was and offers **Switch to
+  theirs**; you can tick *Don't show this again* or turn it off in Fresing Settings > General.
+- **Video producer** now has Weather & time (with presets and the change at the playhead), Turntable, Render this view,
+  the joint sliders and Save start scene. **Animator** has Light, Saved scenes, Weather and Turntable.
+- **Sales** gets **Render animation** in the Make list. The Client view has no Import; once an animation is built it has a
+  **Play** button.
+- The **right-click menu** shows only what the workspace shows (Sales: no Add joint here, Weld, Copy, Remove …).
+- The material picker, Finishes and Update revision are listed where their panels are. The red "In use but hidden" line is
+  now a short grey hint. The Lead motions menu no longer draws greyed buttons in the Client view. The "animation is built" box
+  in 4 Motion sits at the bottom, so the buttons above it stay where they are.
+
+## 0.2.258 – 25 Nov 2026 – A quieter window, a Client view that really locks (task 0332)
+
+- **Back to the Fresing window** always brings the app's layout back: if you had picked one of Blender's own tabs
+  (Animation, Shading …) in Full access, the window now returns to the app's layout instead of staying in Blender's.
+- **Client view:** **F2** (rename), **Ctrl+F2** (Batch Rename) and **Ctrl+,** (Blender's Preferences) now do nothing and
+  say the project is locked. Outside Full access the **Edit** menu has no Rename, Batch Rename or Preferences any more –
+  it has **Fresing Settings…** instead.
+- **After a render** (Render image or **F12**) the picture's window says **Saved: <file name>** with **Open**,
+  **Show in folder** and **Close**, instead of Blender's slots, view layer and passes; Blender's *Frame / Time / Mem*
+  line over the finished picture is gone.
+- **Side panel:** outside Full access only the **Fresing** tab shows – Blender's Tool, View and Animation tabs are hidden.
+- **No "Adjust Last Operation" box** at the bottom left of the 3D view outside Full access (it appeared after picking a
+  workspace or Build & play and only offered the same choice again).
 
 ## 0.2.257 – 25 Nov 2026 – The first-start set-up stays open; windows open in a good place (task 0331)
 

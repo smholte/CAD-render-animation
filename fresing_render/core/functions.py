@@ -75,7 +75,7 @@ FAMILY_WORKSPACES = {
 # ``workspaces=`` names the key – a function built later adds itself there). Their rows in FAMILY_WORKSPACES stay empty.
 # What every one of them keeps: the side panel itself, learning, help, settings and Blender's safety (keys, backups).
 _COMMON = (
-    "panel.workspace", "panel.families", "panel.own_workspaces", "panel.client_view", "panel.essentials",
+    "panel.workspace", "panel.colleague_workspace", "panel.families", "panel.own_workspaces", "panel.client_view", "panel.essentials",
     "panel.task_workspaces", "panel.workspace_stars", "panel.sections", "panel.next",
     "panel.make", "panel.left", "usage.favourites", "usage.declutter", "learn.hub", "learn.question", "learn.list",
     "learn.next", "learn.window", "learn.show_me", "learn.build",
@@ -90,8 +90,8 @@ _COMMON = (
 TASK_WORKSPACES = {
     # a first good picture and a simple motion
     "essentials": _COMMON + (
-        "import.step", "import.mesh", "import.drop", "import.again", "structure.tree",
-        "looks.materials", "looks.light_look", "scene.surroundings", "scene.light", "scene.camera",
+        "import.step", "import.mesh", "import.drop", "import.again", "import.update", "structure.tree",
+        "looks.materials", "looks.picker", "looks.finishes", "looks.light_look", "scene.surroundings", "scene.light", "scene.camera",
         "joints.rotate", "joints.slide", "joints.hover", "joints.move", "poses.pose",
         "animation.add", "animation.joint_step", "animation.build",
         "scene.still", "scene.turntable", "scene.save",
@@ -100,7 +100,7 @@ TASK_WORKSPACES = {
     # joints (sliders, poses, back to CAD) to pose the machine for a client – adding or changing joints stays hidden
     "sales": _COMMON + (
         "joints.move", "joints.cad_position", "poses.pose",
-        "scene.save", "looks.materials", "looks.schemes", "looks.decals", "looks.light_look", "scene.surroundings",
+        "scene.save", "looks.materials", "looks.picker", "looks.schemes", "looks.decals", "looks.light_look", "scene.surroundings",
         "scene.light", "scene.weather", "scene.props", "scene.camera", "scene.blur", "scene.still", "scene.shapes",
         "scene.turntable", "animation.product_video", "animation.build", "animation.finishing", "animation.brand",
         "animation.watermark", "animation.music", "queue.still", "queue.video", "queue.schemes",
@@ -110,7 +110,7 @@ TASK_WORKSPACES = {
     # import a STEP, sort + looks, surroundings, light, one picture or a turntable
     "quick": _COMMON + (
         "import.step", "import.mesh", "import.drop", "import.again", "import.up_axis", "structure.tree",
-        "looks.materials", "looks.find", "looks.light_look", "scene.surroundings", "scene.light", "scene.camera",
+        "looks.materials", "looks.picker", "looks.find", "looks.light_look", "scene.surroundings", "scene.light", "scene.camera",
         "scene.blur", "scene.still", "scene.shapes", "scene.turntable",
     ),
     # motion and the video
@@ -121,6 +121,7 @@ TASK_WORKSPACES = {
         "animation.add", "animation.joint_step", "animation.build", "animation.motor", "animation.camera_path",
         "animation.fade", "animation.trails", "animation.back_to_cad", "animation.sequence", "animation.product_video",
         "looks.light_look", "scene.surroundings", "scene.camera", "scene.blur", "scene.still",
+        "scene.light", "scene.save", "scene.weather", "scene.turntable",      # task 0333 (owner 25 Nov)
         "animation.labels", "animation.finishing", "animation.cards", "animation.music", "animation.brand",
         "animation.watermark", "queue.still", "queue.video", "queue.time_test", "queue.start_later",
         "animation.lead_motion_step",
@@ -135,7 +136,7 @@ TASK_WORKSPACES = {
     # symbols and the weld list (task 0320) add themselves with workspaces=("welding",); 2D drawings come later
     "welding": _COMMON + (
         "import.step", "import.mesh", "import.drop", "import.again", "import.update", "import.up_axis",
-        "structure.tree", "looks.materials", "looks.find", "looks.rules", "looks.rule_sets", "looks.finishes",
+        "structure.tree", "looks.materials", "looks.picker", "looks.find", "looks.rules", "looks.rule_sets", "looks.finishes",
         "looks.rust", "looks.faces", "looks.welds", "looks.weld_symbols", "looks.weld_list", "looks.weld_copy",
         "looks.weld_cad", "looks.light_look", "scene.surroundings", "scene.light",
         "scene.camera", "scene.blur", "scene.still", "scene.render_view", "scene.shapes", "scene.save",
@@ -145,7 +146,7 @@ TASK_WORKSPACES = {
     "builder": _COMMON + (
         "import.step", "import.mesh", "import.drop", "import.again", "import.update", "import.two_copies",
         "import.up_axis", "structure.tree", "structure.move", "structure.place", "structure.remove", "structure.copy",
-        "structure.cleanup", "structure.visibility", "looks.materials", "looks.find",
+        "structure.cleanup", "structure.visibility", "looks.materials", "looks.picker", "looks.finishes", "looks.find",
         "joints.rotate", "joints.slide", "joints.stack", "joints.hover", "joints.cad_position", "joints.couplings",
         "joints.move", "poses.pose",
         "machines.cylinder", "machines.mechanism", "machines.waycover", "machines.waycover_two", "machines.hoses",
@@ -159,6 +160,10 @@ TASK_WORKSPACES = {
     "video": _COMMON + (
         "scene.save", "poses.pose", "looks.light_look", "scene.surroundings", "scene.light", "scene.camera",
         "scene.blur", "scene.shapes", "scene.still",
+        # task 0333 (owner 25 Nov): weather and time (+ presets, change at the playhead), turntable, Render this view,
+        # the joint sliders and Save start scene
+        "scene.weather", "scene.weather_presets", "animation.weather_change", "scene.start_scene_save",
+        "scene.turntable", "scene.render_view", "joints.move",
         "animation.add", "animation.joint_step", "animation.build", "animation.motor", "animation.camera_path",
         "animation.fade", "animation.trails", "animation.back_to_cad", "animation.sequence", "animation.product_video",
         "animation.lead_motion_step", "animation.weather_step", "animation.people",
@@ -174,6 +179,8 @@ TASK_WORKSPACES = {
         "web.export", "web.surroundings", "web.light", "web.player", "web.view_names", "web.phone", "web.tools",
     ),
 }
+# task 0333: functions that the Client view never shows although their family does (the model's structure stays)
+NO_CLIENT = ("import.",)
 # Families the side panel always shows (no tick): without them there is nothing to work on.
 ALWAYS = ("import", "looks", "scene", "help", "panel")
 
@@ -229,6 +236,8 @@ class Function:
             return True
         if key in TASK_WORKSPACES:                  # task 0294: a list of functions, not of families
             return self.id in TASK_WORKSPACES[key] or key in self.workspaces
+        if key == "client" and not self.workspaces and self.id.startswith(NO_CLIENT):
+            return False                                # task 0333: the Client view imports nothing
         return key in (self.workspaces or FAMILY_WORKSPACES.get(self.family, ()))
 
 
@@ -250,9 +259,12 @@ DUPLICATES: list = []
 fn(id="panel.workspace", headline=True, title="Workspaces: show only the functions a kind of work needs", family="panel",
    panel="FRESING_PT_workspace", button="fresing.workspace_pick", guide="workspaces", tour=("workspace",), pccheck=("panel.workspaces",),
    since="0.2.152", changed="0.2.226")
+fn(id="panel.colleague_workspace", title="A colleague's project opens in your own workspace, and says so once",
+   family="panel", panel="FRESING_PT_workspace", button="fresing.workspace_theirs", guide="colleague-project",
+   pccheck=("workspace.round3",), since="0.2.259")
 fn(id="panel.families", title="Functions in this project: families on and off", family="panel",
    panel="FRESING_PT_workspace", button="fresing.family_toggle", guide="families", tour=("workspace",), pccheck=("panel.workspaces",),
-   since="0.2.152", changed="0.2.197")
+   since="0.2.152", changed="0.2.258")
 fn(id="panel.own_workspaces", title="Your own workspaces, shared as files", family="panel",
    panel="FRESING_PT_workspace", button="fresing.workspace_save", guide="own-workspaces", pccheck=("panel.workspaces",),
    since="0.2.152", changed="0.2.197")
@@ -856,16 +868,16 @@ fn(id="help.blender_editors", headline=True, short="Blender editors", title="Ble
    guide="blender-editors", pccheck=("app.editors",), since="0.2.179")
 fn(id="help.quiet_window", headline=True, short="Quiet window", title="A quiet window: the 3D view header, top bar, "
    "start-up screen and File > New without Blender's editing parts", family="help", panel="VIEW3D_HT_header",
-   button="fresing.blender_all", guide="quiet-window", pccheck=("app.quiet",), since="0.2.184",
+   button="fresing.blender_all", guide="quiet-window", pccheck=("app.quiet",), since="0.2.184", changed="0.2.258",
    workspaces=("cnc", "offshore", "product", "education", "lifting"))     # not the Client view: greyed there
 fn(id="help.blender_all", short="All of Blender", title="Fresing > Show all of Blender / Back to the Fresing window", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.blender_all", guide="quiet-window", pccheck=("app.quiet",),
-   since="0.2.184", workspaces=("cnc", "offshore", "product", "education", "lifting"))
+   since="0.2.184", changed="0.2.258", workspaces=("cnc", "offshore", "product", "education", "lifting"))
 
 # task 0253: Blender's keys outside Full access, F12 / Ctrl+F12, the right-click menu (study 0222 package B)
 fn(id="help.blender_keys", short="Blender keys", title="Blender's keys that delete or change parts do nothing outside Full "
    "access; F12 / Ctrl+F12 render with the app", family="help", panel="VIEW3D_HT_header", button="fresing.key_render",
-   guide="keys-and-right-click", tour=("keys",), pccheck=("app.keys",), since="0.2.202",
+   guide="keys-and-right-click", tour=("keys",), pccheck=("app.keys",), since="0.2.202", changed="0.2.258",
    workspaces=("cnc", "offshore", "product", "education", "lifting"))
 fn(id="help.right_click", headline=True, short="Right-click menu", title="Right-click on a part: a short Fresing menu "
    "(zoom to it, show in the tree, hide, show only, label here, add joint here)", family="help",
