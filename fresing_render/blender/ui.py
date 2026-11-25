@@ -30,7 +30,7 @@ import textwrap
 import bpy
 
 from ..core import fasteners, materials_lib, presets, studio
-from ..core.words import plural, verb
+from ..core.words import plural, triangles as triangles_text, verb
 from ..core import surroundings as env
 from . import build, cameras, logic, materials
 
@@ -295,7 +295,7 @@ class FRESING_PT_import(_Panel, bpy.types.Panel):
                 col = box.column(align=True)
                 col.label(text=f"{plural(st.get('placed_parts', 0), 'part')}, {st.get('unique_parts', 0)} different")
                 helpers = st.get("mesh_helpers", 0)
-                col.label(text=f"{st.get('triangles_unique', 0) / 1e6:.1f} M triangles · read in "
+                col.label(text=f"{triangles_text(st.get('triangles_unique', 0))} · read in "
                                f"{st.get('seconds_total', 0):.0f} s"
                                + (f" on {plural(helpers, 'core')}" if helpers else ""))
             from . import mesh_import
@@ -764,6 +764,8 @@ class FRESING_PT_looks(_Panel, bpy.types.Panel):
         s = context.scene.fresing
         draw_rule_set(layout, context)
         primary(layout, "fresing.apply_rules", "Sort parts into groups", "SORTALPHA", MEDIUM)
+        if context.scene.get("fr_sort_note"):            # task 0334
+            hint(layout, context, context.scene["fr_sort_note"])
         if s.unmatched:
             wrap(layout, context, f"{plural(s.unmatched, 'part')} {verb(s.unmatched, 'matches', 'match')} no rule: "
                                   f"{verb(s.unmatched, 'it is', 'they are')} in 'Unsorted'. "
@@ -1391,6 +1393,8 @@ class FRESING_PT_output(_Panel, bpy.types.Panel):
 
         gap(layout)                         # task 0278: Live preview is on the left panel only (top left)
         primary(layout, "fresing.render", "Render image", "RENDER_STILL")
+        if context.scene.get("fr_render_note"):          # task 0334: the render's message beside its button
+            hint(layout, context, context.scene["fr_render_note"])
         if s.last_render and os.path.exists(s.last_render):
             box = layout.box()
             box.label(text=os.path.basename(s.last_render), icon="CHECKMARK")

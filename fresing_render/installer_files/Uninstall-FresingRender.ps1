@@ -3,8 +3,9 @@
   Removes Fresing Render (its Blender, settings and shortcuts). Projects and renders are kept.
 
 .DESCRIPTION
-  Started by Uninstall.bat next to the installer, or from Settings > Apps > Installed apps (task 0265): the entry's
-  Uninstall runs the copy in the install's Tools folder with -Pause. That copy lives in the folder it removes, so it
+  Started by Uninstall.bat next to the installer, from Settings > Apps > Installed apps (task 0265): the entry's
+  Uninstall runs the copy in the install's Tools folder with -Pause - or by the shortcut "Uninstall Fresing Render" in
+  the install folder and next to Fresing Render.exe (task 0329), which runs the same command. That copy lives in the folder it removes, so it
   first starts a copy of itself in %TEMP% and waits for it. The entry in Installed apps goes last, and only when the
   folder is gone.
 #>
@@ -22,8 +23,38 @@ function Finish([int]$code) {
     exit $code
 }
 
-# Never run from inside the folder that is removed (the temp copy would hold it too)
+# What stays outside the folder once it is gone: Windows' graphics preference of its programs (task 0296: the installer
+# and the app set it) and, last, the entry in Settings > Apps > Installed apps - only the one that belongs to this folder
+function Remove-Traces {
+    try {
+        $GpuKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey("Software\Microsoft\DirectX\UserGpuPreferences", $true)
+        if ($GpuKey) {
+            try {
+                foreach ($name in $GpuKey.GetValueNames()) {
+                    if ($name.StartsWith("$InstallDir\", [StringComparison]::OrdinalIgnoreCase)) { $GpuKey.DeleteValue($name, $false) }
+                }
+            } finally { $GpuKey.Close() }
+        }
+    } catch { }
+    try {
+        $entry = Get-ItemProperty -LiteralPath $AppsKey -ErrorAction Stop
+        $where = [string]$entry.InstallLocation
+        if ($where -and ([IO.Path]::GetFullPath($where.TrimEnd('\', '/')) -ieq $InstallDir)) {
+            Remove-Item -LiteralPath $AppsKey -Force -ErrorAction SilentlyContinue
+        }
+    } catch { }
+}
+
+# Never run from inside the folder that is removed (the temp copy would hold it too): PowerShell's folder and the
+# process' own working folder (a program started from a shortcut in that folder may have been given it)
 try { Set-Location -LiteralPath ([IO.Path]::GetTempPath()) } catch { }
+try { [Environment]::CurrentDirectory = [IO.Path]::GetTempPath() } catch { }
+if (-not (Test-Path -LiteralPath $InstallDir)) {
+    # (a folder deleted by hand: its leftover entry in Installed apps goes too, so the list is right again)
+    Remove-Traces
+    Write-Host "Fresing Render is not installed in $InstallDir any more (the folder is gone). Nothing to remove." -ForegroundColor Yellow
+    Finish 0
+}
 # Only an install made by Install.bat is removed (a wrong -InstallDir must never delete another folder)
 if (-not (Test-Path -LiteralPath (Join-Path $InstallDir "installed.txt"))) {
     Write-Host "No Fresing Render installation found in $InstallDir (installed.txt is missing). Nothing was removed." -ForegroundColor Yellow
@@ -84,36 +115,25 @@ if ($ToolboxHome -and [IO.Path]::IsPathRooted($ToolboxHome)) {
         }
     }
 }
-if (Test-Path -LiteralPath $InstallDir) {
+# task 0329: Explorer or a virus scan may hold a file a moment longer (the shortcut that started this): a few tries
+for ($try = 0; $try -lt 4 -and (Test-Path -LiteralPath $InstallDir); $try++) {
+    if ($try) { Start-Sleep -Seconds 1 }
     Remove-Item -LiteralPath $InstallDir -Recurse -Force -ErrorAction SilentlyContinue
 }
 if (Test-Path -LiteralPath $InstallDir) {
-    # the uninstaller itself may be gone by now: put it back, so Uninstall in Settings still works for the second try
+    # the uninstaller itself may be gone by now: put it back, so Uninstall in Settings still works for the second try,
+    # and installed.txt with it (task 0329: without it the second try refuses the folder)
     if ($FromTemp -and $me) {
         $back = Join-Path $InstallDir "Tools"
         try { New-Item -ItemType Directory -Force -Path $back | Out-Null; Copy-Item -LiteralPath $me -Destination (Join-Path $back "Uninstall-FresingRender.ps1") -Force } catch { }
     }
+    $marker = Join-Path $InstallDir "installed.txt"
+    if (-not (Test-Path -LiteralPath $marker)) {
+        try { Set-Content -LiteralPath $marker -Value "Fresing Render (partly removed: run Uninstall again)" } catch { }
+    }
     Write-Host "Some files in $InstallDir could not be removed (in use?). Restart the PC and run Uninstall again." -ForegroundColor Yellow
     Finish 1
 }
-# task 0296: Windows' graphics preference of the programs that were in this folder (the installer and the app set it)
-try {
-    $GpuKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey("Software\Microsoft\DirectX\UserGpuPreferences", $true)
-    if ($GpuKey) {
-        try {
-            foreach ($name in $GpuKey.GetValueNames()) {
-                if ($name.StartsWith("$InstallDir\", [StringComparison]::OrdinalIgnoreCase)) { $GpuKey.DeleteValue($name, $false) }
-            }
-        } finally { $GpuKey.Close() }
-    }
-} catch { }
-# the entry in Settings > Apps > Installed apps goes last, and only the one that belongs to this folder
-try {
-    $entry = Get-ItemProperty -LiteralPath $AppsKey -ErrorAction Stop
-    $where = [string]$entry.InstallLocation
-    if ($where -and ([IO.Path]::GetFullPath($where.TrimEnd('\', '/')) -ieq $InstallDir)) {
-        Remove-Item -LiteralPath $AppsKey -Force -ErrorAction SilentlyContinue
-    }
-} catch { }
+Remove-Traces
 Write-Host "Fresing Render removed. Your .blend projects and renders were not touched." -ForegroundColor Green
 Finish 0

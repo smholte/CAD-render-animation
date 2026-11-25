@@ -148,6 +148,8 @@ def apply(scene, lm, pct: float | None = None, refresh: bool | None = None) -> i
     pct = float(lm.position) if pct is None else float(pct)
     vals = values_at(lm, pct)
     n = 0
+    took_off(scene, any(r.joint in vals and abs(joints.get_value(j) - vals[r.joint]) > 1e-7
+                        for r, j in usable(scene, lm)))
     for r, j in usable(scene, lm):
         if r.joint in vals:
             joints.set_value(j, vals[r.joint])
@@ -162,6 +164,25 @@ def apply(scene, lm, pct: float | None = None, refresh: bool | None = None) -> i
     TIMING["last_ms"] = (time.perf_counter() - t0) * 1000.0
     TIMING["count"] += 1
     return n
+
+
+BUILT_OFF = ("Moving a lead motion took the built animation off (its keys would put the joints back at the next "
+             "frame): Build again to play it")
+
+
+def took_off(scene, moves: bool) -> bool:
+    """A lead motion is about to move joints of a built animation: take the Build off first, as a joint's own slider
+    does (bug hunt 0328 row 8: the boom moved, then snapped back at the next frame while the slider still said
+    100 %). Says so in the scene's last message. Returns True when it took the Build off."""
+    from . import animation
+    if not moves or not animation.has_keys(scene):
+        return False
+    animation.clear_keys(scene)
+    try:
+        scene.fresing.last_message = BUILT_OFF
+    except (AttributeError, TypeError):
+        pass
+    return True
 
 
 def follow(scene) -> None:

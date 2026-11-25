@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.246 – 25 Nov 2026 – Welds from the CAD file (task 0323)
+## 0.2.249 – 25 Nov 2026 – Welds from the CAD file (task 0323)
 
 - **A STEP file with solid welds brings them along.** At the import every weld bead in the file becomes a weld in
   3 Looks > Welds – with the app's looks on it (ripples, heat tint beside it, paint, rust) and its size in the weld
@@ -26,6 +26,42 @@ installer of that version was built from.
 - A **model update** keeps your changes on a weld whose bead came back in the same place, takes its new size and
   length, lists a weld whose bead is gone ("Weld lost in the new model") and adds a new bead as a new weld.
 - New PC-check line **looks.weld_cad**; new test tour stop **Welds from the CAD file** in the Welds set.
+## 0.2.248 – 25 Nov 2026 – One undo step per action, messages beside their own button (task 0334)
+- Ctrl+Z now undoes one thing at a time after picking a RAL colour, loading a template (also from the library) and
+  picking a 360° photo – before, one Ctrl+Z took the colour pick back together with the step before it.
+- "Saved …png" and "Rendering on CPU…" now show under the **Render image** button, and "20 parts in 9 groups" under
+  **Sort parts into groups** – no longer under 1 Import.
+- After a render the image window shows the whole picture, fitted.
+- A small model says "4,200 triangles" instead of "0.0 M triangles".
+
+## 0.2.247 – 25 Nov 2026 – Build keeps your own keys and steps (task 0330)
+
+- **A key you change by hand stays.** Change a key of a built animation in Blender's Graph Editor or Dope Sheet and
+  press **Build & play** again (or render it in the queue, or press F12): your change is kept as long as the steps
+  that made it stay the same, and the warnings say so. Change the step itself and Build makes its keys anew – and
+  says that too. To go back to the steps' keys: the **X** (Stop animation), then Build & play.
+- **Keys of your own on a part are no longer lost.** A part you keyed by hand and that a **Fade** step fades kept
+  nothing after Stop – its keys were gone at the next save. Now they play along while the animation is built and are
+  back after Stop. Where a step moves the same thing as your keys, the step wins while built and the warnings name it.
+- **Make turntable video again keeps your steps.** It makes only its own turn anew; steps you added to the animation
+  "Turntable" stay, and the animation picked in 6 Animation stays picked.
+- **Lead motions on a built animation.** Moving a slider (also ▶ and Back to start) used to move the machine and then
+  snap back at the next frame. Now it takes the Build off first and says so; Build & play again to play the animation.
+- **The timeline fits.** After Build & play the timeline shows the whole animation (a 526-frame one still showed
+  0–250).
+## 0.2.246 – 25 Nov 2026 – "Uninstall Fresing Render" where the app is (task 0329)
+
+- **Uninstall Fresing Render** is now a shortcut in the install folder (`%LOCALAPPDATA%\FresingRender`) and next to
+  **Fresing Render.exe** – so you can remove the app even when the downloaded installer folder is long deleted. A
+  double-click does exactly what Uninstall in Settings > Apps > Installed apps does: its window shows what was removed;
+  your projects, renders and backups are kept.
+- A PC installed earlier gets both shortcuts at its next start; Update now keeps them right.
+- Install.bat's last lines say where uninstall is.
+- Uninstall run a second time after the folder is gone says so plainly (and clears a leftover entry in Installed apps);
+  after a removal that was stopped halfway (a file in use), Uninstall works again after a restart.
+- The self-test has a new line: "Windows: Uninstall shortcut in the install folder".
+
+
 ## 0.2.245 – 25 Nov 2026 – Adjust a look (task 0314)
 
 - **Adjust** (Materials window, under **Use for <group>**, when the group has the picked material): a few plain

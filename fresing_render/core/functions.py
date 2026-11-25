@@ -419,7 +419,7 @@ fn(id="looks.weld_list", short="Weld list", title="Weld list and CSV", family="l
    guide="weld-list", tour=("welds",), pccheck=("looks.weld_symbols",), since="0.2.240")
 fn(id="looks.weld_cad", short="Welds from CAD", title="Welds from the CAD file: solid beads in a STEP become welds",
    family="looks", panel="FRESING_PT_welds", button="fresing.weld_cad_find", guide="welds-from-cad", tour=("welds_cad",),
-   pccheck=("looks.weld_cad",), since="0.2.246")
+   pccheck=("looks.weld_cad",), since="0.2.249")
 fn(id="looks.xray", title="X-ray look", family="looks", panel="FRESING_PT_xray", button="fresing.xray_selected",
    guide="xray", tour=("fade",), pccheck=("motion.fade",), since="0.2.59")
 fn(id="looks.cutaway", title="Slice", family="looks", panel="FRESING_PT_cutaway", button="fresing.cut_add",
@@ -651,6 +651,7 @@ fn(id="scene.blur", short="Background blur", title="Background blur and sharp sp
    workspaces=("cnc", "offshore", "product", "education", "lifting"))
 fn(id="scene.turntable", title="Turntable video", family="scene", panel="FRESING_PT_turntable",
    button="fresing.turntable", guide="turntable", tour=("turntable",), pccheck=("scene.turntable",), since="0.2.17",
+   changed="0.2.247",                                  # task 0330: Turntable again keeps the steps the user added
    manual_estimate=("use", 900, "camera on a circle, keys, render settings and the video file"))
 fn(id="scene.still", title="Render a picture", family="scene", panel="FRESING_PT_output", button="fresing.render",
    guide="image-size", tour=("still",), pccheck=("render.gpu", "render.cpu", "render.eevee", "gpu.device"),
@@ -745,8 +746,8 @@ fn(id="animation.add", title="Animation", family="animation", panel="FRESING_PT_
 fn(id="animation.joint_step", title="Move joint step", family="animation", panel="FRESING_PT_animation",
    button="fresing.block_add", guide="animation", tour=("joint",), lesson="crane:8", since="0.2.10")
 fn(id="animation.build", title="Build & play", family="animation", panel="FRESING_PT_left_quick",
-   button="fresing.anim_build", guide="animation", tour=("joint",), lesson="crane:9", since="0.2.10",
-   changed="0.2.204")     # task 0278: only on the left panel (top left; its strip too)
+   button="fresing.anim_build", guide="animation", tour=("joint",), pccheck=("animation.user_keys",), lesson="crane:9",
+   since="0.2.10", changed="0.2.247")     # task 0278: only on the left panel; task 0330: keeps the user's own keys
 fn(id="animation.motor", title="Run motor step", family="animation", panel="FRESING_PT_animation",
    button="fresing.block_add", guide="run-motor", pccheck=("couplings.motor",), since="0.2.18")
 fn(id="animation.camera_path", short="Camera path", title="Camera rides along, flies a path, watches a part", family="animation",
@@ -771,7 +772,8 @@ fn(id="animation.vessel_step", title="Vessel at work step", family="animation", 
 # task 0309: lead motions – one slider per function, on the top bar in every workspace and in the Client view
 fn(id="motion.lead_motions", short="Lead motions", title="Lead motions: one slider per function of the machine",
    family="motion", panel="TOPBAR_PT_fresing_lead", button="fresing.lead_play", guide="lead-motions",
-   tour=("lead_motions",), pccheck=("motion.lead_motion",), lesson="crane:12", since="0.2.236", headline=True,
+   tour=("lead_motions",), pccheck=("motion.lead_motion",), lesson="crane:12", since="0.2.236", changed="0.2.247",
+   headline=True,
    workspaces=_WORK + ("client", "lifting"),         # (and every task workspace: _COMMON)
    manual_estimate=("use", 60, "move each joint of the function one after another in the joint box"))
 # task 0322: measuring in the 3D view – on the top bar in every workspace and in the Client view, keys M / Alt+M
