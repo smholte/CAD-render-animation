@@ -518,7 +518,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.251")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.252")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -1121,33 +1121,66 @@ def _round_face(ob) -> int:
     return -1
 
 
-@tour_set("welds", "Welds", "test_weldment.step", added="0.2.231", changed="0.2.242")
+@tour_set("welds", "Welds", "test_weldment.step", added="0.2.231", changed="0.2.251")
 def build_welds(b: Build):
-    from . import welds
+    import bpy
+
+    from . import build, welds
     sc = b.scene
     _look("PRODUCT")
     welds.set_up_test_model(sc)
     welds.settings(sc).symbols = True             # task 0320: the ISO 2553 symbols (view only)
     _camera(b, "ISO", "Tour view")
     _shot(b, "@welds")
+    # task 0323: the Inventor-like CAD-weld frame beside it – its welds come in with the import
+    have = set(build.model_roots(sc))
+    res = bpy.ops.fresing.import_step(filepath=os.path.join(DATA, "test_weldment_cad_inventor.step"), quality="draft")
+    _check(res == {"FINISHED"}, f"the CAD-weld frame's import returned {res}")
+    root = next(r for r in build.model_roots(sc) if r not in have)
+    root.matrix_basis.translation.y -= 0.45
+    build.set_mat(root, build.PROP_REST_BASIS, root.matrix_basis)
+    _update()
+    _close_camera(b, (0.28, -0.30, 0.03), 0.42, "Tour CAD welds")
+    _shot(b, "@welds_cad")
 
 
 def _check_welds(scene):
     from . import welds
-    st = welds.stats(scene)
+    own = [it for it in welds.items(scene) if not it.from_cad]      # (the CAD-weld frame beside it: stop welds_cad)
+    st = {"welds": len(own), "seams": sum(1 for it in own for x in it.seams if x.enabled),
+          "metres": sum(float(it.get("fr_length", 0.0)) for it in own), "lost": sum(1 for it in own if it.lost)}
     _check(st["welds"] == len(welds.TEST_WELDS), f"{st['welds']} welds, not {len(welds.TEST_WELDS)}")
     _check(st["lost"] == 0, f"{st['lost']} welds lost their faces")
-    beads = sum(1 for it in welds.items(scene) for o in welds.objects_of(it) if o.get("fr_kind") == welds.KIND)
+    beads = sum(1 for it in own for o in welds.objects_of(it) if o.get("fr_kind") == welds.KIND)
     _check(beads == st["welds"], f"only {beads} of {st['welds']} welds have a bead")
     _check(2.0 < st["metres"] < 2.5, f"{st['metres']:.2f} m of bead, not about 2.2 m")
     from ..core import weld_symbols as core_symbols     # task 0320: the symbols are on, in the view only
     from . import weld_symbols
     s = welds.settings(scene)
     _check(s.symbols and not s.symbols_render, "the weld symbols are not on (view only)")
-    texts = [core_symbols.one_line(weld_symbols.symbol_of(it, i + 1)) for i, it in enumerate(welds.items(scene))]
+    texts = [core_symbols.one_line(weld_symbols.symbol_of(it, i + 1)) for i, it in enumerate(own)]
     _check(texts[0] == "a5 ◺/◸ 200 < 135", f"weld 1's symbol reads '{texts[0]}'")
     _check(sum(t.startswith("○") for t in texts) == 3, f"{sum(t.startswith('○') for t in texts)} all-round symbols, not 3")
     return f"{st['welds']} welds, {st['seams']} seams, {st['metres']:.2f} m of bead; symbols {', '.join(texts[:2])} …"
+
+
+def _check_welds_cad(scene):
+    """Task 0323: the Inventor-like frame's six beads became welds at its import, with their sizes."""
+    from . import build, weld_cad, welds
+    rows = sorted((r[1], r[2], round(r[3]), r[4]) for r in weld_cad.table(scene))
+    want = sorted([("FILLET", 5.0, 200, False), ("FILLET", 4.0, 120, False), ("FILLET", 4.0, 189, True),
+                   ("FILLET", 4.0, 240, True), ("FILLET", 4.0, 80, False), ("BUTT", 15.5, 300, False)])
+    _check(len(rows) == 6, f"{len(rows)} welds from the CAD file, not 6")
+    for got, exp in zip(rows, want):
+        _check(got[0] == exp[0] and abs(got[1] - exp[1]) <= 0.5 and abs(got[2] - exp[2]) <= 1 and got[3] == exp[3],
+               f"a weld from the CAD file reads {got}, not {exp}")
+    cad = [it for it in welds.items(scene) if it.from_cad]
+    _check(all(it.cad_shape and len(welds.objects_of(it)) == 2 for it in cad), "a CAD weld has no bead or heat zone")
+    src = [o for o in build.iter_parts(scene) if o.get(weld_cad.SOURCE)]
+    _check(len(src) == 1 and src[0].get(build.PROP_EXCLUDED), "the CAD welds part shows (it should be left out)")
+    inter = next((it for it in cad if it.intermittent), None)
+    _check(inter is not None, "the intermittent weld is not one weld")
+    return "6 welds from the CAD file: " + ", ".join(f"{k.lower()} {s:g} mm" for k, s, _l, _c in rows[:3]) + " …"
 
 
 WELDING = "Welding"
@@ -5014,6 +5047,14 @@ stop("welds", LOOK, "welds", "Welds",
      "symbol with its number 1–7: 'a5' and a triangle on both sides of the line for the fin, a circle at the bend for "
      "the three all-round welds, the process number (135, 141, 131) in the tail. They show in the view only.",
      where="3 Looks > Welds (Weld symbols, Weld list…)", check=_check_welds, since="0.2.231", changed="0.2.240")
+stop("welds_cad", LOOK, "welds", "Welds from the CAD file",
+     "A second invented weldment, exported as Inventor does (all its solid welds one part 'Welds'), seen close up. Its "
+     "six beads came in with the import as welds: a fillet along the rib's foot, four short pieces on its other side "
+     "(one intermittent weld), a ring round the tube, one bead round the box post's four corners, a fillet with "
+     "unequal legs at the stiffener and a V groove with its cap between the two blue plates. Each keeps its CAD shape "
+     "and has the app's looks: painted blue like the plate, ripples showing through, a narrow tint strip beside it. "
+     "In the list they have the import icon; open one: 'From the CAD file (by its name) · fillet a4 · legs 10 × 6 mm'.",
+     where="3 Looks > Welds (From the CAD file)", check=_check_welds_cad, since="0.2.251")
 stop("workspace_welding", LOOK, "welds", "The workspace Welding",
      "The same weldment, the Workspace row on the left panel now says 'Welding' (its small arrow open). The side "
      "panel shows only what welding needs: 1 Import, 2 Structure, 3 Looks with Welds open, 5 Scene & Render (light, "
@@ -6237,7 +6278,7 @@ stop("keys_tab", OUT, HUB_SET, "All keys in one list",
      "the title says it is now F9, F9 renders, F12 no longer does; close the app and start it again: still F9. Click "
      "Measure's M and press F9: refused, \"already Fresing's key for: Render the picture\". Reset all puts F12 back. Print key sheet "
      "opens one A4 page in the browser.",
-     where="Fresing menu > Keys… (also Help > Keys…); Fresing Settings > Keys", since="0.2.251",
+     where="Fresing menu > Keys… (also Help > Keys…); Fresing Settings > Keys", since="0.2.252",
      shot="Tour view", check=_check_keys_tab, auto=lambda ctx, scene, st: "")
 
 def _check_locations(scene):

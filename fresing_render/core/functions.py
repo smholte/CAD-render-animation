@@ -137,7 +137,7 @@ TASK_WORKSPACES = {
         "import.step", "import.mesh", "import.drop", "import.again", "import.update", "import.up_axis",
         "structure.tree", "looks.materials", "looks.find", "looks.rules", "looks.rule_sets", "looks.finishes",
         "looks.rust", "looks.faces", "looks.welds", "looks.weld_symbols", "looks.weld_list", "looks.weld_copy",
-        "looks.light_look", "scene.surroundings", "scene.light",
+        "looks.weld_cad", "looks.light_look", "scene.surroundings", "scene.light",
         "scene.camera", "scene.blur", "scene.still", "scene.render_view", "scene.shapes", "scene.save",
     ),
     # task 0321: making a machine move – import, structure, place, joints, cylinders, mechanisms, way covers, hoses and
@@ -418,6 +418,9 @@ fn(id="looks.weld_symbols", short="Weld symbols", title="Weld symbols (ISO 2553)
    since="0.2.240")
 fn(id="looks.weld_list", short="Weld list", title="Weld list and CSV", family="looks", panel="FRESING_PT_welds", button="fresing.weld_list",
    guide="weld-list", tour=("welds",), pccheck=("looks.weld_symbols",), since="0.2.240")
+fn(id="looks.weld_cad", short="Welds from CAD", title="Welds from the CAD file: solid beads in a STEP become welds",
+   family="looks", panel="FRESING_PT_welds", button="fresing.weld_cad_find", guide="welds-from-cad", tour=("welds_cad",),
+   pccheck=("looks.weld_cad",), since="0.2.251")
 fn(id="looks.xray", title="X-ray look", family="looks", panel="FRESING_PT_xray", button="fresing.xray_selected",
    guide="xray", tour=("fade",), pccheck=("motion.fade",), since="0.2.59")
 fn(id="looks.cutaway", title="Slice", family="looks", panel="FRESING_PT_cutaway", button="fresing.cut_add",
@@ -868,7 +871,7 @@ fn(id="help.right_click", headline=True, short="Right-click menu", title="Right-
 fn(id="settings.keys", headline=True, short="Keys", title="Keys: every key of the app in one list – moving the view, "
    "selecting, Fresing's own, Blender's –, search, change Fresing's own keys (kept over a restart), a printable key "
    "sheet; Fresing > Keys…", family="help", panel="TOPBAR_MT_fresing", button="fresing.keys", guide="keys",
-   tour=("keys_tab",), pccheck=("settings.keys",), since="0.2.251")          # task 0295
+   tour=("keys_tab",), pccheck=("settings.keys",), since="0.2.252")          # task 0295
 
 fn(id="usage.my_usage", title="My usage: what you use, time per stage (only while you use the app), time saved (estimate)",
    family="help", panel="TOPBAR_MT_fresing", button="fresing.usage_window", guide="my-usage", tour=("usage",),

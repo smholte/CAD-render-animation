@@ -2016,6 +2016,56 @@ describes the weld's longest ticked seam; the weld list has all of them.
 (fillet, butt, both sides, all round, intermittent), the size, the length of all its ticked seams, the process, the
 finish and the symbol. **Export CSV…** writes it as a file that opens in Excel (the metal is in it too).
 
+<a id="welds-from-cad"></a>
+#### Welds from the CAD file
+
+A STEP file with **solid welds** brings them along: at the import each weld bead in the file becomes a weld in the
+list – with the app's looks on the bead (ripples, heat tint, paint, rust) and its size in the weld list and the
+symbols – without picking any faces. The import's message says how many ("6 welds from the CAD file"); the list marks
+them with the import icon.
+
+What comes through, by CAD program:
+
+- **Inventor**: solid welds (fillet, groove) come out of a STEP export as **one part with all the beads** of the
+  weldment. The app splits it into one weld per bead; the part itself is left out (its beads are the welds now).
+  Inventor's **cosmetic welds** are only drawn on the screen – they are **not in the STEP file**, so nothing comes
+  through: weld those with **Add weld…**.
+- **SolidWorks**: weld beads are drawn on the screen only – not in the STEP file.
+- **Creo** (8 and newer): each solid weld is a body of its own – one weld each.
+- **Fusion** and others: a bead the designer drew as a body. Named "Weld …" it is taken by its name; with another
+  name it is taken **by its shape** – a long thin body in the corner or the gap between two parts, with a triangular
+  or groove section, lying on both. Those are said in the import's message ("found 2 welds by their shape – check
+  them") and in the weld's box. Bars, keys, gaskets, screws and folded strips that only look a bit like a bead are left
+  alone. At an import this search by shape takes at most 10 seconds (the message says so when it stopped); **Find in
+  CAD file** looks without a limit.
+
+What the app reads from each bead:
+
+- the **two parts** it joins (the bead moves with the bigger one); a bead lying on one part or on three is kept and
+  says "joins 1 part" / "joins 3 parts";
+- the **kind**: a fillet in a corner, or a groove (butt) weld that fills the gap between two plate edges;
+- the **size**: a fillet's legs z1 / z2 on each part and its throat **a** (as on a drawing, rounded to 0.5 mm;
+  unequal legs are said: "legs 10 × 6 mm"), a groove's cap width; the **length**; **all round** when it goes round
+  a tube or a post; pieces of one line as one **intermittent** weld (n × l (e));
+- the **metal**: from the bead's own CAD material (Inventor's weld bead material, e.g. "Welded Steel Mild"), else
+  from its parts, as a weld you place yourself. **Painted or bare**: a CAD file does not say – it is painted when a
+  part it joins is painted, bare otherwise, as for any weld.
+
+The bead keeps **its own shape from the CAD file** (its exact size), with the app's looks on it and the heat-tint
+strips beside it. **Use the app's bead instead** (in the weld's box) lays the app's bead on the same seam, sized by
+**Size a** – handy when the CAD bead is drawn coarse; **Use the CAD shape again** goes back. While the CAD shape is
+used, Kind and Size are grey: the CAD shape has its own.
+
+**From the CAD file** (a fold above the list, when there are such welds) changes them **all at once**: **CAD shape** /
+**App's bead**, **Painted** / **Bare**. **Back to the CAD part** removes the welds that came from the CAD file and
+shows the part they came from again; **Find in CAD file** (beside Weld two parts) looks for beads again – after
+that, or in a project imported with an older version.
+
+From then on they are welds like the others: in the weld list and the symbols, copied with their parts, moving with
+the first part, left out of the clash check, in the web 3D model and the Client view. A **model update** keeps your
+changes on a weld whose bead came back in the same place (its new size and length are taken and said), lists a
+weld whose bead is gone ("Weld lost in the new model") and adds a new bead as a new weld (said in the report).
+
 <a id="xray"></a>
 ### X-ray look
 

@@ -180,6 +180,21 @@ class FRWeld(PropertyGroup):
     seam_data: StringProperty(default="")        # the seams where they were found (core.welds.pack_seams)
     rel: FloatVectorProperty(size=16, default=(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1))
     #                                            the second part in the first part's coordinates when they were found
+    # task 0323: a weld whose bead came in the CAD file (blender/weld_cad.py)
+    from_cad: BoolProperty(default=False)
+    cad_shape: BoolProperty(name="CAD shape", default=True, update=_changed,
+                            description="Keep the bead's own shape from the CAD file (its exact size), with the app's "
+                                        "looks on it. Off: the app's bead is laid on the same seam")
+    cad_mesh: PointerProperty(type=bpy.types.Mesh)        # the CAD bead in the first part's coordinates (UV fr_weld)
+    cad_source: PointerProperty(type=bpy.types.Object)    # the CAD part it came from (left out: its beads are welds)
+    cad_how: StringProperty(default="")                  # "name" / "shape": how it was found
+    cad_kind: StringProperty(default="")                 # FILLET / BUTT / OTHER, as measured
+    cad_note: StringProperty(default="")                 # "legs 10 × 6 mm", "joins 3 parts" …
+    cad_closed: BoolProperty(default=False)               # all round (also seams round in a loop)
+    cad_parts: IntProperty(default=2)                     # how many parts it lies on
+    cad_legs: FloatVectorProperty(size=2, default=(0.0, 0.0))
+    cad_length: FloatProperty(default=0.0)
+    cad_metal: StringProperty(default="")                # the CAD material's metal ('' : from the parts)
 
 
 def _symbols_changed(self, context):
@@ -370,6 +385,8 @@ def find(item, force: bool = False):
     was when they were found (``rel``) – never where it happens to stand now (an exploded view, a pose). ``force`` or no
     kept seams: found now and kept (``refind``)."""
     fa, fb = _faces(item.faces_a), _faces(item.faces_b)
+    if item.from_cad and item.seam_data:
+        force = False                         # task 0323: a CAD weld's seams are where its bead lies, never refound
     if force or not item.seam_data:
         rel = _np(item.part_a.matrix_world.inverted() @ item.part_b.matrix_world)
         got = find_raw(item.part_a, None if item.whole else fa, item.part_b, None if item.whole else fb, item.gap)
@@ -636,8 +653,9 @@ def rebuild(item, refind_seams: bool = False) -> bool:
         verts_b, faces_b, uv_b = [], [], []
         verts_h, faces_h, uv_h, end_h = [], [], [], []
         length = 0.0
+        other = item.from_cad and item.cad_kind == "OTHER"      # task 0323: a CAD bead with no seam: its shape only
         for s, tick in zip(seams, item.seams):
-            if not tick.enabled:
+            if not tick.enabled or other:
                 continue
             ends = tuple(seams[j[0]].corners[0 if j[1] == 0 else -1]
                          if j is not None and j[0] < len(seams) and ticked[j[0]] else None for j in s.joins)
@@ -664,6 +682,13 @@ def rebuild(item, refind_seams: bool = False) -> bool:
                     idx.append(rm[i])
                 ff.append(idx)
                 uu.extend(corners)
+        if item.from_cad:                                 # task 0323: the bead's own shape from the CAD file
+            from . import weld_cad
+            got = weld_cad.bead_geometry(item)
+            if got is not None:
+                verts_b, faces_b, uv_b = got
+            if got is not None or other:
+                length = item.cad_length
         bead_mat, heat_mat = _materials(item)
         for heat, (vv, ff, uu) in ((False, (verts_b, faces_b, uv_b)), (True, (verts_h, faces_h, uv_h))):
             ob = _object(item, heat)
@@ -724,7 +749,7 @@ def _set_lost(item, why: str) -> None:
 
 def refind(item) -> bool:
     """Find the seams again (the gap changed, a part moved): the ticks of seams that are still there are kept."""
-    if item.part_a is None or item.part_b is None:
+    if item.part_a is None or item.part_b is None or item.from_cad:
         return rebuild(item)
     _CACHE.pop(item.key, None)
     seams, _sa, _sb = find(item, force=True)
@@ -806,6 +831,9 @@ def make(scene, part_a, faces_a, part_b, faces_b, whole: bool = False, ticks=Non
 
 
 def remove(scene, item) -> None:
+    if item.from_cad:
+        from . import weld_cad
+        weld_cad.remove_mesh(item)
     for ob in objects_of(item):
         me = ob.data
         bpy.data.objects.remove(ob)
@@ -981,6 +1009,8 @@ def carry_over(scene, pairs) -> tuple[list, object]:
     for it in items(scene):
         before.append((it, it.part_a, it.part_b, it.faces_a, it.faces_b, it.lost, it.note))
     for it in items(scene):
+        if it.from_cad:
+            continue                                      # task 0323: blender/weld_cad.carry_over follows its bead
         if not ((it.part_a is not None and it.part_a.name in by_name)
                 or (it.part_b is not None and it.part_b.name in by_name)
                 or (it.part_a is not None and build.model_root_of(it.part_a) in updated)
