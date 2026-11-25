@@ -44,6 +44,12 @@ Licence** with the licence file inside the pack. **All pack tests run in the pub
 the pack – against that release download, cached between runs. Compare this with a private-CI plan in one short table
 and recommend one.
 
+**Added while running (owner 25 Nov 21:41 – outputs):** for the Web 3D export and every other output that carries files
+(a project sent to a client), plan (1) a sentence in the licence draft: **assets inside an output may only be used as
+part of that output**; (2) the export **never carries the pack's full-size HDRIs or 360° photos** – a reduced background
+and textures baked at the page's own size (e.g. 1–2K, with the light) – with the size and look cost measured. The 3D
+page's player code stays dual GPL / MIT; the page itself is the user's output (0343 draft, point 4).
+
 ## Questions to answer
 
 1. **Pack format and place:** folder and zip layout, `pack.json` (id, version, the app versions it fits, asset list
