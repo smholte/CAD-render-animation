@@ -252,7 +252,7 @@ fn(id="panel.workspace", headline=True, title="Workspaces: show only the functio
    since="0.2.152", changed="0.2.226")
 fn(id="panel.families", title="Functions in this project: families on and off", family="panel",
    panel="FRESING_PT_workspace", button="fresing.family_toggle", guide="families", tour=("workspace",), pccheck=("panel.workspaces",),
-   since="0.2.152", changed="0.2.197")
+   since="0.2.152", changed="0.2.258")
 fn(id="panel.own_workspaces", title="Your own workspaces, shared as files", family="panel",
    panel="FRESING_PT_workspace", button="fresing.workspace_save", guide="own-workspaces", pccheck=("panel.workspaces",),
    since="0.2.152", changed="0.2.197")
@@ -856,16 +856,16 @@ fn(id="help.blender_editors", headline=True, short="Blender editors", title="Ble
    guide="blender-editors", pccheck=("app.editors",), since="0.2.179")
 fn(id="help.quiet_window", headline=True, short="Quiet window", title="A quiet window: the 3D view header, top bar, "
    "start-up screen and File > New without Blender's editing parts", family="help", panel="VIEW3D_HT_header",
-   button="fresing.blender_all", guide="quiet-window", pccheck=("app.quiet",), since="0.2.184",
+   button="fresing.blender_all", guide="quiet-window", pccheck=("app.quiet",), since="0.2.184", changed="0.2.258",
    workspaces=("cnc", "offshore", "product", "education", "lifting"))     # not the Client view: greyed there
 fn(id="help.blender_all", short="All of Blender", title="Fresing > Show all of Blender / Back to the Fresing window", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.blender_all", guide="quiet-window", pccheck=("app.quiet",),
-   since="0.2.184", workspaces=("cnc", "offshore", "product", "education", "lifting"))
+   since="0.2.184", changed="0.2.258", workspaces=("cnc", "offshore", "product", "education", "lifting"))
 
 # task 0253: Blender's keys outside Full access, F12 / Ctrl+F12, the right-click menu (study 0222 package B)
 fn(id="help.blender_keys", short="Blender keys", title="Blender's keys that delete or change parts do nothing outside Full "
    "access; F12 / Ctrl+F12 render with the app", family="help", panel="VIEW3D_HT_header", button="fresing.key_render",
-   guide="keys-and-right-click", tour=("keys",), pccheck=("app.keys",), since="0.2.202",
+   guide="keys-and-right-click", tour=("keys",), pccheck=("app.keys",), since="0.2.202", changed="0.2.258",
    workspaces=("cnc", "offshore", "product", "education", "lifting"))
 fn(id="help.right_click", headline=True, short="Right-click menu", title="Right-click on a part: a short Fresing menu "
    "(zoom to it, show in the tree, hide, show only, label here, add joint here)", family="help",

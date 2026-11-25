@@ -1,6 +1,6 @@
 # 0327 – Lower clash-check memory
 
-**Who:** worker · **Status:** open · **Branch:** `task/0327-lower-clash-memory`
+**Who:** worker · **Status:** running · **Branch:** `task/0327-lower-clash-memory`
 **Started by:** lead, 25 Nov 2026 (0315's slow place 4, the owner's Stress run on his PC) · **Model:** Opus · effort Medium
 **Area:** Clash lane – `core/clash.py`, `blender/clash.py`, `blender/ops_clash.py` (only if the run's progress needs it),
 their tests, CHANGELOG.

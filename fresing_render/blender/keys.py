@@ -153,7 +153,8 @@ def off_rows() -> list:
     mine = [core.own_key(kid, ch) for kid in ch]
     for n, _sp, k, m, what in lock.BLENDER_KEYS:
         key = core.label(k, m)
-        where = {"Outliner": "Outliner", "User Interface": "on a setting"}.get(n, "3D view")
+        where = {"Outliner": "Outliner", "User Interface": "on a setting", "Window": "everywhere",
+                 "Screen": "everywhere"}.get(n, "3D view")
         if (what, key, where) in seen:
             continue
         seen.add((what, key, where))
