@@ -1,6 +1,6 @@
 # 0325 – Lighter long cables (+ 0328 row 23, two small notes)
 
-**Who:** worker · **Status:** running · **Branch:** `task/0325-lighter-long-cables`
+**Who:** worker · **Status:** done (0.2.260) · **Branch:** `task/0325-lighter-long-cables`
 **Started by:** lead, 25 Nov 2026 (from 0315's slow place 2 and the owner's Stress run on his PC) · **Model:** Opus · effort High
 **Area:** Import lane – `importer/step_reader.py` (meshing of long thin faces), `importer/runner.py` (the prune note only),
 `blender/reimport.py` (row 23 only), `tools/make_test_stress.py` (README words), `pccheck/stress.py` (limits only), their
@@ -126,7 +126,9 @@ user renders it. Big models import, turn in the view, render and export faster b
   in `tests/test_mesh_update_changed_group.py` (4 variants; failed before: 1 lost its work, 3 had no report line);
   locally the importer / facets / meta / part hash / update-reuse / mesh-update / model-update / flex-fit / stress /
   tree-cache files: 271 + 34 passed.
-- GitHub: see below.
+- GitHub: 2 full runs, both green – [45703378322](https://github.com/smholte/CAD-render-animation/actions/runs/45703378322)
+  (as 0.2.259) and [45709241078](https://github.com/smholte/CAD-render-animation/actions/runs/45709241078) (0.2.260:
+  0333 had taken 0.2.259 meanwhile, so main was merged and the number raised).
 
 **Open points / follow-up tasks:**
 - **The owner's re-check:** PC check > Stress once more – compare the Solid view, import Normal, render and web 3D
