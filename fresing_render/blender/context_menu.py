@@ -129,6 +129,12 @@ def pick(context, hit) -> None:
 # the menu
 # ---------------------------------------------------------------------------
 
+def _shows(scene, fid: str) -> bool:
+    """Task 0333: an entry is drawn only when the project's workspace shows its function."""
+    from . import workspaces
+    return workspaces.shows(scene, fid)
+
+
 def _draw(self, context):
     """The Fresing menu in place of Blender's own object menu (outside Full access, Object Mode)."""
     if context.mode != "OBJECT" or not _quiet():
@@ -152,7 +158,9 @@ def _draw(self, context):
     layout.label(text=ob.get(build.PROP_NAME, ob.name), icon="OBJECT_DATA")
     layout.separator()
     layout.operator("fresing.ctx_zoom", text="Zoom to it", icon="ZOOM_SELECTED").part = ob.name
-    layout.operator("fresing.ctx_tree", text="Show in 2 Structure", icon="OUTLINER").part = ob.name
+    sc = context.scene
+    if _shows(sc, "structure.tree") and not HIT["client"]:
+        layout.operator("fresing.ctx_tree", text="Show in 2 Structure", icon="OUTLINER").part = ob.name
     layout.separator()
     layout.operator("fresing.ctx_hide", text="Hide", icon="HIDE_ON").part = ob.name
     layout.operator("fresing.ctx_only", text="Show only this", icon="SOLO_ON").part = ob.name
@@ -161,28 +169,35 @@ def _draw(self, context):
     if HIT["client"]:
         return None
     layout.separator()
-    op = layout.operator("fresing.ctx_label", text="Add a label here", icon="FONT_DATA")
-    op.part, op.point = HIT["part"], HIT["point"]
+    if _shows(sc, "animation.labels"):
+        op = layout.operator("fresing.ctx_label", text="Add a label here", icon="FONT_DATA")
+        op.part, op.point = HIT["part"], HIT["point"]
     layout.operator_context = "INVOKE_DEFAULT"
-    layout.operator("fresing.ctx_joint", text="Add joint here…", icon="CON_PIVOT").part = ob.name
-    op = layout.operator("fresing.ctx_weld", text="Weld to another part…", icon="MOD_BEVEL")   # task 0319
-    op.part, op.point = HIT["part"] or ob.name, HIT["point"]
+    if _shows(sc, "joints.rotate"):
+        layout.operator("fresing.ctx_joint", text="Add joint here…", icon="CON_PIVOT").part = ob.name
+    if _shows(sc, "looks.welds"):
+        op = layout.operator("fresing.ctx_weld", text="Weld to another part…", icon="MOD_BEVEL")   # task 0319
+        op.part, op.point = HIT["part"] or ob.name, HIT["point"]
     from . import place                          # task 0307: G / R move it once it is unlocked
     layout.operator_context = "EXEC_DEFAULT"
-    text = place.menu_text(ob)
-    layout.operator("fresing.ctx_unlock", text=text, icon="UNLOCKED" if text.startswith("Unlock") else "LOCKED"
-                    ).part = ob.name
+    if _shows(sc, "structure.move"):
+        text = place.menu_text(ob)
+        layout.operator("fresing.ctx_unlock", text=text, icon="UNLOCKED" if text.startswith("Unlock") else "LOCKED"
+                        ).part = ob.name
     layout.operator_context = "INVOKE_DEFAULT"     # task 0292: Place in a window of its own, Remove… (lists what goes)
-    layout.operator("fresing.place_window", text="Move / turn…", icon="OBJECT_ORIGIN")
+    if _shows(sc, "structure.place"):
+        layout.operator("fresing.place_window", text="Move / turn…", icon="OBJECT_ORIGIN")
     layout.operator_context = "EXEC_DEFAULT"     # task 0293: Copy, Paste here (where the right-click was)
-    layout.operator("fresing.copy", text="Copy", icon="COPYDOWN")
     from . import ops_copy
-    if ops_copy.can_paste(context.scene):
-        op = layout.operator("fresing.paste", text="Paste here", icon="PASTEDOWN")
-        op.here, op.point = True, HIT["point"]
+    if _shows(sc, "structure.copy"):
+        layout.operator("fresing.copy", text="Copy", icon="COPYDOWN")
+        if ops_copy.can_paste(context.scene):
+            op = layout.operator("fresing.paste", text="Paste here", icon="PASTEDOWN")
+            op.here, op.point = True, HIT["point"]
     layout.operator_context = "INVOKE_DEFAULT"
-    layout.separator()
-    layout.operator("fresing.remove", text="Remove…", icon="TRASH")
+    if _shows(sc, "structure.remove"):
+        layout.separator()
+        layout.operator("fresing.remove", text="Remove…", icon="TRASH")
     return None
 
 

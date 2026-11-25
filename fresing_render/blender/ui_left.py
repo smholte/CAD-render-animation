@@ -322,6 +322,16 @@ def preview_on(context) -> bool:
     return bool(shading is not None and shading.type == "RENDERED")
 
 
+def client_play(context) -> bool:
+    """Task 0333: the Client view cannot build, but a finished project that is built can be played: its Play button
+    stands where Build & play is."""
+    try:
+        from . import animation, workspaces
+        return bool(workspaces.locked(context.scene) and context.scene.get(animation.PRINT) is not None)
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def has_animation(context) -> bool:
     try:
         from . import animation
@@ -349,7 +359,11 @@ class FRESING_PT_left_quick(LeftPanel, bpy.types.Panel):
             col.operator("fresing.preview", text="", icon="SHADING_RENDERED", depress=on)
             sub = col.column(align=True)
             sub.enabled = anim
-            sub.operator("fresing.anim_build", text="", icon="PLAY").play = True
+            if client_play(context):
+                sub.enabled = True
+                sub.operator("screen.animation_play", text="", icon="PLAY")
+            else:
+                sub.operator("fresing.anim_build", text="", icon="PLAY").play = True
             col.operator("fresing.settings", text="", icon="PREFERENCES")     # task 0271
             return
         row = layout.row(align=True)
@@ -358,7 +372,11 @@ class FRESING_PT_left_quick(LeftPanel, bpy.types.Panel):
                      depress=on)
         sub = row.row(align=True)
         sub.enabled = anim
-        sub.operator("fresing.anim_build", text="Build & play", icon="PLAY").play = True
+        if client_play(context):
+            sub.enabled = True
+            sub.operator("screen.animation_play", text="Play", icon="PLAY")
+        else:
+            sub.operator("fresing.anim_build", text="Build & play", icon="PLAY").play = True
         row.operator("fresing.settings", text="", icon="PREFERENCES")         # task 0271: Fresing Settings
         row.operator("fresing.left_fold", text="", icon="TRIA_LEFT")
 

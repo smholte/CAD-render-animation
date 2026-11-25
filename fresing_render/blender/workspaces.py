@@ -537,6 +537,74 @@ def use_all(scene) -> None:
     apply(scene)
 
 
+def me() -> str:
+    try:
+        import getpass
+        return getpass.getuser()
+    except Exception:  # noqa: BLE001
+        return os.environ.get("USERNAME") or os.environ.get("USER") or ""
+
+
+THEIRS: dict = {}          # task 0333: {"scene", "who", "fields": (ws_name, ws_data, ws_ticks), "popup": bool}
+
+
+def colleague_text(who: str, theirs: str, mine: str) -> str:
+    """The popup's words (plain): who, which workspace, where the project opened instead."""
+    return (f"{who or 'Another person'} saved this project in the workspace '{theirs}'. "
+            f"It is open in your own workspace, '{mine}'.")
+
+
+def take_in(scene) -> bool:
+    """Task 0333 (owner 25 Nov): a project last saved by another person in another workspace opens in the user's
+    own workspace; what the other person had is kept for 'Switch to theirs'. Not a Client view (a locked project
+    stays locked), not a project the app made, not one with no saver on record. True when it was switched."""
+    THEIRS.clear()
+    s = _settings(scene)
+    if s is None or not s.ws_name or not s.saved_by or s.saved_by == me() or app_made(scene):
+        return False
+    if current(scene).lock:
+        return False
+    mine = default_name()
+    if W.key_of(s.ws_name) == W.key_of(mine) and not s.ws_data:
+        return False
+    fields = tuple(getattr(s, f) for f in _WS_FIELDS)
+    theirs = s.ws_name
+    switch(scene, mine, keep_used=False)
+    THEIRS.update(scene=scene.name, who=s.saved_by, theirs=theirs, mine=mine, fields=fields)
+    return True
+
+
+def switch_to_theirs(scene) -> bool:
+    if not THEIRS or THEIRS.get("scene") != scene.name:
+        return False
+    s = _settings(scene)
+    for f, v in zip(_WS_FIELDS, THEIRS["fields"]):
+        setattr(s, f, v)
+    THEIRS.clear()
+    apply(scene)
+    _redraw()
+    return True
+
+
+def _popup_later(scene) -> None:
+    if bpy.app.background or os.environ.get("FRESING_NO_WELCOME"):
+        return
+    try:
+        from . import prefs
+        if not prefs.get().ask_colleague_workspace:
+            return
+    except Exception:  # noqa: BLE001
+        return
+
+    def _go():
+        try:
+            bpy.ops.fresing.colleague_workspace("INVOKE_DEFAULT")
+        except Exception:  # noqa: BLE001 - no window yet: it is only a notice
+            pass
+        return None
+    bpy.app.timers.register(_go, first_interval=1.5)
+
+
 def on_load(scene) -> None:
     """After a project is open: a workspace for a project that has none, then the lock and Blender's tabs as that
     workspace says (the lock's marks are in the project; Blender's tabs are not)."""
@@ -544,6 +612,8 @@ def on_load(scene) -> None:
         return
     library(force=True)
     ensure(scene)
+    if take_in(scene):
+        _popup_later(scene)
     apply(scene)
 
 
@@ -662,6 +732,12 @@ def _on_load(_dummy=None):
 def _on_save(_dummy=None):
     from . import panels
     for sc in bpy.data.scenes:
+        try:
+            st = _settings(sc)
+            if st is not None and st.saved_by != me():       # task 0333: who saved it last
+                st.saved_by = me()
+        except Exception:  # noqa: BLE001
+            pass
         try:
             panels.on_save(sc)
         except Exception:  # noqa: BLE001

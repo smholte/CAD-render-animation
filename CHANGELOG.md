@@ -5,6 +5,46 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.261 – 25 Nov 2026 – The clash check needs much less memory on big models (task 0327)
+
+- **6 Animation > Clash check** on a big model now needs about a quarter of the extra memory it needed: on the stress
+  model (11,228 parts) about 1.0 GB on top of the open project instead of 3.8 GB, so it fits on a 16 GB office PC
+  or laptop. It is also a little faster (59 s instead of 72 s on the 4-core test machine) and finds exactly the same
+  clashes.
+- Why: the check prepared every part's shape for testing at its start, also the thousands of parts that never come
+  near a moving one. It now prepares a part's shape only when a moving part comes near it.
+## 0.2.260 – 25 Nov 2026 – Long cables and hoses come in light (task 0325)
+
+- **Long cables and hoses from CAD** (a round section swept along a curve, as Inventor's cables and harnesses are) are
+  now meshed by their own rule: segments round by their diameter (a Ø20 mm cable: about 10 / 16 / 25 at Draft / Normal
+  / Fine) and rings along only where they bend. A 30 m cable comes in with 5,000–11,000 triangles at Normal instead of
+  30,000–220,000, and it looks smoother: the old mesh flattened stretches of long, lumpy cables. Other parts are meshed
+  exactly as before.
+- On the Stress model (made-up, 11,000 parts) at Normal: **4.1 M triangles instead of 13.9 M**, the import's reading
+  part 79 s instead of 127 s on a 4-core machine; at Fine 8.9 M instead of 34.7 M. The view, Live preview, renders and
+  the web 3D model have that much less to draw.
+- A project imported earlier keeps its cables until its next **Update to new revision…** (then they come in light,
+  work kept). Older import caches are read again once.
+- **Model update of a mesh file**: a group with no name in the file that moved while ALL its parts changed (e.g. two
+  boxes made wider) now keeps its steps, eye and joints (before: "2 new, 2 missing" and the work on it lost). The report
+  says "moved 100 mm; 2 parts changed".
+- An import that is still being written by another app version on the same PC is no longer deleted when an app starts.
+- PC check Stress: the limits are now set from the first run on a 24-core PC with an RTX 3090; the Stress model's
+  README names the real buttons (1 Import > Import STEP…).
+
+## 0.2.259 – 25 Nov 2026 – Workspaces match their job (task 0333)
+
+- **A colleague's project opens in your own workspace.** A small window says whose workspace it was and offers **Switch to
+  theirs**; you can tick *Don't show this again* or turn it off in Fresing Settings > General.
+- **Video producer** now has Weather & time (with presets and the change at the playhead), Turntable, Render this view,
+  the joint sliders and Save start scene. **Animator** has Light, Saved scenes, Weather and Turntable.
+- **Sales** gets **Render animation** in the Make list. The Client view has no Import; once an animation is built it has a
+  **Play** button.
+- The **right-click menu** shows only what the workspace shows (Sales: no Add joint here, Weld, Copy, Remove …).
+- The material picker, Finishes and Update revision are listed where their panels are. The red "In use but hidden" line is
+  now a short grey hint. The Lead motions menu no longer draws greyed buttons in the Client view. The "animation is built" box
+  in 4 Motion sits at the bottom, so the buttons above it stay where they are.
+
 ## 0.2.258 – 25 Nov 2026 – A quieter window, a Client view that really locks (task 0332)
 
 - **Back to the Fresing window** always brings the app's layout back: if you had picked one of Blender's own tabs
