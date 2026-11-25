@@ -1,6 +1,6 @@
 # 0367 – Shorter top-bar menus and Blender's side-panel tabs hidden (0222 package C) + 0332's open points
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0367-shorter-menus-blender-tabs`
+**Who:** worker · **Status:** running · **Branch:** `task/0367-shorter-menus-blender-tabs`
 **Started by:** lead, 25 Nov 2026 23:5x (owner allowed extra code tasks for the night; 0222 package C, order A → B → C
 agreed 20 Nov – A = 0241 and B = 0253 are done) · **Model:** Opus · effort Medium
 **Area:** Start & learn lane –
