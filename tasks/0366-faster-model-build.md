@@ -1,6 +1,6 @@
 # 0366 – Faster model build after the import (0301 #1) + where the import time goes
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0366-faster-model-build`
+**Who:** worker · **Status:** running · **Branch:** `task/0366-faster-model-build`
 **Started by:** lead, 25 Nov 2026 23:5x (owner allowed extra code tasks for the night; study 0301's first proposal)
 · **Model:** Opus · effort Medium
 **Area:** Import lane –
