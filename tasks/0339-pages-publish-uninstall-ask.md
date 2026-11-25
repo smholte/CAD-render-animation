@@ -1,6 +1,6 @@
 # 0339 – Landing page publishes again; uninstall shortcut asks first
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0339-pages-publish-uninstall-ask`
+**Who:** worker · **Status:** running · **Branch:** `claude/busy-volta-erel42`
 **Started by:** lead, 25 Nov 2026 (0329's report: the landing-page "Publish" job fails on and off since 25 Nov ~00:10;
 owner 12:1x: "Yes, ask first" before the shortcut / Uninstall.bat removes the app) · **Model:** Opus · effort Medium
 **Area:** Quality & delivery lane – `.github/workflows/pages.yml` and the landing-page / publish part of
