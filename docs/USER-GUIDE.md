@@ -3755,10 +3755,10 @@ depends on changed (the program, the model, the coolant or the liquid settings) 
 rendering in the render queue or changing the EEVEE look does not work it out again. Every frame is read from it,
 so a frame always looks the same.
 
-How long it takes (measured on the 4-core test machine, Draft, a 16 s test program on the test mill: about 16 s,
-1.3 MB a second of video); a 10-minute program at Normal is the PC check's Heavy line "Milling: coolant liquid of
-a 10-minute program". It takes room on the disk: roughly 1–3 MB per second of video at Normal while the whole
-table is wet.
+How long it takes, measured on the 4-core test machine with the test mill's 16 s test program (385 frames, the
+whole table wet): Draft about 16 s, Normal about 50 s; on disk about 0.8 MB (Draft) and 2.4 MB (Normal) per second
+of video. A PC with more cores is quicker (the work is shared over all its cores); how long a 10-minute program
+takes on your PC is the PC check's Heavy line "Milling: coolant liquid of a 10-minute program".
 
 Not yet: the 4th and 5th axis (next), chips carried by the liquid, the air blast pushing it out of a pocket,
 liquid in a T-slot's undercut (only what the top shows counts), the web 3D model.
