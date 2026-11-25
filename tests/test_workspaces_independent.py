@@ -604,7 +604,8 @@ def test_make_lists_only_outputs_whose_settings_can_be_shown():
         if W.key_of(name) in F.TASK_WORKSPACES:      # task 0294: a list of functions – an output shows when its
             listed = {o[0] for o in ui_top._outputs(sc)}         # function is on the list, whatever its family
             for key, _text, _icon, _popover, fid, _op_id, _t in ui_top.OUTPUTS:
-                assert (key in listed) == (fid in F.TASK_WORKSPACES[W.key_of(name)]), (name, key)
+                also = any(f in F.TASK_WORKSPACES[W.key_of(name)] for f in ui_top.ALSO_SHOWS.get(key, ()))
+                assert (key in listed) == (fid in F.TASK_WORKSPACES[W.key_of(name)] or also), (name, key)   # 0333
             continue
         for fam in [None] + W.tickable():
             if fam is not None:
