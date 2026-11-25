@@ -1,6 +1,6 @@
 # 0340 – Import settings popup: keep the CAD paint, welds, part size, fasteners, sub-assemblies
 
-**Who:** worker · **Status:** open · **Branch:** `task/0340-import-settings-popup`
+**Who:** worker · **Status:** open (high priority) · **Branch:** `task/0340-import-settings-popup`
 **Started by:** lead, 25 Nov 2026. The owner reported on 23 Nov 17:07 that every steel part of a work model came out
 bare steel although it is painted in Inventor. On 25 Nov 12:38 he asked for a popup with import settings, where you
 choose and then press Continue. Its defaults: keep the painted surface, welds on, all part sizes. The lead's extra
@@ -29,8 +29,20 @@ and runs after this one.
   step, or skip it.
 - `lock.py`.
 
-**Starts after:** 0323 (welds from CAD; it changes `ops_import.py`, `reimport.py` and `part_types_data.py`) and 0295
-(Keys tab in Settings) are merged to `main`.
+**High priority** (owner 25 Nov 12:52: paint, bare material and partly painted are very important to the app).
+**Starts now** (owner 12:5x). Two running tasks share a file with this one, so keep this order:
+1. First, everything that is not in `blender/ops_import.py` or Settings: the paint rule (`core/part_types.py`,
+   `core/cad_materials.py`, `blender/build.py`, painted faces), `core/import_options.py`, the popup in the new
+   `blender/import_settings.py`, the pre-scan in `importer/step_meta.py`, and the filters in the importer. Test them
+   through the operator's arguments.
+2. Last, wire the popup into `blender/ops_import.py` (and the additive part of `reimport.py`). Do this only once **0323**
+   (welds from CAD, which changes `ops_import.py` and `reimport.py`) is on `main`. Check `git log origin/main --oneline |
+   grep "0323"`, then merge `main` into your branch first.
+3. Last, the Settings switch (`settings_store.py`, `ui_settings.py`). Do this only once **0295** (Keys tab, which changes
+   those two files) is on `main`.
+
+If 0323 or 0295 is still not merged when step 1 is done, tell the owner, push your branch and wait – do not edit those
+files before.
 
 ## Goal
 
