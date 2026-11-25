@@ -113,8 +113,8 @@
   },
   "lifting": {
    "added": "0.2.156",
-   "changed": "0.2.192",
-   "fp": "7c987a6cc4f3be76"
+   "changed": "0.2.260",
+   "fp": "234a3ab7e85ce0be"
   },
   "lifting_make": {
    "added": "0.2.159",

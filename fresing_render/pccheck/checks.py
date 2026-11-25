@@ -604,7 +604,7 @@ def lifting_reeve(ctx):
     return msg + f"; {lp.message}"
 
 
-@line("lifting.path", "Lifting plan: lift path and the checks along it", "0.2.259",
+@line("lifting.path", "Lifting plan: lift path and the checks along it", "0.2.260",
       what="The pump skid hung on the AT-40 (as lifting.hang), a set-down point 5 m away clicked: the proposed steps "
            "(hoist clear, slew, luff / telescope, lower) land the skid on it; Check along the path finds every "
            "check's worst moment – the same as frame by frame, with far fewer moments worked out; Go there; the "

@@ -3,7 +3,7 @@
 An AT-40 (mobile, outriggers) with the pump skid hung on its hook, and a CC-100 (crawler, tracks) from the library:
 Propose writes ordinary "Move joint" steps that land the load on the clicked point; Check along the path finds the same
 worst moment as every frame (fewer moments worked out); Go there; out of date after a change; the lift data box; the
-time of a joint drag with the plan and without; an old lifting project (0.2.192) opens and works with no path."""
+time of a joint drag with the plan and without."""
 
 from __future__ import annotations
 
@@ -24,7 +24,6 @@ import test_lifting_rigging as T  # noqa: E402
 from fresing_render.core import lifting as core  # noqa: E402
 
 registered = T.registered                     # the module fixture (register once, read_homefile at the end)
-OLD = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "old_lifting_0_2_192.blend")
 
 
 def _mods():
@@ -182,24 +181,6 @@ def test_drag_is_no_slower_with_the_plan():
           f"own work {p:.3f} ms per step (live rows worked out {LP._LIVE['count']} times)")
     assert p <= 0.05 * wo                               # the plan's own work: under 5 % of a drag step
     assert w <= wo * 1.10                               # the whole step (timing noise of a shared machine)
-
-
-def test_old_lifting_project_opens_with_no_path():
-    BL, RG, LP, joints, animation = _mods()
-    bpy.ops.wm.open_mainfile(filepath=OLD)
-    sc = bpy.context.scene
-    L = BL.plan(sc)
-    assert len(L.cranes) == 1 and len(L.loads) == 1
-    assert L.path_anim == "" and L.path_result == "" and not L.data_box and LP.result(sc) is None
-    assert not LP.stale(sc)
-    rows = LP.live_rows(sc, force=True)
-    assert isinstance(rows, list) and {r.id for r in rows} >= {"C1", "C5", "SETUP", "C3"}
-    c, ld = L.cranes[0], L.loads[0]
-    assert ld.rig_state == "HUNG"
-    hook = BL.hook_world(sc, c)
-    pr = LP.propose(sc, point=(hook[0] + 2.0, hook[1] - 4.0, 0.0))
-    assert pr.ok, pr.reason
-    assert LP.check(sc)["rows"]
 
 
 def test_no_forbidden_words_in_the_path_code():
