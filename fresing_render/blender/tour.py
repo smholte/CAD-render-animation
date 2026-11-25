@@ -1628,7 +1628,7 @@ def _check_measure(scene):
     return "500.00 / 4 500.00 / Ø 33.00 / 1 500.00 mm, each within 0.01 mm"
 
 
-@tour_set("mill", "Milling a slot", "test_mill.step", added="0.2.47", changed="0.2.236")
+@tour_set("mill", "Milling a slot", "test_mill.step", added="0.2.47", changed="0.2.262")
 def build_mill(b: Build):
     """The mill lesson's steps (``lessons/mill.py``, task 0230): View, Show me and Build it yourself make the same
     project; the stops show what it made."""
@@ -3828,7 +3828,7 @@ M30
 """
 
 
-@tour_set("tools", "Three tools and the hand", "test_mill.step", added="0.2.47", changed="0.2.195")
+@tour_set("tools", "Three tools and the hand", "test_mill.step", added="0.2.47", changed="0.2.262")
 def build_tools(b: Build):
     import bpy
     from mathutils import Vector
@@ -3938,7 +3938,7 @@ M30
 """
 
 
-@tour_set("marks", "Tool marks", "test_mill.step", added="0.2.73", changed="0.2.205")
+@tour_set("marks", "Tool marks", "test_mill.step", added="0.2.73", changed="0.2.262")
 def build_marks(b: Build):
     from mathutils import Vector
 
@@ -4044,7 +4044,7 @@ M30
 """
 
 
-@tour_set("air", "Air blast", "test_mill.step", added="0.2.47", changed="0.2.195")
+@tour_set("air", "Air blast", "test_mill.step", added="0.2.47", changed="0.2.262")
 def build_air(b: Build):
     import bpy
     from mathutils import Vector
@@ -4072,7 +4072,7 @@ def build_air(b: Build):
 COOLANT_TOUR = AIR_TOUR.replace("M7", "M8").replace("S9000", "S15000")    # task 0257: a fast tool (7.9 m/s)
 
 
-@tour_set("coolant", "Coolant", "test_mill.step", added="0.2.48", changed="0.2.200")
+@tour_set("coolant", "Coolant", "test_mill.step", added="0.2.48", changed="0.2.262")
 def build_coolant(b: Build):
     from mathutils import Vector
 
@@ -4096,7 +4096,7 @@ def build_coolant(b: Build):
     a.start_shot = _shot(b, "Tour: coolant").name
 
 
-@tour_set("liquid", "Coolant liquid", "test_mill.step", added="0.2.260", changed="0.2.260")
+@tour_set("liquid", "Coolant liquid", "test_mill.step", added="0.2.262", changed="0.2.262")
 def build_liquid(b: Build):
     """Task 0346: the coolant collects on the VMC – fills the pocket, runs over the table into the tray."""
     from mathutils import Vector
@@ -5703,7 +5703,7 @@ stop("liquid", MACH, "liquid", "Coolant liquid on the machine",
      "table's ends into the chip tray, which runs to the drain at its front right corner. After M9 the pocket stays "
      "full. (It is worked out a moment after Build & play: the Coolant panel shows how far.)",
      where="4 Motion > CNC machine > Coolant (Liquid on the machine)", animation="Coolant liquid", at=0.8,
-     play=True, check=_check_liquid, auto="clip", since="0.2.260")
+     play=True, check=_check_liquid, auto="clip", since="0.2.262")
 
 
 def _check_setup(scene):
