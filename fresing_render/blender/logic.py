@@ -152,8 +152,10 @@ def apply_rules(scene) -> dict:
     faces.write_groups(parts, plan["face_groups"])           # faces with a look of their own
     for i, c in enumerate(counts):
         s.rules[i].count = c
-    for name in list(per_group) + list(per_face_group):
-        ensure_group(s, name)
+    from .props import held_looks
+    with held_looks():                       # task 0366: new groups' looks reach the parts in one walk, not one each
+        for name in list(per_group) + list(per_face_group):
+            ensure_group(s, name)
     for g in s.groups:
         g.count = per_group.get(g.name, 0)
         g.faces = per_face_group.get(g.name, 0)
@@ -220,6 +222,14 @@ def apply_scheme(scene, name: str) -> int:
     sch = s.schemes.get(name)
     if sch is None:
         return 0
+    from .props import held_looks
+    with held_looks():                                  # task 0366: one walk over the parts, not one per change
+        n = _scheme_looks(scene, s, sch)
+    refresh_group_materials(scene)
+    return n
+
+
+def _scheme_looks(scene, s, sch) -> int:
     n = 0
     for look in sch.looks:
         g = s.groups.get(look.group)
@@ -238,7 +248,6 @@ def apply_scheme(scene, name: str) -> int:
             elif e is None:
                 g.mat_key = ""
         n += 1
-    refresh_group_materials(scene)
     return n
 
 

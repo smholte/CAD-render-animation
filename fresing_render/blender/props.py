@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import math
 
 import bpy
@@ -81,19 +82,54 @@ RES_ITEMS = [(k, v["label"], "") for k, v in presets.RESOLUTIONS.items()]
 # update callbacks
 # ---------------------------------------------------------------------------
 
+_HELD: list = []        # task 0366: inside ``held_looks``: {scene name: {group name: its material}} to give the parts
+
+
+@contextlib.contextmanager
+def held_looks():
+    """Group looks changed inside this reach the parts in ONE walk over the parts at the end (task 0366): sorting
+    makes every new group's material and colour, and each change walked all parts – 38 groups x 2 x 12,000 parts on
+    the study's Big machine, 2.3 s. Nested: the outermost one walks."""
+    _HELD.append({})
+    try:
+        yield
+    finally:
+        held = _HELD.pop()
+        if _HELD:                                # an outer one walks
+            for name, mats in held.items():
+                _HELD[-1].setdefault(name, {}).update(mats)
+        else:
+            for name, mats in held.items():
+                scene = bpy.data.scenes.get(name)
+                if scene is not None:
+                    _looks_to_parts(scene, mats)
+
+
+def _looks_to_parts(scene, mats: dict) -> None:
+    """Every part of a group in ``mats`` gets its group's material; the milled workpiece's cut faces follow."""
+    from . import build, materials               # task 0117: to and from "From file" the parts change material
+    for ob in build.iter_parts(scene):
+        mat = mats.get(ob.get(build.PROP_GROUP), _NONE)
+        if mat is not _NONE:
+            materials.assign(ob, mat)
+    from . import machining                      # the milled workpiece's cut faces follow its look (task 0051)
+    try:
+        machining.cut_look_changed(scene)
+    except Exception as exc:
+        print("Fresing Render: cut faces' look not updated:", exc)
+
+
+_NONE = object()
+
+
 def _group_look_changed(self, context):
     from . import materials
     mat = materials.group_material(self)
     if context is not None and context.scene is not None:
-        from . import build                      # task 0117: to and from "From file" the parts change material
-        for ob in build.iter_parts(context.scene):
-            if ob.get(build.PROP_GROUP) == self.name:
-                materials.assign(ob, mat)
-        from . import machining                  # the milled workpiece's cut faces follow its look (task 0051)
-        try:
-            machining.cut_look_changed(context.scene)
-        except Exception as exc:
-            print("Fresing Render: cut faces' look not updated:", exc)
+        if _HELD:                                # task 0366: given to the parts once, at the end of held_looks()
+            _HELD[-1].setdefault(context.scene.name, {})[self.name] = mat
+        else:
+            _looks_to_parts(context.scene, {self.name: mat})
     from . import material_picker                # task 0314: the Materials window's large picture follows
     material_picker.adjusted(self)
 
