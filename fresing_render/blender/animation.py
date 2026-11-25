@@ -318,6 +318,172 @@ def _shared_visibility(objs, rows, n: int, fade_rows=None) -> None:
         ob[TAG] = True
 
 
+# ---------------------------------------------------------------------------
+# the user's own keys (bug hunt 0328 rows 2 and 3)
+# ---------------------------------------------------------------------------
+
+PRINT = "fr_anim_print"            # on the scene: JSON {curve key: fingerprint} of the keys the last Build wrote
+_KEY_ARRAYS = (("co", 2, "f"), ("handle_left", 2, "f"), ("handle_right", 2, "f"), ("interpolation", 1, "i"),
+               ("easing", 1, "i"), ("handle_left_type", 1, "i"), ("handle_right_type", 1, "i"))
+
+
+def _bag(id_block, act=None, slot_id=None):
+    """The channelbag of ``id_block``'s action (or ``act`` with the slot named ``slot_id``), or None."""
+    from bpy_extras import anim_utils
+    ad = id_block.animation_data
+    if act is None:
+        act = ad.action if ad is not None else None
+        slot = ad.action_slot if ad is not None else None
+    else:
+        slot = next((sl for sl in act.slots if sl.identifier == slot_id), None) or \
+            (act.slots[0] if len(act.slots) else None)
+    if act is None or slot is None:
+        return None
+    try:
+        return anim_utils.action_get_channelbag_for_slot(act, slot)
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _keys_of(fc) -> dict:
+    """Every keyframe number of an F-curve, as plain arrays (a copy that outlives the curve)."""
+    import numpy as np
+    pts = fc.keyframe_points
+    n = len(pts)
+    out = {"n": n}
+    for name, k, t in _KEY_ARRAYS:
+        a = np.zeros(n * k, dtype=np.float32 if t == "f" else np.int32)
+        pts.foreach_get(name, a)
+        out[name] = a
+    return out
+
+
+def _print_of(keys: dict) -> str:
+    import hashlib
+    h = hashlib.blake2b(digest_size=12)
+    h.update(str(keys["n"]).encode())
+    for name, _k, _t in _KEY_ARRAYS:
+        h.update(keys[name].tobytes())
+    return h.hexdigest()
+
+
+def _put_keys(fc, keys: dict) -> None:
+    """Replace the keys of ``fc`` with ``keys`` (from ``_keys_of``)."""
+    pts = fc.keyframe_points
+    if len(pts) != keys["n"]:
+        pts.clear()
+        pts.add(keys["n"])
+    for name, _k, _t in _KEY_ARRAYS:
+        pts.foreach_set(name, keys[name])
+
+
+def _label(scene, idb) -> str:
+    """A curve owner's name as the owner knows it: the joint for a joint's motion empty."""
+    for j in scene.fresing.joints:
+        if j.motion is not None and j.motion == idb:
+            return f"joint '{j.name}'"
+    return f"'{idb.name}'"
+
+
+def _built_ids(scene):
+    """(prefix, ID) of every object / camera whose action Build made for it alone."""
+    for ob in scene.objects:
+        for idb, kind in ((ob, "OB"), (ob.data if ob.type == "CAMERA" else None, "CA")):
+            if idb is None or not idb.get(TAG):
+                continue
+            ad = idb.animation_data
+            act = ad.action if ad is not None else None
+            if act is None or not act.get(TAG) or act.users > 1:
+                continue
+            yield kind, idb
+
+
+def _built_curves(scene) -> dict:
+    """{curve key: (ID, F-curve)} of the keys Build wrote."""
+    out = {}
+    for kind, idb in _built_ids(scene):
+        cb = _bag(idb)
+        if cb is None:
+            continue
+        for fc in cb.fcurves:
+            out[f"{kind}:{idb.name}:{fc.data_path}:{fc.array_index}"] = (idb, fc)
+    return out
+
+
+def _read_print(scene) -> dict:
+    try:
+        return json.loads(scene.get(PRINT) or "{}")
+    except (TypeError, ValueError):
+        return {}
+
+
+def edited_keys(scene) -> dict:
+    """{curve key: (ID, F-curve)} of built keys changed by hand since the Build (the Graph Editor, the Dope Sheet)."""
+    old = _read_print(scene)
+    if not old or not has_keys(scene):
+        return {}
+    return {k: v for k, v in _built_curves(scene).items() if k in old and _print_of(_keys_of(v[1])) != old[k]}
+
+
+def edited_text(scene) -> str:
+    """One line about keys changed by hand, '' when there are none (the queue says it before a job's Build)."""
+    ed = edited_keys(scene)
+    if not ed:
+        return ""
+    names = sorted({_label(scene, idb) for idb, _fc in ed.values()})
+    return (f"You changed the keys of {', '.join(names)} by hand: Build keeps them while the steps that made them "
+            "stay the same")
+
+
+def _aside_curves(scene, warnings: list) -> None:
+    """Keys of the user's own that Build set aside (``USER_ACTION``): those on channels Build does not key play along
+    (copied into the built action; the user's action itself comes back at Stop), the others are named (row 3)."""
+    ids = [scene] + [x for ob in scene.objects for x in (ob, ob.data if ob.type == "CAMERA" else None)]
+    for idb in ids:
+        if True:
+            if idb is None or idb.get(USER_ACTION) is None:
+                continue
+            own = idb.get(USER_ACTION)
+            if not isinstance(own, bpy.types.Action):
+                continue
+            src = _bag(idb, own, idb.get(USER_SLOT) or "")
+            dst = _bag(idb)
+            if src is None or dst is None:
+                continue
+            clash = []
+            for fc in src.fcurves:
+                if dst.fcurves.find(fc.data_path, index=fc.array_index) is not None:
+                    clash.append(fc.data_path)
+                    continue
+                new = dst.fcurves.new(fc.data_path, index=fc.array_index)
+                _put_keys(new, _keys_of(fc))
+            if clash:
+                what = ", ".join(sorted(set(p.strip('[]"') for p in clash)))
+                warnings.append(f"{_label(scene, idb)} has keys of your own on {what}: the built steps move it "
+                                f"there while built; your keys come back at Stop animation")
+
+
+def _keep_edits(scene, edits: dict, old: dict, warnings: list) -> None:
+    """Put keys changed by hand back on the new Build where the steps gave the same keys as last time (row 2)."""
+    if not edits:
+        return
+    now = _built_curves(scene)
+    kept, lost = set(), set()
+    for key, (name, keys) in edits.items():
+        hit = now.get(key)
+        if hit is not None and _print_of(_keys_of(hit[1])) == old.get(key):
+            _put_keys(hit[1], keys)
+            kept.add(name)
+        else:
+            lost.add(name)
+    if kept:
+        warnings.append(f"Kept your own change to the keys of {', '.join(sorted(kept))}. To go back to the keys the "
+                        "steps make: Stop animation, then Build again")
+    if lost:
+        warnings.append(f"Build replaced your own change to the keys of {', '.join(sorted(lost))}: the steps that "
+                        "make them changed")
+
+
 _INTERP = {e.identifier: e.value for e in bpy.types.Keyframe.bl_rna.properties["interpolation"].enum_items}
 _FREE = bpy.types.Keyframe.bl_rna.properties["handle_left_type"].enum_items["FREE"].value
 _AUTO_CLAMPED = bpy.types.Keyframe.bl_rna.properties["handle_left_type"].enum_items["AUTO_CLAMPED"].value
@@ -393,6 +559,8 @@ def clear_keys(scene, restore: bool = True) -> None:
     if orphans:
         bpy.data.batch_remove(orphans)          # one by one is slow with thousands of actions
     s.anim_baked = ""
+    if PRINT in scene:
+        del scene[PRINT]
     if JUMPS in scene:
         del scene[JUMPS]
     if was_baked:
@@ -633,6 +801,8 @@ def bake(scene, anim) -> dict:
     from . import people, sequence
     sequence.end_preview(scene)          # parts an Assembly sequence preview moved go back first (task 0100)
     people.end_preview(scene)            # people a preview moved go back too (task 0157)
+    old_print = _read_print(scene)       # keys changed by hand since the last Build (bug hunt 0328 row 2)
+    edits = {k: (_label(scene, idb), _keys_of(fc)) for k, (idb, fc) in edited_keys(scene).items()}
     clear_keys(scene)
     warnings: list[str] = []
     from . import tc_person
@@ -1074,7 +1244,9 @@ def bake(scene, anim) -> dict:
         if name in fkeys:
             ob[fade.ANIM] = True
             frows = fkeys[name]
-        if name in okeys:              # it also moves: its own action holds both
+        own = ob.animation_data.action if ob.animation_data is not None else None
+        if name in okeys or (own is not None and not own.get(TAG)):
+            # it also moves, or it has keys of its own (set aside and put back at Stop, row 3): its own action
             cb = _channelbag(ob, "OBJECT")
             if rows:
                 _write(cb, "hide_viewport", 0, rows)
@@ -1145,8 +1317,39 @@ def bake(scene, anim) -> dict:
     warnings += people.bake(scene, anim)           # people walk and act (task 0157): keys per frame
     from . import tc_person
     warnings += tc_person.bake(scene, anim)        # the operator who changes the tools (task 0156): keys per frame
+    _aside_curves(scene, warnings)                 # the user's own keys play along where Build keys nothing (row 3)
+    scene[PRINT] = json.dumps({k: _print_of(_keys_of(fc)) for k, (_i, fc) in _built_curves(scene).items()})
+    _keep_edits(scene, edits, old_print, warnings)
     scene.frame_set(1)
+    fit_timeline(scene)
     return {"frames": f_end, "seconds": seconds, "warnings": warnings}
+
+
+def fit_timeline(scene) -> None:
+    """Show the whole new animation in every timeline (bug hunt 0328 row 35: 526 frames, the timeline kept 0-250).
+    From a timer: the operator that built may still hold the window."""
+    if bpy.app.background:
+        return
+
+    def run():
+        try:
+            wm = bpy.context.window_manager
+            for win in wm.windows:
+                if win.scene != scene:
+                    continue
+                for area in win.screen.areas:
+                    if area.type != "DOPESHEET_EDITOR" or getattr(area, "ui_type", "") != "TIMELINE":
+                        continue
+                    region = next((r for r in area.regions if r.type == "WINDOW"), None)
+                    if region is None:
+                        continue
+                    with bpy.context.temp_override(window=win, area=area, region=region):
+                        bpy.ops.action.view_all()
+        except Exception as exc:  # noqa: BLE001 - a view, never worth an error
+            print("Fresing Render: fit timeline:", exc)
+        return None
+
+    bpy.app.timers.register(run, first_interval=0.05)
 
 
 def _mechanism_keys(scene, jkeys: dict, f_end: int) -> list[str]:

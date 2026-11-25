@@ -1,6 +1,6 @@
 # 0338 – Quick unlock popup by the mouse, "Lock it again" popup after the move
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0338-quick-unlock-popups`
+**Who:** worker · **Status:** running · **Branch:** `task/0338-quick-unlock-popups`
 **Started by:** lead, 25 Nov 2026 (owner 11:07: moving or turning a locked assembly means hunting for Unlock in
 2 Structure – "a small popup with a button to unlock it", and after the move "a small popup in the top left corner of the
 3D view to lock it again"; owner's answers 11:1x below; replaces 0328 row 29's "second G unlocks", taken out of 0335)

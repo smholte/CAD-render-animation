@@ -284,7 +284,7 @@ fn(id="scene.render_view", short="Render this view", title="Render this view: wh
    tour=("render_view",), pccheck=("scene.render_view",), since="0.2.223")
 fn(id="panel.setup_window", title="Set-up window: a CNC mill or a mechanism one step at a time", family="panel",
    panel="FRESING_PT_setup", button="fresing.setup_window", guide="setup-window", tour=("setup",),
-   since="0.2.152", workspaces=("cnc", "offshore", "product", "education"), changed="0.2.247")
+   since="0.2.152", workspaces=("cnc", "offshore", "product", "education"), changed="0.2.248")
 fn(id="usage.favourites", title="Favourites bar: your most used buttons on top", family="panel",
    panel="FRESING_PT_favourites", button="fresing.usage_go", guide="favourites", tour=("usage",),
    pccheck=("app.usage",), since="0.2.158", changed="0.2.204")      # task 0278: folds, kept over a restart
@@ -648,6 +648,7 @@ fn(id="scene.blur", short="Background blur", title="Background blur and sharp sp
    workspaces=("cnc", "offshore", "product", "education", "lifting"))
 fn(id="scene.turntable", title="Turntable video", family="scene", panel="FRESING_PT_turntable",
    button="fresing.turntable", guide="turntable", tour=("turntable",), pccheck=("scene.turntable",), since="0.2.17",
+   changed="0.2.247",                                  # task 0330: Turntable again keeps the steps the user added
    manual_estimate=("use", 900, "camera on a circle, keys, render settings and the video file"))
 fn(id="scene.still", title="Render a picture", family="scene", panel="FRESING_PT_output", button="fresing.render",
    guide="image-size", tour=("still",), pccheck=("render.gpu", "render.cpu", "render.eevee", "gpu.device"),
@@ -742,8 +743,8 @@ fn(id="animation.add", title="Animation", family="animation", panel="FRESING_PT_
 fn(id="animation.joint_step", title="Move joint step", family="animation", panel="FRESING_PT_animation",
    button="fresing.block_add", guide="animation", tour=("joint",), lesson="crane:8", since="0.2.10")
 fn(id="animation.build", title="Build & play", family="animation", panel="FRESING_PT_left_quick",
-   button="fresing.anim_build", guide="animation", tour=("joint",), lesson="crane:9", since="0.2.10",
-   changed="0.2.204")     # task 0278: only on the left panel (top left; its strip too)
+   button="fresing.anim_build", guide="animation", tour=("joint",), pccheck=("animation.user_keys",), lesson="crane:9",
+   since="0.2.10", changed="0.2.247")     # task 0278: only on the left panel; task 0330: keeps the user's own keys
 fn(id="animation.motor", title="Run motor step", family="animation", panel="FRESING_PT_animation",
    button="fresing.block_add", guide="run-motor", pccheck=("couplings.motor",), since="0.2.18")
 fn(id="animation.camera_path", short="Camera path", title="Camera rides along, flies a path, watches a part", family="animation",
@@ -768,7 +769,8 @@ fn(id="animation.vessel_step", title="Vessel at work step", family="animation", 
 # task 0309: lead motions – one slider per function, on the top bar in every workspace and in the Client view
 fn(id="motion.lead_motions", short="Lead motions", title="Lead motions: one slider per function of the machine",
    family="motion", panel="TOPBAR_PT_fresing_lead", button="fresing.lead_play", guide="lead-motions",
-   tour=("lead_motions",), pccheck=("motion.lead_motion",), lesson="crane:12", since="0.2.236", headline=True,
+   tour=("lead_motions",), pccheck=("motion.lead_motion",), lesson="crane:12", since="0.2.236", changed="0.2.247",
+   headline=True,
    workspaces=_WORK + ("client", "lifting"),         # (and every task workspace: _COMMON)
    manual_estimate=("use", 60, "move each joint of the function one after another in the joint box"))
 # task 0322: measuring in the 3D view – on the top bar in every workspace and in the Client view, keys M / Alt+M
@@ -798,7 +800,7 @@ fn(id="animation.clash", title="Clash check", family="animation", panel="FRESING
    manual_estimate=("use", 1200, "play the animation slowly and look for parts that run into each other"))
 fn(id="animation.product_video", short="Product video", title="One-click product video", family="animation", panel="FRESING_PT_animation",
    fold="fr_product_video", button="fresing.product_video", guide="product-video", tour=("productvideo",),
-   pccheck=("animation.product_video",), since="0.2.81", changed="0.2.247",
+   pccheck=("animation.product_video",), since="0.2.81", changed="0.2.248",
    manual_estimate=("use", 3600, "shots, cameras, titles and cuts in a video editor"))
 
 # ----- 7 Render queue -----
@@ -835,7 +837,7 @@ fn(id="help.welcome", short="Welcome", title="Welcome for a new user: take the L
 fn(id="help.first_setup", headline=True, short="Set up again",
    title="First-start set-up: your work, your PC, your company's set-up file and folders, the Learning hub "
          "(Fresing > Set up again…)", family="help", panel="TOPBAR_MT_fresing", button="fresing.first_setup",
-   guide="first-start", tour=("start_here",), pccheck=("app.first_setup", "app.window_place"), since="0.2.235", changed="0.2.247",
+   guide="first-start", tour=("start_here",), pccheck=("app.first_setup", "app.window_place"), since="0.2.235", changed="0.2.248",
    workspaces=("cnc", "offshore", "product", "education", "lifting"))     # not the Client view: greyed there
 fn(id="help.whats_new", headline=True, short="What's new", title="What's new after an update, with a tour of only the new and changed test models",
    family="help", panel="TOPBAR_MT_fresing", button="fresing.whats_new", guide="whats-new-start",
