@@ -1,6 +1,6 @@
 # 0331 – First start stays open; windows open in a good place (0328 F2)
 
-**Who:** worker · **Status:** running · **Branch:** `task/0331-first-start-and-windows`
+**Who:** worker · **Status:** done (0.2.257) · **Branch:** `task/0331-first-start-and-windows`
 **Started by:** lead, 25 Nov 2026 (from 0328's report, owner's focus: user friendliness) · **Model:** Opus · effort Medium
 **Area:** Start & learn lane – `blender/first_setup.py`, `core/first_setup.py`, `blender/welcome.py` (only for row 1), `blender/ops_setup.py`, `blender/ops_make.py`, `blender/form_window.py`, the product video panel, `blender/ops_backups.py` (words only), their tests, guide, CHANGELOG.
 **Not:** `lock.py`, `ops_settings.py`, `ui_settings.py`, `ui_topbar.py` (0295 runs there), `quiet.py` (0332), `ui_web3d.py` (0336).
@@ -69,7 +69,11 @@ Fix 0328's rows **1, 12, 25, 34 + the 0213 open point (Set-up window Back / Next
   "setup" would have moved the wrong window, no retry while the handle is not found, stale sizes right after the pieces
   close. All three fixed (own key per Set-up window, a timer with retries).
 - Not done: screenshots with `ui_screens.py` (the only drawn change is one hint line, checked by the fake-layout test).
-- GitHub runs: see below.
+- GitHub runs: 9 full runs. 1 real fault-free first run (c814e83); 7 were lost to version clashes – 0329, 0330,
+  0334, 0337, 0338, 0323, 0339, 0336, 0335 and 0295 all merged while my runs went (0.2.246 → 0.2.257), each merge a
+  new full run of ~45–60 min; one run (35d95fe) failed once in `ui_test_place.py` (a click on the boom, a slow job;
+  22/22 here on the same code, green on every later run – not this task's file). Green run 45666331841, main reused it
+  (run 45671596009): release v0.2.257 published, the old-version update check on Windows green, offered to the apps.
 
 **Open points / follow-up tasks:**
 - **Owner's PC:** the window placement can only be seen on Windows (steps below).
