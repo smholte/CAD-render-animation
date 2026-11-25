@@ -2776,7 +2776,7 @@ def lead_motion(ctx):
     return f"slider {max(times):.1f} ms; the step half way = the slider at {p:.0f} %"
 
 
-@line("animation.user_keys", "Build keeps your own keys and steps", "0.2.246",
+@line("animation.user_keys", "Build keeps your own keys and steps", "0.2.247",
       what="A key of a built joint changed by hand stays at the next Build; Turntable again keeps a step you added; "
            "a lead slider on a built animation takes the Build off")
 def user_keys(ctx):

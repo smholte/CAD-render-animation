@@ -304,9 +304,9 @@ def test_relaunch_command_prefers_the_launcher(tmp_path):
 
 def test_installer_shortcuts_use_the_fresing_icon():
     ps = open(os.path.join(ROOT, "installer", "Install-FresingRender.ps1"), encoding="utf-8").read()
-    assert ps.count("IconLocation = $IconLoc") == 2                  # MakeShortcut + the user guide
+    assert ps.count("IconLocation = $IconLoc") == 3                  # MakeShortcut + the user guide + uninstall (0329)
     assert '"$BlenderExe,0"' in ps.split("$IconLoc =")[1].split("\n")[0]     # only as the fallback
-    assert ps.count("IconLocation") == 2
+    assert ps.count("IconLocation") == 3
     assert "brand\\fresing-render.ico" in ps and "set_shortcuts.py" in ps and ".appicon" in ps
 
 

@@ -57,7 +57,7 @@ Fix 0328's rows **2, 3, 4, 8, 35** (`tasks/0328-bug-and-friction-hunt-8.md`, tab
   is 0333's (ui_lead_motions.py).
 - **Row 35**: `animation.fit_timeline` after every Build in the app (a timer, `action.view_all` in each timeline).
 - Row 32: none of its words are in this task's files.
-- Guide (Build & play "Your own keys", Turntable, Lead motions), CHANGELOG 0.2.246, function list `changed=` for Build &
+- Guide (Build & play "Your own keys", Turntable, Lead motions), CHANGELOG 0.2.247, function list `changed=` for Build &
   play, Turntable and Lead motions, PC-check line `animation.user_keys` (Full; `MIN_LINES_FULL` 156). No tour stop: no
   new function, the stops show the same.
 

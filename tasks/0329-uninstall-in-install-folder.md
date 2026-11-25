@@ -1,6 +1,6 @@
 # 0329 – "Uninstall Fresing Render" in the install folder too
 
-**Who:** worker · **Status:** running · **Branch:** `task/0329-uninstall-in-install-folder`
+**Who:** worker · **Status:** done (0.2.246) · **Branch:** `task/0329-uninstall-in-install-folder`
 **Started by:** lead, 25 Nov 2026 (owner 09:50, two screenshots: the downloaded installer folder has `Uninstall.bat`;
 the installed app's folder `%LOCALAPPDATA%\FresingRender\blender-5.2.3-windows-x64\` with `Fresing Render.exe` has no
 uninstall to click – "People are quick to delete the install folder, uninstall should be both places.")
@@ -70,10 +70,42 @@ App menus (0295), Start menu / Desktop (0212), anything else in the app.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 25 Nov 2026 · version 0.2.246
 
 **What changed:**
+- **"Uninstall Fresing Render.lnk"** in the install folder and in Blender's folder next to `Fresing Render.exe`:
+  program `%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe`, arguments = the Installed-apps entry's
+  `UninstallString` without its first word (so "powershell.exe " + arguments is exactly the `UninstallString`, with
+  `-Pause`), working folder = PowerShell's own (never inside the folder it removes), tooltip as briefed. **Icon: the
+  Fresing icon** (`fresing-render.ico`, like the Installed-apps entry) – Windows' own uninstall icons sit at index
+  numbers in shell32 / imageres that differ between Windows versions.
+- Made by `Install-FresingRender.ps1` (step 5, next to the entry); by the app at start when missing or wrong
+  (`appicon.ensure_uninstall_shortcuts`, after the entry step; plain-Python plan in `core/installed_apps.py`:
+  `shortcut_spec`, `uninstall_shortcuts`, `shortcut_needs` – rewritten on another program, other arguments or icon).
+  Update now replaces only the extension (the arguments point at `Tools\` and the install folder, which stay); the
+  app's start right after the update checks both, and a Blender in a new folder (Install.bat) gets its own.
+  `update_helper.py` needed no change: it has no COM to write shortcuts, and the restart's check does it.
+- Uninstaller (+ the shipped byte copy): the process' working folder set to %TEMP% too, the folder removal tried 4
+  times 1 s apart, a run whose folder is gone says "Fresing Render is not installed in … any more (the folder is
+  gone). Nothing to remove." (exit 0) and clears that folder's leftover Installed-apps entry and GPU values. From the
+  review: after a removal stopped halfway, `installed.txt` is put back with the script, so the second try is not refused.
+- Install.bat's last line; self-test line "Windows: Uninstall shortcut in the install folder"; guide (Remove),
+  `README-install.txt` (the three ways), `COMPANY-USE.md` (+ its copy in `fresing_render/licenses/`).
+- GitHub's Windows job, part A: both shortcuts checked after Install.bat and after the app's refresh of an older install
+  (`appicon_test.py` deletes them first); the uninstall step now runs **the install-folder shortcut's own program +
+  arguments** (checked equal to the `UninstallString`) instead of the `UninstallString`, then checks folder, both
+  shortcuts, key, GPU values gone and the Documents project kept; then a second run of the repository's uninstaller
+  must say "the folder is gone". Install.bat's closing line checked in install.log.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, no Windows): `tests/test_uninstall_shortcut.py` (new, 11 tests) and the
+install / icon / toolbox / about tests pass locally; the GitHub run of the branch (Windows parts A and B included) –
+see below. Independent review (helper agent that did not write the code): nothing serious; fixed its two points (second
+uninstall after a partial removal; a gone folder's leftover entry), the rest is low or cosmetic.
 
 **Open points / follow-up tasks:**
+- The shortcut (like Uninstall.bat) removes without an "are you sure?" question; next to `Fresing Render.exe` a
+  mis-click is possible. A Yes/No question would be a small follow-up if the owner wants it.
+- The CI starts the shortcut's command with Start-Process, not a real Explorer double-click (which would need a
+  keyboard for `-Pause`): the working-folder line and the retries are proven only by reading.
+- `shortcut_needs` compares the arguments case-sensitively (as the entry's `changes()` does): an app started through a
+  path of other letter case would rewrite both shortcuts once.

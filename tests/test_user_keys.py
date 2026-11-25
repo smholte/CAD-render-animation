@@ -208,7 +208,7 @@ def test_turntable_again_keeps_the_users_steps(scene):
 def test_turntable_of_an_older_project_finds_its_orbit_by_name(scene):
     sc = scene
     a = turntable.make(sc)["animation"]
-    del a.blocks[0][turntable.TAG]                                    # as made before 0.2.246
+    del a.blocks[0][turntable.TAG]                                    # as made before 0.2.247
     turntable.make(sc)
     assert len(a.blocks) == 1 and a.blocks[0].get(turntable.TAG)
 

@@ -149,7 +149,10 @@ def test_the_uninstaller_keeps_projects_runs_from_temp_and_removes_the_entry_las
     t = _text("installer", "Uninstall-FresingRender.ps1")
     assert "projects" in t.lower() and "are kept" in t
     assert "GetTempPath" in t and "-FromTemp" in t and "-Pause" in t
-    assert t.index("Remove-Item -LiteralPath $InstallDir") < t.index("Remove-Item -LiteralPath $AppsKey")
+    # the entry goes last (Remove-Traces), after the folder; a run whose folder is already gone clears it too (0329)
+    assert t.index("function Remove-Traces") < t.index("Remove-Item -LiteralPath $AppsKey") < t.index("Remove-Item -LiteralPath $InstallDir")
+    assert t.index("Remove-Item -LiteralPath $InstallDir") < t.rindex("\nRemove-Traces")
+    assert t.index("the folder is gone") > t.index("    Remove-Traces")
     assert "ieq $InstallDir" in t                                            # only the entry of this folder
     assert t.count("Finish 1") >= 2 and "Finish 0" in t                      # still open / not removable: exit 1
     t.encode("ascii")
