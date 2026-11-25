@@ -385,13 +385,16 @@ def _eevee_glass(b: _Nodes, out, spec: dict, lin) -> None:
 
 
 def build_nodes(mat: bpy.types.Material, material_id: str, color_text: str = "", wear: float = 0.0,
-                tweak: dict | None = None, finish: str = "", rust: float = 0.0) -> None:
+                tweak: dict | None = None, finish: str = "", rust: float = 0.0, adjust: str = "") -> None:
     """``tweak``: settings that replace the library's for this material only (milled faces, task 0051). Its
     ``toolmarks`` (a dict, may be empty: ``size``, ``strength`` and single values of ``core.toolmarks.look``) puts
     the tool marks of task 0061 on faces that know their move (``blender/toolmarks.py``). ``finish``: the group's
     settings of a finish (task 0274, ``core.finishes.key``; "" = its defaults). ``rust``: the group's Rust (task 0318,
-    0 … 1; nothing where the material does not rust: ``core.materials_lib.rust_kind``)."""
+    0 … 1; nothing where the material does not rust: ``core.materials_lib.rust_kind``). ``adjust``: the group's
+    Adjust sliders (task 0314, ``core.look_adjust.key``; "" = none moved): the node "FR adjust" between the look and
+    the BSDF, only when a slider is moved or the material was opened in the shader editor."""
     from ..core import finishes as fin_core
+    from ..core import look_adjust as LA
     spec = materials_lib.get(material_id)
     if tweak:
         spec = {**spec, **tweak}
@@ -507,6 +510,13 @@ def build_nodes(mat: bpy.types.Material, material_id: str, color_text: str = "",
     if (wear > 0.0 or rust > 0.0) and not spec.get("transmission") and not spec.get("emission"):
         color, metallic, rough, normal = _weather(b, float(wear), rust, rkind, spec, color, metallic, rough, normal)
 
+    from . import look_adjust
+    adj = LA.effective(material_id, LA.parse(adjust))
+    if "fr_adjust" in mat:
+        del mat["fr_adjust"]
+    if look_adjust.wanted(mat, adj) and LA.applies(material_id) and not tweak:
+        color, metallic, rough, normal = look_adjust.insert(b, mat, bsdf, spec, adj, color, metallic, rough, normal)
+
     b.put(bsdf.inputs["Base Color"], color)
     b.put(bsdf.inputs["Metallic"], metallic)
     b.put(bsdf.inputs["Roughness"], rough)
@@ -521,8 +531,7 @@ def build_nodes(mat: bpy.types.Material, material_id: str, color_text: str = "",
 
     # viewport (solid mode) look
     mat.diffuse_color = (*lin, 1.0)
-    mat.metallic = float(spec.get("metallic", 0.0))
-    mat.roughness = float(spec.get("roughness", 0.4))
+    mat.roughness, mat.metallic = LA.viewport(float(spec.get("roughness", 0.4)), float(spec.get("metallic", 0.0)), adj)
     if spec.get("transmission"):
         mat.diffuse_color = (*lin, 0.35)
         if hasattr(mat, "surface_render_method"):
@@ -621,21 +630,23 @@ def group_no_rust_why(g) -> str:
 
 
 def is_current(mat, material_id: str, color_text: str = "", wear: float = 0.0, finish: str = "",
-               rust: float = 0.0) -> bool:
+               rust: float = 0.0, adjust: str = "") -> bool:
     """The material already shows this look, built by this version (``finish``: a finish's settings key)."""
     from ..core import finishes as fin_core
+    from ..core import look_adjust as LA
     want = fin_core.key(material_id, **fin_core.parse(material_id, finish)) if fin_core.get(material_id) else ""
     return (mat.get("fr_material") == material_id and mat.get("fr_color") == color_text
             and abs(float(mat.get("fr_wear", 0.0)) - float(wear)) < 1e-4
             and abs(float(mat.get("fr_rust", 0.0)) - (min(max(float(rust), 0.0), 1.0) if rust_kind_of(
                 material_id, fin_core.parse(material_id, finish) if fin_core.get(material_id) else {}) else 0.0)) < 1e-4
             and mat.get("fr_finish_set", "") == want
+            and mat.get("fr_adjust", "") == LA.key(LA.effective(material_id, LA.parse(adjust)))
             and int(mat.get(PROP_LOOK, 1)) >= LOOK_VERSION
             and mat.node_tree is not None and bool(mat.node_tree.nodes))
 
 
 def ensure_material(group: str, material_id: str, color_text: str = "", wear: float = 0.0,
-                    finish: str = "", rust: float = 0.0) -> bpy.types.Material:
+                    finish: str = "", rust: float = 0.0, adjust: str = "") -> bpy.types.Material:
     name = material_name(group)
     mat = bpy.data.materials.get(name)
     if mat is None:
@@ -646,8 +657,8 @@ def ensure_material(group: str, material_id: str, color_text: str = "", wear: fl
             pass
     if mat.node_tree is None:
         mat.use_nodes = True
-    if not is_current(mat, material_id, color_text, wear, finish, rust):
-        build_nodes(mat, material_id, color_text, wear, finish=finish, rust=rust)
+    if not is_current(mat, material_id, color_text, wear, finish, rust, adjust):
+        build_nodes(mat, material_id, color_text, wear, finish=finish, rust=rust, adjust=adjust)
         if OWN in mat:                                  # task 0273: no longer a copy of an own Blender material
             del mat[OWN]
     return mat
@@ -670,7 +681,8 @@ def group_material(g) -> bpy.types.Material:
         mat = own_blend_material(g)
         if mat is not None:
             return mat
-    return ensure_material(g.name, g.material, g.color, g.wear, group_finish(g), g.rust)
+    from . import look_adjust
+    return ensure_material(g.name, g.material, g.color, g.wear, group_finish(g), g.rust, look_adjust.group_key(g))
 
 
 OWN = "fr_own"              # task 0273: on a group's copy of an own Blender material: what it was copied from

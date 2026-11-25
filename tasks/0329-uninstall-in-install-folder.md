@@ -70,7 +70,7 @@ App menus (0295), Start menu / Desktop (0212), anything else in the app.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web, 25 Nov 2026 · version 0.2.245
+**Chat / date:** Claude Code on the web, 25 Nov 2026 · version 0.2.246
 
 **What changed:**
 - **"Uninstall Fresing Render.lnk"** in the install folder and in Blender's folder next to `Fresing Render.exe`:

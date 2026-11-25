@@ -15,6 +15,7 @@ import bpy
 from bpy.props import EnumProperty, FloatProperty, StringProperty
 
 from ..core import material_files as F
+from ..core import look_adjust as LA
 from ..core import materials_lib as ML
 from . import material_picker as MP
 from . import ui
@@ -179,6 +180,8 @@ def _grid(col, context, st, g, width: float) -> None:
         row.active = e.ok
         op = row.operator("fresing.mat_pick", text=_short(e.name, chars), depress=(e.key == st.picked))
         op.key = e.key
+        if LA.slower(e.base) and not e.is_blend:
+            row.label(text="", icon="TIME")             # task 0314: clearly slower to render than plain paint
         star = row.operator("fresing.mat_star", text="", icon="SOLO_ON" if e.key in listed else "SOLO_OFF",
                             emboss=False)
         star.key = e.key
@@ -189,7 +192,13 @@ def _details(col, context, st, g) -> None:
     if e is None:
         ui.hint(col, context, "Click a material's name to see it here; click it twice to use it")
         return
-    col.template_icon(icon_value=entry_icon(e, g), scale=9.0)
+    mine = g is not None and MP.group_key(g) == e.key
+    adj_icon, adj_busy = MP.adjusted_icon(g) if mine else (0, False)
+    col.template_icon(icon_value=adj_icon or entry_icon(e, g), scale=9.0)
+    r = col.row()
+    r.active = False
+    r.label(text=("Making the picture of your changes…" if adj_busy else
+                  "Your changes, on the group" if adj_icon else ""), icon="RENDER_STILL" if adj_busy else "NONE")
     ui.wrap(col, context, e.name, icon="MATERIAL")
     r = col.row()
     r.active = False
@@ -197,6 +206,9 @@ def _details(col, context, st, g) -> None:
     r = col.row()
     r.active = False
     r.label(text=tag_line(e))
+    slow = "" if e.is_blend else LA.cost_text(e.base)
+    if slow:
+        ui.wrap(col, context, slow, icon="TIME")
     if e.description:
         ui.wrap(col, context, e.description)
     if e.author:
@@ -214,21 +226,23 @@ def _details(col, context, st, g) -> None:
     else:
         box = col.box()
         box.label(text=f"Group: {g.name}", icon="MATERIAL")
-        if e.takes_colour:
-            row = box.row(align=True)
-            row.prop(g, "color", text="Colour")
-            row.operator("fresing.pick_ral", text="", icon="VIEWZOOM")
-        if not e.is_blend:
-            box.prop(g, "wear", text="Wear", slider=True)
+        if not mine:
+            if e.takes_colour:
+                row = box.row(align=True)
+                row.prop(g, "color", text="Colour")
+                row.operator("fresing.pick_ral", text="", icon="VIEWZOOM")
+            if not e.is_blend:
+                box.prop(g, "wear", text="Wear", slider=True)
         b = box.row()
         b.scale_y = 1.4
         b.enabled = e.ok
         op = b.operator("fresing.mat_use", text=f"Use for {_short(g.name, 22)}", icon="CHECKMARK")
         op.key = e.key
-        if MP.group_key(g) == e.key:
+        if mine:
             r = box.row()
             r.active = False
             r.label(text="The group has this material", icon="CHECKMARK")
+            draw_adjust(box, context, g, e)
     listed = MP.is_listed(context.scene, e.key)
     op = col.operator("fresing.mat_star", text="Take off this project's list" if listed else "Add to this project",
                       icon="SOLO_ON" if listed else "SOLO_OFF")
@@ -244,6 +258,40 @@ def _details(col, context, st, g) -> None:
         row.enabled = e.ok and not MP.picture_busy(e.key) and locations._can_write(e.folder)   # (a read-only share: no)
         op = col.operator("fresing.mat_show", text="Show in folder", icon="FILE_FOLDER")
         op.key = e.key
+
+
+def draw_adjust(box, context, g, e) -> None:
+    """Task 0314: the sliders that mean something for the group's look, live on its parts; Reset; for experts the
+    shader editor. The rows are always the same for a look (the panel stays still)."""
+    ui.gap(box)
+    head = box.row(align=True)
+    head.label(text="Adjust", icon="MODIFIER")
+    head.operator("fresing.look_reset", text="Reset", icon="LOOP_BACK").group = g.name
+    if e.is_blend or g.material == "blender_material":
+        ui.hint(box, context, "Made in Blender's shader editor: change it there (Full access)")
+        return
+    col = box.column(align=False)
+    if ML.needs_color(g.material):
+        row = col.row(align=True)
+        row.prop(g, "color", text="Colour")
+        row.operator("fresing.pick_ral", text="", icon="VIEWZOOM")
+    use = LA.applies(g.material)
+    from . import look_adjust
+    for k in ("shine", "metal"):
+        if k in use:
+            col.prop(g, look_adjust.GROUP_PROPS[k], text=LA.SLIDERS[k][0], slider=True)
+    col.prop(g, "wear", text="Wear and edges", slider=True)
+    ui.draw_rust(col, g)
+    if "dirt" in use:
+        col.prop(g, "adj_dirt", text="Dirt", slider=True)
+    from ..core import finishes as fin_core
+    if fin_core.get(g.material) is not None:
+        ui.draw_finish(col, g)
+    for k in ("relief", "coat"):
+        if k in use:
+            col.prop(g, look_adjust.GROUP_PROPS[k], text=LA.SLIDERS[k][0], slider=True)
+    r = box.row()
+    r.operator("fresing.look_nodes", text="Open in the shader editor", icon="NODETREE").group = g.name
 
 
 def draw_window(layout, context) -> None:

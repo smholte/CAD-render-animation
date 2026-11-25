@@ -784,6 +784,53 @@ def looks_picker(ctx):
     return f"{len(F.builtin_keys())} built-in pictures; own material saved, pictured, used, listed, kept"
 
 
+@line("looks.adjust", "Adjust a look: sliders, live, Reset, kept in an own material", "0.2.245",
+      what="A group of the crane gets blue satin paint; Shine, Dirt and Clear coat are moved: its material gets the "
+           "node FR adjust with those values (the next slider changes it without building the material again), the "
+           "look's own roughness and coat go into it; saved as an own material the file keeps the moved sliders; "
+           "Reset puts them back")
+def looks_adjust(ctx):
+    import json
+
+    import bpy
+
+    from ..blender import look_adjust, materials
+    from ..blender import material_picker as MP
+    from ..core import look_adjust as LA
+    from ..core import material_files as F
+    from ..core import materials_lib as ML
+    scene = ctx.fresh(CRANE_A)
+    g = scene.fresing.groups[0]
+    g.material, g.color = "paint_satin", "RAL 5010"
+    _check(look_adjust.node_of(materials.group_material(g)) is None, "an untouched look already has the Adjust node")
+    g.adj_shine, g.adj_dirt = 0.4, 0.5
+    mat = materials.group_material(g)
+    n = look_adjust.node_of(mat)
+    _check(n is not None, "a moved slider did not put the node FR adjust into the group's material")
+    spec = ML.get("paint_satin")
+    for name, want in (("Shine", 0.4), ("Dirt", 0.5), ("Roughness", spec["roughness"]), ("Coat", spec["coat"])):
+        got = n.inputs[name].default_value
+        _check(abs(got - want) < 1e-4, f"the node's {name} is {got:.3f}, the look says {want}")
+    nodes = len(mat.node_tree.nodes)
+    g.adj_coat = 0.7
+    _check(look_adjust.node_of(mat) == n and len(mat.node_tree.nodes) == nodes
+           and abs(n.inputs["Clear coat"].default_value - 0.7) < 1e-4, "Clear coat built the material again")
+    _check(abs(mat.roughness - LA.roughness(spec["roughness"], 0.4)) < 1e-4, "the solid view's shine did not follow")
+    e = MP.save_from_group(bpy.context, g, "PC check dusty blue", "made by the PC check",
+                           os.path.join(ctx.work, "Materials"))
+    with open(os.path.join(e.folder, F.JSON_NAME), encoding="utf-8") as fh:
+        kept = json.load(fh)["changes"].get("adjust", {})
+    _check(kept == {"shine": 0.4, "dirt": 0.5, "coat": 0.7}, f"the own material keeps {kept}")
+    g.adj_shine, g.adj_dirt = -1.0, 0.0               # the group uses the saved material now: Reset goes back to it
+    _check(bpy.ops.fresing.look_reset(group=g.name) == {"FINISHED"}, "Reset failed")
+    got = (round(g.adj_shine, 4), round(g.adj_dirt, 4), round(g.adj_coat, 4))
+    _check(got == (0.4, 0.5, 0.7), f"Reset gave Shine / Dirt / Clear coat {got}, the material has 0.4 / 0.5 / 0.7")
+    slow = [k for k in ML.MATERIALS if LA.slower(k)]
+    MP.wait_pictures(300)
+    return (f"Shine 0.4, Dirt 0.5, Clear coat 0.7 in the node, live; kept in the own material; "
+            f"{len(slow)} looks marked slower")
+
+
 @line("looks.marine", "Marine looks: growth at the waterline, streaks, concrete", "0.2.94",
       what="A yellow pile 1.2 m across and 8 m tall standing 4 m deep in water (marine paint with growth), a grey wall "
            "with run-down streaks and a concrete block, rendered small (processor, draft): judge the dark "

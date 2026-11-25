@@ -1583,11 +1583,40 @@ the window follows, so you can walk through the groups with the window open.
 - The ready-made materials of before (paint RAL 7035, black matte plastic, tinted grey glass …) are built-in
   entries of the window, each with its colour.
 
+<a id="adjust-a-look"></a>
+**Adjust a look: a few plain sliders**
+
+Every ready-made look can be changed without knowing anything about nodes. In the Materials window, pick the material
+the group uses (or click a name twice to use it): under **Use for <group>** a box **Adjust** shows the sliders that
+mean something for that look, and the group's parts change while you move them.
+
+- **Colour** (paints and coloured plastics: a RAL code, a hex colour or the magnifier's list), **Shine** (left duller,
+  right shinier; the middle is as made), **Metal ↔ paint** (left more like paint or plastic, right more like bare
+  metal), **Wear and edges**, **Rust** (only where steel rusts), **Dirt** (dust and grime in soft patches),
+  the pattern's own settings for a finish (**Pitch** / **Size**, **Angle** …), **Relief** (how strongly the surface's
+  texture shows: 0 smooth, 1 as made, 2 twice as deep) and **Clear coat** (a clear lacquer on top).
+- The sliders stay inside safe limits: nothing turns black, mirror-perfect or glowing.
+- The large picture on the right is made again with your changes a moment after you stop (a few seconds, in the
+  background; "Making the picture of your changes…" says so meanwhile).
+- **Reset** puts the look back as the material came: the sliders, Wear, Rust and the pattern's settings. A paint keeps
+  the colour you gave the group.
+- **Save as my material…** keeps the adjusted look as your own material (with every slider you moved); another group
+  that uses it gets the same sliders.
+- Picking another material starts its sliders as that material comes (a built-in: all in the middle / at 0).
+- **Open in the shader editor** (only in the workspace **Full access**): the group's material opens in Blender's own
+  shader editor, in a window of its own. The node **FR adjust** holds the same sliders under the same names (Shine,
+  Metal ↔ paint, Dirt, Relief, Clear coat); the nodes before it are the ready-made look. A change in the app (another
+  material, colour, Wear) builds the nodes again: to keep your own node work, save it with **From a Blender
+  material…**.
+- **Slower to render**: a small clock next to a name in the window marks a look that takes clearly longer to render
+  than plain paint (measured: 1.5 × or more); the picked material says how much. Moving the Adjust sliders costs
+  next to nothing.
+
 <a id="own-materials"></a>
 **Your own materials – and your department's and company's**
 
-- **Save as my material…** keeps what the picked group shows now – its material, colour, wear, rust and a
-  finish's settings – as a material of your own: give it a name and a line of description. It goes into your
+- **Save as my material…** keeps what the picked group shows now – its material, colour, wear, rust, a
+  finish's settings and the Adjust sliders – as a material of your own: give it a name and a line of description. It goes into your
   Materials folder (Fresing Settings > Locations > Materials; when you may write to more than one, you choose). The
   group then uses it, and every project lists it under **Mine**. Its picture is made in the background (a few
   seconds; the app does not wait); **Make the picture again** makes it once more.
@@ -1598,7 +1627,7 @@ the window follows, so you can walk through the groups with the window open.
   Blender"). If it uses picture files that are not packed into the project, the window says so: on another PC
   they are missing – File > External Data > Pack Resources packs them first.
 - **One folder per material**: `material.json` (name, tags, description, author, the built-in it starts from and
-  what it changes), `picture.png`, and for a Blender material `material.blend`. Copy the folder to give the material
+  what it changes, including the Adjust sliders you moved), `picture.png`, and for a Blender material `material.blend`. Copy the folder to give the material
   to a colleague; **Show in folder** opens it.
 - **Your company's and your department's materials** come from the Materials folders of their set-up (Fresing
   Settings > Locations): each is marked with its badge, and the same name in two places shows twice. A folder on a
