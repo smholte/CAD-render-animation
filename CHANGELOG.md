@@ -5,6 +5,12 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.261 – 25 Nov 2026 – Groundwork for the Fresing assets pack (task 0354)
+
+- Groundwork for the Fresing assets pack – no visible change. The app can now find and read a pack of Fresing looks,
+  check it without ever stopping, and tell for every look whether a pack item or today's built-in look answers. Nothing
+  uses it yet; the app looks and works exactly as before.
+
 ## 0.2.260 – 25 Nov 2026 – Long cables and hoses come in light (task 0325)
 
 - **Long cables and hoses from CAD** (a round section swept along a curve, as Inventor's cables and harnesses are) are
