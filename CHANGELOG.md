@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.246 – 25 Nov 2026 – The first-start set-up stays open; windows open in a good place (task 0331)
+## 0.2.247 – 25 Nov 2026 – The first-start set-up stays open; windows open in a good place (task 0331)
 
 - **Set up Fresing Render** on a new PC now stays open until you press **Next** to the end, **Skip set-up** or
   **Close**. Before, it could close itself a second after it opened, and came back (and went again) at every start.
@@ -22,6 +22,18 @@ installer of that version was built from.
   processor) instead of "draws: llvmpipe …; renders: CPU"; **Restore a backup…** with backups off points to
   **Fresing Settings > Backups**.
 - PC check: a new line **app.window_place**.
+
+## 0.2.246 – 25 Nov 2026 – "Uninstall Fresing Render" where the app is (task 0329)
+
+- **Uninstall Fresing Render** is now a shortcut in the install folder (`%LOCALAPPDATA%\FresingRender`) and next to
+  **Fresing Render.exe** – so you can remove the app even when the downloaded installer folder is long deleted. A
+  double-click does exactly what Uninstall in Settings > Apps > Installed apps does: its window shows what was removed;
+  your projects, renders and backups are kept.
+- A PC installed earlier gets both shortcuts at its next start; Update now keeps them right.
+- Install.bat's last lines say where uninstall is.
+- Uninstall run a second time after the folder is gone says so plainly (and clears a leftover entry in Installed apps);
+  after a removal that was stopped halfway (a file in use), Uninstall works again after a restart.
+- The self-test has a new line: "Windows: Uninstall shortcut in the install folder".
 
 ## 0.2.245 – 25 Nov 2026 – Adjust a look (task 0314)
 

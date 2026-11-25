@@ -477,7 +477,8 @@ try {
     if (Test-Path -LiteralPath $UninstallDst) {
         $sizeKb = [int][math]::Max(1, [math]::Round(((Get-ChildItem -LiteralPath $InstallDir -Recurse -File -Force -ErrorAction SilentlyContinue |
             Measure-Object -Property Length -Sum).Sum) / 1KB))
-        $uninstallCmd = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$UninstallDst`" -InstallDir `"$InstallDir`""
+        $uninstallArgs = "-NoProfile -ExecutionPolicy Bypass -File `"$UninstallDst`" -InstallDir `"$InstallDir`""
+        $uninstallCmd = "powershell.exe $uninstallArgs"
         $AppsKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\FresingRender"
         $oldDate = ""
         if (Test-Path -LiteralPath $AppsKey) { $oldDate = [string](Get-ItemProperty -LiteralPath $AppsKey).InstallDate }
@@ -496,6 +497,19 @@ try {
         foreach ($k in "NoModify", "NoRepair") { New-ItemProperty -LiteralPath $AppsKey -Name $k -Value 1 -PropertyType DWord -Force | Out-Null }
         New-ItemProperty -LiteralPath $AppsKey -Name "EstimatedSize" -Value $sizeKb -PropertyType DWord -Force | Out-Null
         Write-Host "   Installed apps: Fresing Render $ver ($sizeKb KB)"
+        # task 0329: the same command as a shortcut where the app is - the install folder and the folder of
+        # "Fresing Render.exe" (the app also makes them at its start: appicon.ensure_uninstall_shortcuts)
+        $PsExe = Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\powershell.exe"
+        foreach ($dir in @($InstallDir, $BlenderDir)) {
+            $lnk = $Shell.CreateShortcut((Join-Path $dir "Uninstall Fresing Render.lnk"))
+            $lnk.TargetPath = $PsExe
+            $lnk.Arguments = "$uninstallArgs -Pause"
+            $lnk.WorkingDirectory = Split-Path -Parent $PsExe
+            $lnk.IconLocation = $IconLoc
+            $lnk.Description = "Removes Fresing Render from this PC. Your projects, renders and backups are kept"
+            $lnk.Save()
+        }
+        Write-Host "   'Uninstall Fresing Render' in $InstallDir and in $BlenderDir"
     } else {
         Write-Host "   (Uninstall-FresingRender.ps1 is not next to the installer - no entry in Installed apps)" -ForegroundColor Yellow
     }
@@ -511,3 +525,4 @@ Write-Host "New versions: the app shows 'Update available' at start-up; one clic
 Write-Host "Tip: run the self-test once (in the app: Fresing > Tools and checks > Run the self-test); it writes a report on the Desktop."
 Write-Host "After an update: Fresing > Tools and checks > PC check tests every main function on this PC."
 Write-Host "Self-test, PC checks, safe start and user guide are also shortcuts in $Tools"
+Write-Host "To remove Fresing Render later: Settings > Apps > Installed apps, or 'Uninstall Fresing Render' in $InstallDir"

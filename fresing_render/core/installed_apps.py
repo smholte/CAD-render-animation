@@ -22,17 +22,61 @@ SHIPPED_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 SHIPPED_UNINSTALLER = os.path.join(SHIPPED_DIR, UNINSTALLER)
 # the values that change with an update; the rest is written once (and again by a repair)
 VERSION_VALUES = ("DisplayVersion", "EstimatedSize")
+# task 0329: a shortcut that runs the same command, in the install folder and next to "Fresing Render.exe"
+UNINSTALL_LNK = "Uninstall Fresing Render.lnk"
+UNINSTALL_TEXT = "Removes Fresing Render from this PC. Your projects, renders and backups are kept"
 
 
 def uninstaller_path(folder: str) -> str:
     return os.path.join(folder, TOOLS_FOLDER, UNINSTALLER)
 
 
+def uninstall_arguments(folder: str, quiet: bool = False) -> str:
+    """powershell.exe's arguments for the uninstaller. ``-Pause`` keeps the window open until a key; quiet = no wait."""
+    args = f'-NoProfile -ExecutionPolicy Bypass -File "{uninstaller_path(folder)}" -InstallDir "{folder}"'
+    return args if quiet else args + " -Pause"
+
+
 def uninstall_string(folder: str, quiet: bool = False) -> str:
-    """The command Settings runs. ``-FromSettings`` shows the window and waits for a key at the end; quiet = no wait."""
-    cmd = (f'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "{uninstaller_path(folder)}" '
-           f'-InstallDir "{folder}"')
-    return cmd if quiet else cmd + " -Pause"
+    """The command Settings runs (the entry's ``UninstallString``; quiet = ``QuietUninstallString``)."""
+    return "powershell.exe " + uninstall_arguments(folder, quiet)
+
+
+def powershell_exe(env: dict | None = None) -> str:
+    """Windows PowerShell 5.1, the program the uninstall shortcut starts (a shortcut needs a full path)."""
+    root = (env if env is not None else os.environ).get("SystemRoot") or r"C:\Windows"
+    return os.path.join(root, "System32", "WindowsPowerShell", "v1.0", "powershell.exe")
+
+
+def uninstall_shortcuts(folder: str, blender_dir: str = "") -> list[str]:
+    """Task 0329: where "Uninstall Fresing Render.lnk" goes - the install folder, and the folder of
+    "Fresing Render.exe" (Blender's folder inside it; another folder is never written to)."""
+    if not folder:
+        return []
+    out = [os.path.join(folder, UNINSTALL_LNK)]
+    if blender_dir and _inside(blender_dir, folder) and not _same_place(blender_dir, folder):
+        out.append(os.path.join(blender_dir, UNINSTALL_LNK))
+    return out
+
+
+def shortcut_spec(folder: str, env: dict | None = None) -> dict:
+    """What the uninstall shortcut holds: the Installed-apps entry's ``UninstallString`` as program + arguments. Its
+    working folder is PowerShell's own (never inside the folder it removes)."""
+    exe = powershell_exe(env)
+    return {"target": exe, "arguments": uninstall_arguments(folder), "workdir": os.path.dirname(exe),
+            "description": UNINSTALL_TEXT}
+
+
+def shortcut_needs(info: dict | None, spec: dict, icon: str = "") -> bool:
+    """Whether an uninstall shortcut has to be (re)written: missing or unreadable (``info`` None), another program,
+    other arguments (an install folder that moved, an older uninstaller's path), or another icon."""
+    if not info:
+        return True
+    if not _same_place(str(info.get("target", "")), spec["target"]):
+        return True
+    if " ".join(str(info.get("arguments", "")).split()) != " ".join(spec["arguments"].split()):
+        return True
+    return bool(icon) and (not _same_place(str(info.get("icon", "")), icon) or int(info.get("icon_index") or 0) != 0)
 
 
 def folder_size_kb(folder: str) -> int:
@@ -71,6 +115,11 @@ def wanted(folder: str, version: str, icon: str = "", size_kb: int = 0, today: d
 
 def _same_place(a: str, b: str) -> bool:
     return os.path.normcase(os.path.normpath(a or "")) == os.path.normcase(os.path.normpath(b or ""))
+
+
+def _inside(path: str, folder: str) -> bool:
+    p, f = os.path.normcase(os.path.normpath(path or "")), os.path.normcase(os.path.normpath(folder or ""))
+    return bool(path and folder) and (p == f or p.startswith(f.rstrip("\\/") + os.sep))
 
 
 def changes(current: dict | None, want: dict) -> dict:

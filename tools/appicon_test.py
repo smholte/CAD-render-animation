@@ -68,6 +68,13 @@ def main():
     ai.make_shortcut(old_pc, w.console_exe(exe), "--background", os.path.dirname(exe), "", "old PC check")
     ai.make_shortcut(foreign, notepad, "", "", "", "someone else's")
 
+    # task 0329: an install before 0329 has no "Uninstall Fresing Render" in the install folder / next to the app
+    ia = importlib.import_module(ai.__name__.rsplit(".", 1)[0] + ".core.installed_apps")
+    unlinks = ia.uninstall_shortcuts(folder, os.path.dirname(os.path.abspath(exe)))
+    for p in unlinks:
+        if os.path.isfile(p):
+            os.remove(p)
+
     done = ai.refresh_installed(exe)
     check("refresh: an older install's extra Desktop shortcut removed", not os.path.isfile(old_pc), "; ".join(done))
     check("refresh: a shortcut with an old name that points elsewhere left alone",
@@ -78,6 +85,18 @@ def main():
     check("refresh: the uninstaller and the Installed-apps entry are made (task 0265)",
           os.path.isfile(os.path.join(ai.tools_dir(folder), 'Uninstall-FresingRender.ps1')), "; ".join(done))
     check("refresh: icon copied into the install folder", os.path.isfile(os.path.join(folder, ai.ICON_FILE)))
+    entry = ia.Registry().read() or {}
+    check("refresh: two uninstall shortcuts to make (task 0329)", len(unlinks) == 2, unlinks)
+    for p in unlinks:
+        where = os.path.basename(os.path.dirname(p))
+        if not os.path.isfile(p):
+            check(f"refresh: {ia.UNINSTALL_LNK} made in {where}", False, "; ".join(done))
+            continue
+        info = ai.read_shortcut(p)
+        cmd = "powershell.exe " + info["arguments"]
+        check(f"refresh: {ia.UNINSTALL_LNK} in {where} runs the Installed-apps entry's command",
+              os.path.isfile(info["target"]) and os.path.basename(info["target"]).lower() == "powershell.exe"
+              and cmd == entry.get("UninstallString"), f"{info['target']} {info['arguments']}")
     check("refresh changed the older shortcuts", all(any(d.startswith(n + ":") for d in done) for n in old),
           "; ".join(done))
     icon = os.path.join(folder, ai.ICON_FILE)
