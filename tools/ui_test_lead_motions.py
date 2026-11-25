@@ -303,6 +303,57 @@ def s_play_end():
     return 0.5
 
 
+@step
+def s_built_long():
+    """Task 0330 rows 35 and 8: Build & play of a 12 s animation fits the timeline; a lead slider on it then takes the
+    Build off instead of snapping back at the next frame."""
+    sc = bpy.context.scene
+    s = sc.fresing
+    tour = mod("blender.tour")
+    a = s.animations.add()
+    a.name, a.fps, a.tail = "Long boom", "25", 0.0
+    tour._joint_step(a, "Boom", 0.0, 12.0, math.radians(20))
+    s.animations_index = list(s.animations).index(a)
+    S["timeline0"] = _timeline_range()
+    with override():
+        res = bpy.ops.fresing.anim_build("EXEC_DEFAULT", True)
+    check("Build & play of the 12 s animation", res == {"FINISHED"} and sc.frame_end == 301, f"{res} {sc.frame_end}")
+    redraw_all()
+    return 2.0
+
+
+def _timeline_range():
+    """The frames the timeline shows, (left, right), or None when the layout has no timeline."""
+    for area in win0().screen.areas:
+        if area.type == "DOPESHEET_EDITOR" and area.ui_type == "TIMELINE":
+            r = next(x for x in area.regions if x.type == "WINDOW")
+            return r.view2d.region_to_view(0, 0)[0], r.view2d.region_to_view(r.width - 1, 0)[0]
+    return None
+
+
+@step
+def s_built_long_2():
+    sc = bpy.context.scene
+    rng = _timeline_range()
+    log("timeline before", S.get("timeline0"), "after", rng)
+    check("the timeline shows the whole new animation (frames 1 … 301)", rng is not None and rng[0] <= 1.5
+          and rng[1] >= 300.5, f"{S.get('timeline0')} -> {rng}")
+    lm_mod = mod("blender.lead_motions")
+    animation = mod("blender.animation")
+    joints = mod("blender.joints")
+    up = sc.fresing.lead_motions["Boom up"]
+    up.position = 90.0                                        # a slider moved on the built animation
+    check("a lead slider takes the Build off and says so", not animation.has_keys(sc)
+          and sc.fresing.last_message == lm_mod.BUILT_OFF, sc.fresing.last_message)
+    want = lm_mod.values_at(up, 90.0)["Boom"]
+    sc.frame_set(150)
+    got = joints.get_value(joints.find(sc, "Boom"))
+    check("the boom stays where the slider put it at the next frame", abs(got - want) < 1e-6, f"{got} / {want}")
+    sc.frame_set(1)
+    up.position = 100.0
+    return 0.5
+
+
 def _draw_ms(lm, n=10, move=True):
     """Median ms of a slider change and one drawing of the window (``move`` False: the drawing alone) – the real app
     on this machine's software GL, where drawing the whole window alone takes ~0.2 s."""
