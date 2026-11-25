@@ -93,6 +93,9 @@ def test_reviewer_and_animator_and_quick_render():
 def test_the_area_workspaces_are_unchanged_by_the_task_lists():
     for key in ("cnc", "offshore", "product", "client", "education", "lifting"):
         for f in F.FUNCTIONS.values():
+            if key == "client" and f.id.startswith(F.NO_CLIENT):       # task 0333: the Client view imports nothing
+                assert not f.shown_in(key), f.id
+                continue
             assert f.shown_in(key) == (key in (f.workspaces or F.FAMILY_WORKSPACES.get(f.family, ()))), (key, f.id)
 
 

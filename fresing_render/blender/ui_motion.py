@@ -124,13 +124,13 @@ class FRESING_PT_motion(_Panel, bpy.types.Panel):
         layout = self.layout
         scene = context.scene
         s = scene.fresing
-        if animation.has_keys(scene):                 # a state, not a fault: a box, no red
+        big(layout, "fresing.pose_reset", "Everything back to CAD position", "LOOP_BACK")
+        if animation.has_keys(scene):                 # a state, not a fault: a box at the bottom (task 0333: the panel stays still)
+            gap(layout)
             box = layout.box()
             wrap(box, context, f"Animation '{s.anim_baked}' is built: the joints follow it.", icon="RENDER_ANIMATION",
                  inset=12)
             box.operator("fresing.anim_clear", text="Stop it to move joints by hand", icon="CANCEL")
-            gap(layout)
-        big(layout, "fresing.pose_reset", "Everything back to CAD position", "LOOP_BACK")
 
 
 class FRESING_PT_joints(_Panel, bpy.types.Panel):
@@ -1063,8 +1063,8 @@ def _draw_product_video(layout, context, window: bool = False) -> None:
     big(layout, "fresing.product_video", "Make a product video", "FILE_MOVIE")
     a = product_video.find_animation(scene)
     if a is not None:
-        wrap(layout, context, f"'{a.name}' is in the list below: about {animation.length_seconds(a):.0f} s without "
-                              "the cards. Change any step there, then Build & play or Render animation.",
+        wrap(layout, context, f"'{a.name}' is {animation.length_seconds(a):.0f} s long without "
+                              "the cards. Then Render animation (Make, top right).",
              icon="INFO", inset=12)
 
 

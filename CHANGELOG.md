@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.259 – 25 Nov 2026 – Joints move much faster on big models (task 0326)
+## 0.2.260 – 25 Nov 2026 – Joints move much faster on big models (task 0326)
 
 - **Moving a joint on a big model is about 4–5 times faster.** On the 11,000-part stress model one step of the crane's
   slew took 75 ms on a 4-core test machine; now 16 ms. Every way a joint is moved from the app gets it: poses, the
@@ -14,6 +14,19 @@ installer of that version was built from.
 - What is left (about 15 ms there) is Blender's own work for any change in a model that big – playing the animation
   costs the same per frame.
 - PC check: the Stress line **Stress model: dragging a joint** shows the new time.
+## 0.2.259 – 25 Nov 2026 – Workspaces match their job (task 0333)
+
+- **A colleague's project opens in your own workspace.** A small window says whose workspace it was and offers **Switch to
+  theirs**; you can tick *Don't show this again* or turn it off in Fresing Settings > General.
+- **Video producer** now has Weather & time (with presets and the change at the playhead), Turntable, Render this view,
+  the joint sliders and Save start scene. **Animator** has Light, Saved scenes, Weather and Turntable.
+- **Sales** gets **Render animation** in the Make list. The Client view has no Import; once an animation is built it has a
+  **Play** button.
+- The **right-click menu** shows only what the workspace shows (Sales: no Add joint here, Weld, Copy, Remove …).
+- The material picker, Finishes and Update revision are listed where their panels are. The red "In use but hidden" line is
+  now a short grey hint. The Lead motions menu no longer draws greyed buttons in the Client view. The "animation is built" box
+  in 4 Motion sits at the bottom, so the buttons above it stay where they are.
+
 ## 0.2.258 – 25 Nov 2026 – A quieter window, a Client view that really locks (task 0332)
 
 - **Back to the Fresing window** always brings the app's layout back: if you had picked one of Blender's own tabs

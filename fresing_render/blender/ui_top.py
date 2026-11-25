@@ -53,8 +53,10 @@ class FRESING_PT_workspace(LeftPanel, bpy.types.Panel):   # task 0260: on the le
         hidden = workspaces.hidden_in_use(scene)
         if hidden and not ws.lock:
             row = layout.row(align=True)
-            row.alert = True
-            row.label(text=f"In use but hidden: {plural(len(hidden), 'family', 'families')}", icon="ERROR")
+            # task 0333: a finished project always uses what a task workspace hides - grey, short, one line
+            lab = row.row(align=True)
+            lab.active = False
+            lab.label(text=f"{len(hidden)} hidden, in use", icon="INFO")
             sub = row.row(align=True)
             sub.ui_units_x = 3.2
             sub.operator("fresing.workspace_show_used", text="Show")
@@ -276,8 +278,16 @@ VIEW_TEXT = "Render this view"
 VIEW_ICON = "HIDE_OFF"
 
 
+# task 0333: Render animation belongs to Make wherever the animation can be rendered (Sales has no "add steps" but
+# renders the finished one), as well as wherever animations are made
+ALSO_SHOWS = {"anim": ("queue.video",)}
+
+
 def _outputs(scene):
-    return [o for o in OUTPUTS if workspaces.shows(scene, o[4])]
+    return [o for o in OUTPUTS
+            if workspaces.shows(scene, o[4])
+            or (workspaces.family_on(scene, "animation")
+                and any(workspaces.shows(scene, f) for f in ALSO_SHOWS.get(o[0], ())))]
 
 
 MAKE_LINES = {

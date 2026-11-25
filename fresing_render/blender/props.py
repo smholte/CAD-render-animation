@@ -5187,6 +5187,10 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     ws_ticks: StringProperty(
         default="", description="The function families you switched on or off in this project, on top of its "
                                 "workspace")
+    saved_by: StringProperty(
+        default="", options={"HIDDEN"},
+        description="Who saved this project last (the PC user's name), written at every save (task 0333). A project "
+                    "saved by someone else opens in your own workspace, and says so once")
     panels_open: StringProperty(
         default="", description="Which sections and sub-panels were open when the project was saved (used with "
                                 "Preferences > Keep sections as I left them)")

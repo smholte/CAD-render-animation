@@ -188,7 +188,9 @@ def test_the_menu_on_a_part_on_empty_space_and_in_the_client_view(crane):
     try:
         _right_click(crane, boom(crane))
         texts = drawn(crane)[0]
-        assert texts == [t for t in context_menu.ON_PART if t not in context_menu.CLIENT_DROPS + ("Show all",)]
+        # task 0333: no "Show in 2 Structure" while 2 Structure is hidden in the Client view
+        assert texts == [t for t in context_menu.ON_PART
+                         if t not in context_menu.CLIENT_DROPS + ("Show all", "Show in 2 Structure")]
         assert not bpy.context.selected_objects                    # the lock: nothing is selected
     finally:
         workspaces.switch(crane, "All functions")
@@ -278,3 +280,22 @@ def test_every_entry_has_a_tooltip():
     for cls in context_menu.CLASSES + (lock.FRESING_OT_blender_key, lock.FRESING_OT_key_render):
         doc = " ".join((cls.__doc__ or "").split())
         assert len(doc) > 40, cls.__name__
+
+
+def test_the_menu_offers_only_what_the_workspace_shows(crane):
+    """Task 0333 (0328 row 9): Sales hides labels, joints, welds, moving, copying and removing – so its menu does too."""
+    workspaces.switch(crane, "Sales")
+    try:
+        _right_click(crane, boom(crane))
+        texts = drawn(crane)[0]
+        for gone in ("Show in 2 Structure", "Add a label here", "Add joint here…", "Weld to another part…",
+                     "Move / turn…", "Copy", "Remove…"):
+            assert gone not in texts, gone
+        assert "Zoom to it" in texts and "Hide" in texts
+        assert not any(t.startswith(("Unlock", "Lock")) for t in texts)
+    finally:
+        workspaces.switch(crane, "All functions")
+    _right_click(crane, boom(crane))
+    texts = drawn(crane)[0]
+    for there in ("Show in 2 Structure", "Add a label here", "Add joint here…", "Remove…"):
+        assert there in texts, there

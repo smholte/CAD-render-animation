@@ -1283,6 +1283,16 @@ def workspace_round3(ctx):
         joints.set_value(jb, 0.0)
         _update()
         _check(moved > 1.0, f"the boom did not move in Sales (tip moved {moved * 1000:.0f} mm)")
+        # task 0333: the right-click menu, Make and a colleague's project follow the workspace
+        from ..blender import ui_top
+        _check("anim" in [o[0] for o in ui_top._outputs(scene)], "Make has no Animation output in Sales")
+        scene.fresing.saved_by = "A colleague"
+        workspaces.switch(scene, "Video producer")
+        _check(workspaces.take_in(scene) and workspaces.name_of(scene) == workspaces.default_name(),
+               "a colleague's project did not open in your own workspace")
+        _check(bpy.ops.fresing.workspace_theirs() == {"FINISHED"} and workspaces.name_of(scene) == "Video producer",
+               "Switch to theirs did not bring back their workspace")
+        scene.fresing.saved_by = ""
         return ", ".join(counts) + f" functions; in Sales the boom's tip moved {moved * 1000:.0f} mm at 20°"
     finally:
         try:
