@@ -1,6 +1,6 @@
 # 0329 – "Uninstall Fresing Render" in the install folder too
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0329-uninstall-in-install-folder`
+**Who:** worker · **Status:** running · **Branch:** `task/0329-uninstall-in-install-folder`
 **Started by:** lead, 25 Nov 2026 (owner 09:50, two screenshots: the downloaded installer folder has `Uninstall.bat`;
 the installed app's folder `%LOCALAPPDATA%\FresingRender\blender-5.2.3-windows-x64\` with `Fresing Render.exe` has no
 uninstall to click – "People are quick to delete the install folder, uninstall should be both places.")
