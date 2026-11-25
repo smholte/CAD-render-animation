@@ -874,7 +874,7 @@ fn(id="help.right_click", headline=True, short="Right-click menu", title="Right-
 fn(id="settings.keys", headline=True, short="Keys", title="Keys: every key of the app in one list – moving the view, "
    "selecting, Fresing's own, Blender's –, search, change Fresing's own keys (kept over a restart), a printable key "
    "sheet; Fresing > Keys…", family="help", panel="TOPBAR_MT_fresing", button="fresing.keys", guide="keys",
-   tour=("keys_tab",), pccheck=("settings.keys",), since="0.2.254")          # task 0295
+   tour=("keys_tab",), pccheck=("settings.keys",), since="0.2.256")          # task 0295
 
 fn(id="usage.my_usage", title="My usage: what you use, time per stage (only while you use the app), time saved (estimate)",
    family="help", panel="TOPBAR_MT_fresing", button="fresing.usage_window", guide="my-usage", tour=("usage",),

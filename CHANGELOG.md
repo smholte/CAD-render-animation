@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.254 – 25 Nov 2026 – All keys in one list, change Fresing's own (task 0295)
+## 0.2.256 – 25 Nov 2026 – All keys in one list, change Fresing's own (task 0295)
 
 - **Fresing > Keys…** (also at the end of Help) opens Fresing Settings on its new tab **Keys**: every key and mouse
   action of the app in five groups – moving the view (mouse, touchpad, number pad, Home), selecting, **Fresing's own
@@ -18,6 +18,11 @@ installer of that version was built from.
 - **Print key sheet:** one A4 page with every key – your own marked – opens in your browser to print or save as PDF.
 - **Blender's own key settings** opens Blender's Preferences > Keymap (Blender's keys, used in Full access).
 
+## 0.2.254 – 25 Nov 2026 – The whole title row opens a panel (task 0335)
+
+- **Click anywhere on a section's or sub-panel's title row** – its icon, its words or the empty part on the right,
+  also the small state text such as "3 removed" – and it opens or folds, as on Blender's own panels. Before, only the
+  arrow and the words did.
 ## 0.2.253 – 25 Nov 2026 – 3D page: Open page in sight, page views by tick, phone sideways (task 0336)
 
 - **Open page** and the folder button now sit on the **Export…** row (Make > 3D page, and 5 Scene & Render > Web 3D
