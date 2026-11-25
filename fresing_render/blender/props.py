@@ -94,6 +94,21 @@ def _group_look_changed(self, context):
             machining.cut_look_changed(context.scene)
         except Exception as exc:
             print("Fresing Render: cut faces' look not updated:", exc)
+    from . import material_picker                # task 0314: the Materials window's large picture follows
+    material_picker.adjusted(self)
+
+
+def _adjust_changed(self, context):
+    """Task 0314: an Adjust slider moved – the node's input at once (no rebuild when the material has the node)."""
+    from . import look_adjust
+    look_adjust.live(self, context)
+
+
+def _adj(name: str, **kw):
+    from ..core import look_adjust as LA
+    label, lo, hi, d, tip = LA.SLIDERS[name]
+    return FloatProperty(name=label, default=d, min=lo, max=hi, soft_min=lo, soft_max=hi, step=5, precision=2,
+                         update=_adjust_changed, description=tip, **kw)
 
 
 def _group_material_changed(self, context):
@@ -466,6 +481,12 @@ class FRMaterialGroup(bpy.types.PropertyGroup):
     fin_kind: EnumProperty(name="Kind", items=_fin_kind_items, update=_group_look_changed,
                            description="Which kind of this finish: the blasting medium, the hole shape, the "
                                        "VDI 3400 class or the cast metal")
+    # task 0314: Adjust a look – plain sliders on top of the material (core.look_adjust; the node "FR adjust")
+    adj_shine: _adj("shine")
+    adj_metal: _adj("metal")
+    adj_dirt: _adj("dirt", subtype="FACTOR")
+    adj_relief: _adj("relief")
+    adj_coat: _adj("coat", subtype="FACTOR")
     count: IntProperty(name="Parts", default=0)
     faces: IntProperty(name="Face sets", default=0,
                        description="Painted faces of parts in this group (faces with a look of their own)")

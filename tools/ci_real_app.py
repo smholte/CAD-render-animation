@@ -71,14 +71,14 @@ RESULT_RE = re.compile(r"RESULT (\d+)/(\d+)")
 # Raise these when a test gets new checks (never lower them without saying why in the commit).
 MIN_CHECKS = {"ui1": 32, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 23, "rulesets": 19, "studio": 21,
               "milling": 25, "video": 14, "callouts": 15, "cylinder": 22, "linkage": 25, "waycover": 16, "gcode": 29,
-              "paths": 8, "pccheck": 43, "pccheck2": 4, "pccheckheavy": 17, "update": 66, "tour": 116, "tour2": 2, "tourui": 31, "layout": 66,
+              "paths": 8, "pccheck": 43, "pccheck2": 4, "pccheckheavy": 17, "update": 66, "tour": 117, "tour2": 2, "tourui": 31, "layout": 66,
               "panel": 39, "start": 56, "setup": 46, "highlight": 74, "usage": 33, "lesson": 43, "lessoni": 38,
               "doublearm": 19, "clash": 21, "vessel": 15, "flex": 31, "cables": 36,
               "spool": 43, "undorebake": 4, "lifting": 22, "liftingmake": 25, "setupcrane": 32, "lock": 19, "quiet": 90, "left": 55, "settings": 52, "locations": 17, "toolbox": 19,
               "clientkeys": 12, "keys": 30, "demokits": 25, "drawn": 25, "route": 12, "backups": 23, "forms": 29,
               "move": 14, "importagain": 18, "place": 22, "jointfold": 11, "workspaces2": 19, "copy": 16, "welds": 20, "names": 19, "measure": 16,
               "firstsetup": 42,
-              "leadmotions": 24, "materials": 17}
+              "leadmotions": 24, "materials": 22}
 # Tests that take ~10 min on a usual runner get a longer box than --timeout-min (task 0298: the PC check's first half
 # took 10 min on one runner and over 15 on two others – every line 1.4-1.8x slower, from the first import on). Task 0319:
 # the test tour's halves too – 0299's half took 15.0 min, and one new stop moved its weather stops into the other half.
@@ -233,7 +233,9 @@ TESTS = {
     "materials": ("Real app: the material picker – More materials… opens one Materials window with only its page, a "
                   "click on a name picks it and a second one uses it, the star and this project's list, Use for the "
                   "group and Ctrl+Z, the filters, Save as my material… with its picture from a background Blender, "
-                  "From a Blender material…, the window follows the group, its draw under 20 ms, Close "
+                  "From a Blender material…, the window follows the group, its draw under 20 ms, Close; task 0314: Adjust "
+                  "sliders live (node FR adjust), the large picture made again, Open in the shader editor (Full "
+                  "access only) "
                   "(ui_test_material_picker.py)", "ui_test_material_picker.py", True),
     "locations": ("Real app: Locations and Exports – two set-up files (company copied, department linked) and the "
                   "user's own folder: a logo and a rule set of each with its badge, the same name twice shown twice, a "
