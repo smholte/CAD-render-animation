@@ -350,6 +350,46 @@ def s_copy_undone():
 
 
 @step
+def s_cad_import():
+    """Task 0323: a STEP with solid welds (Inventor-like) brings its welds along at the import."""
+    S["before_cad"] = len(items())
+    with override():
+        res = bpy.ops.fresing.import_step(filepath=os.path.join(os.path.dirname(MODEL), "test_weldment_cad_inventor.step"),
+                                          quality="draft")
+    log("cad import", res, bpy.context.scene.fresing.last_message)
+    return 1.0
+
+
+@step
+def s_cad_wait():
+    if bpy.context.scene.fresing.model_count < 2:
+        return "wait"
+    cad = [it for it in items() if it.from_cad]
+    check("the CAD file's 6 welds come in with the import", len(cad) == 6 and len(items()) == S["before_cad"] + 6
+          and "6 welds from the CAD file" in bpy.context.scene.fresing.last_message,
+          (len(cad), bpy.context.scene.fresing.last_message))
+    s = bpy.context.scene.fresing_welds
+    s.index = len(s.items) - 1
+    win, area, region, sb = ui()
+    sb.tag_redraw()
+    with override():
+        res = bpy.ops.fresing.weld_cad_all("EXEC_DEFAULT", True, what="APP")
+    check("App's bead for all of them", res == {"FINISHED"} and not any(it.cad_shape for it in items() if it.from_cad))
+    shot("08_cad_welds")
+    with override():
+        bpy.ops.ed.undo()
+    return 1.0
+
+
+@step
+def s_cad_undone():
+    cad = [it for it in items() if it.from_cad]
+    check("Undo gives them their CAD shape back", len(cad) == 6 and all(it.cad_shape for it in cad)
+          and all(len(mod("blender.welds").objects_of(it)) == 2 for it in cad), [it.cad_shape for it in cad])
+    return 0.5
+
+
+@step
 def s_finish():
     failed = [r for r in RESULTS if not r[1]]
     log(f"RESULT {len(RESULTS) - len(failed)}/{len(RESULTS)} passed")
