@@ -481,13 +481,45 @@ POLISH = 2                               # the deepest few sampled points are mo
 QUICK = 96                               # corners tried first when one deep point is enough
 
 
-def _mesh_from(me) -> Mesh:
+def _mesh_arrays(me) -> tuple:
+    """A mesh's corners (float32, as Blender keeps them) and triangles (int32): (V, 3), (T, 3)."""
     me.calc_loop_triangles()
-    v = np.empty(len(me.vertices) * 3, dtype=np.float64)
+    v = np.empty(len(me.vertices) * 3, dtype=np.float32)
     me.vertices.foreach_get("co", v)
-    t = np.empty(len(me.loop_triangles) * 3, dtype=np.int64)
+    t = np.empty(len(me.loop_triangles) * 3, dtype=np.int32)
     me.loop_triangles.foreach_get("vertices", t)
-    return Mesh(v.reshape(-1, 3), t.reshape(-1, 3))
+    return v.reshape(-1, 3), t.reshape(-1, 3)
+
+
+def _mesh_from(me) -> Mesh:
+    return Mesh(*_mesh_arrays(me))
+
+
+class _Meshes(dict):
+    """The check's meshes by name, each made (with its orientation and trees) only when a test first needs it (task
+    0327). Until then a mesh is kept as Blender's own numbers (float32 corners, int32 triangles), read once at the
+    set-up – a third of a ``Mesh``'s arrays and none of its trees: on a big model most standing parts never meet a
+    moving one (the stress model of 11,228 parts tested the meshes of a few hundred). ``Mesh`` turns them into the
+    same float64 / int64 arrays, so every answer is the same as with all meshes made at once."""
+
+    def __init__(self):
+        super().__init__()
+        self.raw: dict = {}
+        self.lo: dict = {}
+        self.hi: dict = {}
+
+    def add(self, name: str, me) -> None:
+        if name in self.raw or name in self:
+            return
+        v, t = _mesh_arrays(me)
+        self.raw[name] = (v, t)
+        self.lo[name] = v.min(axis=0).astype(np.float64) if len(v) else np.zeros(3)
+        self.hi[name] = v.max(axis=0).astype(np.float64) if len(v) else np.zeros(3)
+
+    def __missing__(self, name: str) -> Mesh:
+        v, t = self.raw.pop(name)
+        m = self[name] = Mesh(v, t)
+        return m
 
 
 def _box_of(m: Mesh, rel: np.ndarray) -> tuple:
@@ -830,7 +862,7 @@ class Check:
         if self.mill is not None:
             machining.update_if_needed(scene)
         self.timeline = machining._timeline(scene) if self.mill is not None else None
-        self.meshes: dict = {}
+        self.meshes = _Meshes()
         self.mesh_key = []
         mill_s = machining.settings(scene)
         for ob in self.objs:
@@ -840,11 +872,10 @@ class Check:
             own = ob.get(CLASH_MESH)                    # a stand-in shape for the check (task 0156: the operator's
             if isinstance(own, bpy.types.Mesh) and len(own.vertices):        # body without its arms)
                 me = own
-            if me.name not in self.meshes:
-                self.meshes[me.name] = _mesh_from(me)
+            self.meshes.add(me.name, me)
             self.mesh_key.append(me.name)
-        self.lo = np.array([self.meshes[k].lo for k in self.mesh_key])
-        self.hi = np.array([self.meshes[k].hi for k in self.mesh_key])
+        self.lo = np.array([self.meshes.lo[k] for k in self.mesh_key]).reshape(-1, 3)
+        self.hi = np.array([self.meshes.hi[k] for k in self.mesh_key]).reshape(-1, 3)
         self.names = [ob.name for ob in self.objs]
         self.labels = [label(ob) for ob in self.objs]
         self.times = sample_times(scene)
@@ -1630,17 +1661,15 @@ class Check:
         yield from self._read()
         t_read = time.perf_counter() - t0
         T, P = self.mats.shape[:2]
-        d = core.deltas(self.mats)
         reach = float(np.abs(self.mats[..., :3, 3]).max()) if self.mats.size else 0.0
-        groups = core.rigid_groups(d, reach=reach)
+        groups = core.rigid_groups_of(self.mats, reach=reach)
         # parts that turn in place: held still on their carrier (task 0092); parts of one body as read are never
         # compared, even when one of them is held still and the other is not
         self.orig = groups
         t0 = time.perf_counter()
         self.held = self._hold_still(groups)
         if self.held:
-            d = core.deltas(self.mats)
-            groups = core.rigid_groups(d, reach=reach)
+            groups = core.rigid_groups_of(self.mats, reach=reach)
         self.k_now, self.k_between = 0, False
         self.still_pairs = self._still_pairs()
         t_held = time.perf_counter() - t0

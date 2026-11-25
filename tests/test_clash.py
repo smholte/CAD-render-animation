@@ -121,6 +121,24 @@ def test_known_clash_parts_frames_and_depth(scene):
     assert run.stats["moments"] == sc.frame_end and run.stats["bodies"] == 3
 
 
+def test_meshes_are_made_only_when_a_test_needs_them(scene):
+    """Task 0327: the check keeps a part's mesh as Blender's own numbers until a test needs it; then it is the same
+    ``Mesh`` (arrays, box, orientation) as made at once. Parts that never come near a moving part get none."""
+    run = clash.check(scene, store=False)
+    made, waiting = set(run.meshes), set(run.meshes.raw)
+    assert made and not made & waiting
+    assert made | waiting == set(run.mesh_key)
+    for k in made:
+        me = bpy.data.meshes[k]
+        whole = clash._mesh_from(me)
+        m = run.meshes[k]
+        assert m.v.dtype == np.float64 and m.t.dtype == np.int64
+        assert np.array_equal(m.v, whole.v) and np.array_equal(m.t, whole.t) and m.sign == whole.sign
+    for i, k in enumerate(run.mesh_key):          # every part's box as the whole mesh gives it
+        whole = clash._mesh_from(bpy.data.meshes[k])
+        assert np.array_equal(run.lo[i], whole.lo) and np.array_equal(run.hi[i], whole.hi)
+
+
 def test_a_deeper_clash_depth_setting_lets_it_pass(scene):
     clash.settings(scene).depth = 7 * MM
     run = clash.check(scene)
