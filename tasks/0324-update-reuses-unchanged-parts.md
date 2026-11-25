@@ -1,6 +1,6 @@
 # 0324 – Faster model update: unchanged parts are kept, only changed parts are meshed and built again
 
-**Who:** worker · **Status:** open · **Branch:** `task/0324-update-reuses-unchanged-parts`
+**Who:** worker · **Status:** running · **Branch:** `task/0324-update-reuses-unchanged-parts`
 **Started by:** lead, 25 Nov 2026 (owner 00:3x picked "Faster model update" as the first of 0315's four slow places)
 · **Model:** Opus · effort High
 **Area:** Import lane – `importer/step_reader.py` (a shape hash per part, written into the cache), `importer/runner.py`
