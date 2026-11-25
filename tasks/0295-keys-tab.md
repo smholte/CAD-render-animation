@@ -35,7 +35,7 @@ sheet (HTML page), the Fresing / Help menu entry, guide, CHANGELOG.
 ## Report (filled in by the chat that did the task)
 
 **Chat / date:** Claude Code on the web, 25 Nov 2026 (branch `claude/elegant-ritchie-mkcgli` – the session's branch,
-not `task/0295-keys`). Version **0.2.247**.
+not `task/0295-keys`). Version **0.2.248**.
 
 **What changed:**
 - **Settings > Keys** (new tab after Side panel; `blender/keys.py`, `core/keys.py`): five groups – Move the view (from
@@ -56,7 +56,7 @@ not `task/0295-keys`). Version **0.2.247**.
 - **Ways in:** Fresing > Keys… (after Settings…), Help > Keys…, operator `fresing.keys`.
 - Function `settings.keys` (headline, all workspaces), guide section `#keys` + Keys row in the Settings table + 2
   pictures (all Settings pictures re-made: the tab row has Keys now), PC-check line `settings.keys` (MIN_LINES_FULL
-  155), tour stop `keys_tab` in the crane set (MIN_LINES_TOUR 117, MIN_CHECKS tour 117, crane `changed=0.2.247`).
+  155), tour stop `keys_tab` in the crane set (MIN_LINES_TOUR 117, MIN_CHECKS tour 117, crane `changed=0.2.248`).
 
 **Tested and measured** (4-core web machine, no graphics card):
 - `tests/test_keys_core.py` (10, no Blender) and `tests/test_keys_tab.py` (7, bpy module): list from the live lists +
