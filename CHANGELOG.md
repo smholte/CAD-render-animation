@@ -5,6 +5,17 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.247 – 25 Nov 2026 – Unlock right where you press G (task 0338)
+
+- **G or R on a locked part** no longer sends you to 2 Structure: a small box opens next to the mouse with the
+  subassembly's name and **Unlock**. Unlock (or Return) unlocks it and the move starts at once. A click outside the
+  box, its **×** or **Esc** closes it and nothing changes. The right-click menu's **Move / turn…** on a locked part
+  opens the same box; its Unlock opens the Move / turn window.
+- **After that move** a small box in the top left of the 3D view, below the view's name, offers **Lock it again**: it
+  locks exactly what was unlocked. It stays at least 5 seconds, then any click closes it (the click still does its
+  job); **Esc** or **×** close it at once. A cancelled move gets no box.
+- Ctrl+Z: Unlock and the move are two steps, Lock it again one. The status bar still says how to unlock it.
+
 ## 0.2.246 – 25 Nov 2026 – "Uninstall Fresing Render" where the app is (task 0329)
 
 - **Uninstall Fresing Render** is now a shortcut in the install folder (`%LOCALAPPDATA%\FresingRender`) and next to

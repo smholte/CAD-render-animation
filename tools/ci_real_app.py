@@ -76,7 +76,7 @@ MIN_CHECKS = {"ui1": 32, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 2
               "doublearm": 19, "clash": 21, "vessel": 15, "flex": 31, "cables": 36,
               "spool": 43, "undorebake": 4, "lifting": 22, "liftingmake": 25, "setupcrane": 32, "lock": 19, "quiet": 90, "left": 55, "settings": 52, "locations": 17, "toolbox": 19,
               "clientkeys": 12, "keys": 30, "demokits": 25, "drawn": 25, "route": 12, "backups": 23, "forms": 29,
-              "move": 14, "importagain": 18, "place": 22, "jointfold": 11, "workspaces2": 19, "copy": 16, "welds": 20, "names": 19, "measure": 16,
+              "move": 27, "importagain": 18, "place": 22, "jointfold": 11, "workspaces2": 19, "copy": 16, "welds": 20, "names": 19, "measure": 16,
               "firstsetup": 42,
               "leadmotions": 24, "materials": 28}
 # Tests that take ~10 min on a usual runner get a longer box than --timeout-min (task 0298: the PC check's first half
@@ -259,7 +259,9 @@ TESTS = {
              "each entry), on empty space, in the Client view; Full access: Blender's menu and Delete (ui_test_keys.py)",
              "ui_test_keys.py", True),
     "move": ("Real app: G / R in the 3D view – on the fresh import the boom is locked in place: G moves nothing and the "
-             "status bar says how to unlock it; the right-click menu's Unlock so it can move; then G, X, 100, Enter, G "
+             "status bar says how to unlock it; the Unlock popup by the mouse (Esc / outside / × close it, Unlock moves at "
+             "once) and Lock it again top left (5 s, a click, its button; UI scale 2); the right-click menu's Unlock so "
+             "it can move; then G, X, 100, Enter, G "
              "with the mouse and R, Z, 30, Enter move and turn it and it stays; after Build the message, after Stop it "
              "moves again (ui_test_move.py)", "ui_test_move.py", True),
     "place": ("Real app: Place and Remove – the boom's lock opened, Place open shows the arrows and rings, a + step moves "

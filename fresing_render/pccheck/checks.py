@@ -5887,6 +5887,42 @@ def structure_move(ctx):
     return "locked: says how to unlock; unlocked: the move stays; after Build: says stop it first"
 
 
+@line("structure.unlock_popup", "G / R on a locked subassembly: the Unlock popup unlocks it, Lock it again after the "
+      "move locks exactly that", "0.2.247",
+      what="On the test crane: the popup's Unlock unlocks the boom's subassembly (nothing else); a cancelled move brings "
+           "no Lock it again; a confirmed one does; Lock it again locks it in place again; S and the Client view open "
+           "no popup")
+def structure_unlock_popup(ctx):
+    import types
+
+    import bpy
+
+    from ..blender import build, lock, place, place_popups as pp
+    scene = ctx.fresh(CRANE_A, quality="draft")
+    pp.close()
+    asm = next(o for o in scene.objects if o.get(build.PROP_NAME) == "BOOM.ASM")
+    trolley = next(o for o in scene.objects if o.get(build.PROP_NAME) == "TROLLEY.ASM")
+    sel = types.SimpleNamespace(scene=scene, selected_objects=[asm], active_object=asm)
+    _check(pp.held_owners(sel, "TRANSLATE") == [asm.name], "the popup would not unlock the boom's subassembly")
+    for o in scene.objects:
+        o.select_set(o == asm)
+    _check(not place.popup(bpy.context, "RESIZE"), "S opened the Unlock popup (parts keep their size)")
+    lock.ON[0] = True
+    try:
+        _check(not place.popup(bpy.context, "TRANSLATE"), "the Client view opened the Unlock popup")
+    finally:
+        lock.ON[0] = False
+    pp.unlock(sel, [asm.name], "TRANSLATE")
+    _check(not any(asm.lock_location) and all(trolley.lock_location), "Unlock did not unlock exactly the boom")
+    _check(not pp.after_move([asm.name], moved=False) and not pp.AGAIN["on"], "a cancelled move brought Lock it again")
+    pp.unlock(sel, [asm.name], "TRANSLATE")
+    _check(pp.after_move([asm.name]) and pp.AGAIN["owners"] == [asm.name], "no Lock it again after the move")
+    _check(pp.lock_again() == [asm.name] and all(asm.lock_location) and all(asm.lock_rotation)
+           and not pp.AGAIN["on"], "Lock it again did not lock the boom in place")
+    pp.close()
+    return "Unlock: the boom only; cancelled: no popup; moved: Lock it again; locked again"
+
+
 @line("place.move", "Place: a model moved 1 m and turned 90° builds the same motion; the boom moved 100 mm takes its "
       "joint along; Back to the CAD place", "0.2.219",
       what="On the test crane with the crane lesson's joints, cylinder and animation: the whole crane moved 1 m along X "
