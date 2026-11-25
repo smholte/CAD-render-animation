@@ -1,6 +1,6 @@
 # 0314 – Adjust a look: a few plain sliders per material, saved as your own; the cost of each look measured
 
-**Who:** worker · **Status:** running (25 Nov) · **Branch:** `task/0314-adjust-a-look`
+**Who:** worker · **Status:** done – 0.2.245 · **Branch:** `task/0314-adjust-a-look`
 **Started by:** lead, 23 Nov 2026 (owner 21:14: "Pre-made node textures? That are later editable by the user, or
 editable by a pre-made menu. How are the current textures made (procedural)? Or are there better ways, or ways better
 for performance?") · **Model:** Opus · effort Medium
@@ -80,10 +80,47 @@ New finishes (0274), the picker (0273), surroundings (0311).
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 25 Nov 2026 – 0.2.245
 
 **What changed:**
+- `core/look_adjust.py` (sliders, ranges, which apply per look, formulas, cost table); `blender/look_adjust.py` (node
+  group "FR adjust" with inputs Shine / Metal ↔ paint / Dirt / Relief / Clear coat; live update; keep for the editor;
+  open the shader editor in a new window); five `adj_*` group settings in `props.py`; `materials.build_nodes(adjust=)`
+  + `is_current` (the node only when a slider moved or the material was opened in the editor).
+- Materials window: Adjust box under Use for … (only for the group's own material), Reset (`fresing.look_reset`),
+  Open in the shader editor (`fresing.look_nodes`, Full access only), large picture re-rendered 0.8 s after the last
+  change, clock badge + "Slower to render: about N x" line.
+- Own materials: `changes.adjust` (format 1.1; a 1.0 app notes it as unknown and leaves it out); picking an entry
+  sets its sliders (built-ins: defaults); Reset = the entry's values, Wear, Rust and finish settings (paint keeps the
+  group's colour).
+- `tools/look_costs.py` → `fresing_render/data/look_costs.json`; guide "Adjust a look"; function `looks.adjust`; tour
+  stop `look_adjust` (set "looks"); Full PC-check line `looks.adjust`; real-app picker test +5 checks (28).
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, no graphics card):
+- `tests/test_look_adjust.py` (14 tests incl. the node wiring vs the formulas) + picker / pictures / looks / functions
+  tests: 350 passed. Tour: stop checks of the looks set + completeness, clash of the set: pass. PC-check line
+  `looks.adjust`: OK (4 s). Real app `--only materials`: 28/28 (Adjust live, picture remade in 5.7 s, the shader editor
+  window opens in Full access). Screenshot of the Adjust box looked at.
+- **Cost** (Cycles on the processor, AMD EPYC web machine, 4 threads, picker swatch 256 px, 64 samples, best of 3;
+  plain satin paint 1.64 s = 1.0): slower ≥ 1.5 x – frosted acrylic 1.67, clear PU tube 1.62, eroded blade paint 1.57.
+  Next: polycarbonate 1.49, marine growth 1.49, leather 1.47, spangle 1.41, grille 1.36, served cable 1.35. Fastest:
+  clear glass 0.73, chrome 0.80. Plain paint + Wear 0.6: 1.49 x; + Adjust (shine, dirt, coat): 1.00 x. On the RTX 3090
+  the ratios are expected to be similar or smaller (an expectation, not measured). No look is so slow that a cheaper
+  build is needed now; the see-through ones are slow because of transmission bounces (expected).
+- GitHub runs: see below.
+
+**Owner's test steps (on your PC, after Update now):**
+1. Open a project, **3 Looks**, pick a group, **More materials…**.
+2. Click its material twice (or click it once if it is already the group's): under **Use for <group>** you see
+   **Adjust** with sliders. Move **Shine** and **Dirt**: the parts change at once; after a second or so the large
+   picture shows the change.
+3. Press **Reset**: the sliders go back. Move them again, **Save as my material…**, give a name: another group that
+   uses it gets the same sliders.
+4. In the workspace **Full access** press **Open in the shader editor**: a window with the nodes opens; the node
+   **FR adjust** has the same names.
+5. Look for the small clock next to "Acrylic, frosted" in the window: that look renders slower.
 
 **Open points / follow-up tasks:**
+- The milled workpiece's cut faces keep their own look (no Adjust on them).
+- A paint scheme switch keeps the group's sliders (like Wear today).
+- Subagents: none (medium effort; no Windows-only code). Independent tester skipped.
