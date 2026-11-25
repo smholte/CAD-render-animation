@@ -148,7 +148,8 @@ def apply(scene, lm, pct: float | None = None, refresh: bool | None = None) -> i
     pct = float(lm.position) if pct is None else float(pct)
     vals = values_at(lm, pct)
     n = 0
-    took_off(scene, any(r.joint in vals for r, _j in usable(scene, lm)))
+    took_off(scene, any(r.joint in vals and abs(joints.get_value(j) - vals[r.joint]) > 1e-7
+                        for r, j in usable(scene, lm)))
     for r, j in usable(scene, lm):
         if r.joint in vals:
             joints.set_value(j, vals[r.joint])

@@ -52,7 +52,8 @@ Fix 0328's rows **2, 3, 4, 8, 35** (`tasks/0328-bug-and-friction-hunt-8.md`, tab
 - **Row 4** (`turntable.py`): the orbit step is tagged (`orbit_block`; older projects: found by its name) and only it is
   made again; `animations_index` is left where it was (set only when out of range).
 - **Row 8** (`lead_motions.py`): `apply` (slider, ▶, Back to start, row edits) takes the Build off first when it moves
-  a joint of a built animation (`took_off`) and writes `BUILT_OFF` into the scene's last message. The popover's own line
+  a joint of a built animation to another value (`took_off`; a row added or edited that leaves the joints where they
+  are keeps the Build – the crane lesson builds, then makes its lead motion) and writes `BUILT_OFF` into the scene's last message. The popover's own line
   is 0333's (ui_lead_motions.py).
 - **Row 35**: `animation.fit_timeline` after every Build in the app (a timer, `action.view_all` in each timeline).
 - Row 32: none of its words are in this task's files.
@@ -70,6 +71,8 @@ Fix 0328's rows **2, 3, 4, 8, 35** (`tasks/0328-bug-and-friction-hunt-8.md`, tab
   On the first local run the timeline check failed once (the timer had not run yet when the check looked, after an
   unrelated check in the same run had failed); the check now waits 2 s.
 - PC-check line `animation.user_keys` (bpy module): OK, 1 s.
+- GitHub runs: 1st red – the crane lesson (and the PC check's app.lessons, Linux and Windows) lost its Build when its
+  lead motion's rows were added; fixed as above. 2nd: see below.
 
 **Open points / follow-up tasks:**
 - Other code that takes a Build off (a joint's own slider, `joints.set_table`, turntable, a lead slider) still drops
