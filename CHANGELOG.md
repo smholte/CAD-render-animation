@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.250 – 25 Nov 2026 – 3D page: Open page in sight, page views by tick, phone sideways (task 0336)
+## 0.2.251 – 25 Nov 2026 – 3D page: Open page in sight, page views by tick, phone sideways (task 0336)
 
 - **Open page** and the folder button now sit on the **Export…** row (Make > 3D page, and 5 Scene & Render > Web 3D
   model). After an export they are right where you clicked – in the small Make window the result used to be below the
@@ -18,12 +18,24 @@ installer of that version was built from.
 - **On a phone held sideways** the page's saved views are one ‹ name › control, as upright, and the settings menu ends
   above the views and the play bar (it scrolls) – it covered the time line, the speed and Film.
 - **Smaller file**: its tooltip and the guide no longer name the packing method.
+## 0.2.250 – 25 Nov 2026 – Unlock right where you press G (task 0338)
+
+- **G or R on a locked part** no longer sends you to 2 Structure: a small box opens next to the mouse with the
+  subassembly's name and **Unlock**. Unlock (or Return) unlocks it and the move starts at once. A click outside the
+  box, its **×** or **Esc** closes it and nothing changes. The right-click menu's **Move / turn…** on a locked part
+  opens the same box; its Unlock opens the Move / turn window.
+- **After that move** a small box in the top left of the 3D view, below the view's name, offers **Lock it again**: it
+  locks exactly what was unlocked. It stays at least 5 seconds, then any click closes it (the click still does its
+  job); **Esc** or **×** close it at once. A cancelled move gets no box.
+- Ctrl+Z: Unlock and the move are two steps, Lock it again one. The status bar still says how to unlock it.
+
 ## 0.2.249 – 25 Nov 2026 – Removing a crane or a load's model (task 0337)
 
 - **Remove… on a placed crane takes all of it.** The hoist rope, drum, sheaves, joints, poses and its entry in
   8 Lifting plan went on showing; now they go with the crane, and the Remove window says it is a lifting crane.
 - **A load with no parts left says so.** Remove the load's model and the load showed a stale centre of gravity and a
   green "within limits". Now a red line says "has no parts left" and the load is not used.
+
 ## 0.2.248 – 25 Nov 2026 – One undo step per action, messages beside their own button (task 0334)
 - Ctrl+Z now undoes one thing at a time after picking a RAL colour, loading a template (also from the library) and
   picking a 360° photo – before, one Ctrl+Z took the colour pick back together with the step before it.

@@ -347,10 +347,11 @@ fn(id="structure.tree", short="Hide parts", title="Structure: find, select, hide
    panel="FRESING_PT_structure", button="fresing.hide_selected", text="Hide", guide="structure", since="0.1.0",
    workspaces=("cnc", "offshore", "product", "education", "lifting"))
 # task 0307: G / R move and turn; what cannot move says why at once (locked in place, a built animation)
-fn(id="structure.move", short="Move / turn", title="Move and turn a model, subassembly or part with G / R; Unlock so it "
-   "can move (right-click); a line in the status bar when it cannot move", family="import",
-   panel="FRESING_PT_structure", button="fresing.toggle_lock", guide="moving-parts", pccheck=("structure.move",),
-   since="0.2.216", changed="0.2.219", workspaces=("cnc", "offshore", "product", "education", "lifting"))
+# task 0338: G / R on a locked part – the Unlock popup by the mouse, then Lock it again in the view's top left
+fn(id="structure.move", short="Move / turn", title="Move and turn a model, subassembly or part with G / R; a locked one "
+   "opens a small Unlock popup by the mouse (then Lock it again); a line in the status bar when it cannot move",
+   family="import", panel="FRESING_PT_structure", button="fresing.toggle_lock", guide="moving-parts",
+   pccheck=("structure.move", "structure.unlock_popup"), since="0.2.216", changed="0.2.250", workspaces=("cnc", "offshore", "product", "education", "lifting"))
 # task 0292: Place (numbers, steps, snap, mouse, arrows and rings, floor, back), Remove…, a lock in every tree row
 fn(id="structure.place", short="Place", title="Place a model, subassembly or part: X / Y / Z and turns, steps, snap, "
    "move and turn with the mouse, arrows and rings, Put on the floor, Back to the CAD place", family="import",
@@ -706,7 +707,7 @@ fn(id="house.toolbox", short="House alone", title="A house from House Planner by
    panel="FRESING_PT_house", button="fresing.toolbox_start", guide="house-toolbox", tour=("house_toolbox",),
    pccheck=("house.toolbox",), since="0.2.173")
 fn(id="web.export", title="Web 3D model", family="web", panel="FRESING_PT_web3d", button="fresing.web3d_export",
-   guide="web3d", tour=("web3d",), pccheck=("web3d.export", "web3d.small"), since="0.2.77", changed="0.2.250",
+   guide="web3d", tour=("web3d",), pccheck=("web3d.export", "web3d.small"), since="0.2.77", changed="0.2.251",
    manual_estimate=("use", 7200, "bake the materials, export a glTF and build a viewer page"))
 fn(id="web.surroundings", title="Web 3D model with surroundings", family="web", panel="FRESING_PT_web3d",
    prop="env_mode", guide="web3d-surroundings", tour=("web3d_env",), pccheck=("web3d.surroundings",),
@@ -726,10 +727,10 @@ fn(id="web.view_names", title="Web 3D model: View names – camera names or numb
    since="0.2.140")
 fn(id="web.page_views", title="Web 3D model: Page views – tick which cameras become saved views", family="web",
    panel="FRESING_PT_web3d", button="fresing.web3d_view", guide="web3d-page-views", tour=("web3d",),
-   pccheck=("web3d.export",), since="0.2.250")
+   pccheck=("web3d.export",), since="0.2.251")
 fn(id="web.phone", short="Web 3D, phone", title="Web 3D page on a phone: one views control, nothing overlapping, the model in the free area",
    family="web", panel="FRESING_PT_web3d", button="fresing.web3d_export", guide="web3d-phone", tour=("web3d",),
-   pccheck=("web3d.export",), since="0.2.140", changed="0.2.250")
+   pccheck=("web3d.export",), since="0.2.140", changed="0.2.251")
 fn(id="web.film", short="Web 3D Film", title="Web 3D page: Film – the motion seen through the video's camera, with captions, labels and cards",
    family="web", panel="FRESING_PT_web3d", prop="film_captions", guide="web3d-film", tour=("web3d",),
    pccheck=("web3d.film",), since="0.2.194")
