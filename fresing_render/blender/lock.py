@@ -623,13 +623,46 @@ class FRESING_OT_key_render(bpy.types.Operator):
 _KEYMAPS: list = []
 
 
+def own_changes() -> dict:
+    """Task 0295: Fresing's own keys the user gave another key (Settings > Keys), {own id: (key, modifiers)}."""
+    from ..core import keys as core_keys
+    try:
+        from . import prefs
+        p = prefs.get()
+    except Exception:  # noqa: BLE001 - while Blender starts or quits
+        p = None
+    return core_keys.read_changes(getattr(p, "key_changes", "") if p is not None else "")
+
+
+def app_keys(changes: dict | None = None) -> list:
+    """``APP_KEYS`` with the user's changes (task 0295): (keymap, space, key, modifiers, operator, its settings)."""
+    from ..core import keys as core_keys
+    changes = own_changes() if changes is None else changes
+    out = []
+    for n, sp, k, m, op, props in APP_KEYS:
+        kid = core_keys.own_id(op, k, m)
+        if kid in changes:
+            k, m = changes[kid]
+        out.append((n, sp, k, dict(m), op, props))
+    return out
+
+
 def _wanted() -> list:
-    """Every add-on key: (keymap, space, key, modifiers, operator, its settings)."""
+    """Every add-on key: (keymap, space, key, modifiers, operator, its settings). A Blender key the user gave to one of
+    Fresing's own keys (task 0295) is not swallowed: the user's key wins."""
+    from ..core import keys as core_keys
+    changes = own_changes()
+    mine = [core_keys.own_key(kid, changes) for kid in changes]
     out = [(n, sp, k, m, FRESING_OT_client_locked.bl_idname, {}) for n, sp, k, m in _KEYS]
     out += [(n, sp, k, m, FRESING_OT_blender_key.bl_idname, {"key": key_label(k, m)})
-            for n, sp, k, m, _what in BLENDER_KEYS]
-    out += list(APP_KEYS)
+            for n, sp, k, m, _what in BLENDER_KEYS
+            if not any(core_keys.same((k, m), x) for x in mine) or n in ("Outliner", "User Interface")]
+    out += app_keys(changes)
     return out
+
+
+def _sig(idname, key, mods) -> tuple:
+    return (idname, key, tuple(sorted(k for k, v in mods.items() if v)))
 
 
 def _add_keys() -> None:
@@ -639,7 +672,8 @@ def _add_keys() -> None:
         return
     wanted = _wanted()
     try:
-        if len(_KEYMAPS) == len(wanted) and all(kmi.idname == w[4] for (_km, kmi), w in zip(_KEYMAPS, wanted)):
+        if len(_KEYMAPS) == len(wanted) and all(
+                _kmi_sig(kmi) == _sig(w[4], w[2], w[3]) for (_km, kmi), w in zip(_KEYMAPS, wanted)):
             return
     except ReferenceError:                   # the keymap was replaced meanwhile: add the keys again
         pass
@@ -650,6 +684,19 @@ def _add_keys() -> None:
         for k, v in props.items():
             setattr(kmi.properties, k, v)
         _KEYMAPS.append((km, kmi))
+
+
+def _kmi_sig(kmi) -> tuple:
+    if kmi.any:
+        return (kmi.idname, kmi.type, ("any",))
+    return (kmi.idname, kmi.type, tuple(sorted(m for m in ("alt", "ctrl", "shift") if getattr(kmi, m) == 1)))
+
+
+def refresh_keys() -> None:
+    """Task 0295: add the keys again after a change in Settings > Keys (the window's keys work at once)."""
+    if not bpy.app.background:
+        _remove_keys()
+        _add_keys()
 
 
 def _remove_keys() -> None:

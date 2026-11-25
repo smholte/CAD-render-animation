@@ -142,6 +142,11 @@ class FRESING_AP_prefs(bpy.types.AddonPreferences):
         name="Settings tab", default="general", options={"HIDDEN"},
         description="The tab the Fresing Settings window opened on last time (it opens there again)")
 
+    key_changes: StringProperty(
+        name="Changed keys", default="", options={"HIDDEN"},
+        description="Fresing's own keys you gave another key in Fresing Settings > Keys (task 0295: kept in the "
+                    "settings file)")
+
     window_places: StringProperty(
         name="Window places", default="", options={"HIDDEN"},
         description="Where the app's own windows were and how big (Make, Fresing Settings, the function windows), "

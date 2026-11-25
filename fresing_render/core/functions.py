@@ -82,7 +82,7 @@ _COMMON = (
     "help.updates", "help.pc_check", "help.tour", "help.demo", "help.start_here", "help.welcome", "help.whats_new",
     "help.first_setup",
     "help.show_panel", "help.blender_editors", "help.quiet_window", "help.blender_all", "help.blender_keys",
-    "help.right_click", "usage.my_usage", "help.settings", "help.windows", "settings.locations", "settings.exports",
+    "help.right_click", "settings.keys", "usage.my_usage", "help.settings", "help.windows", "settings.locations", "settings.exports",
     "help.fr_mark", "usage.profiles", "help.backups", "help.tools", "help.about",
     "motion.lead_motions",           # task 0309: the top bar's Lead motions, one click away in every workspace
     "view.measure",                  # task 0322: the top bar's Measure (and the keys M / Alt+M), every workspace
@@ -857,6 +857,10 @@ fn(id="help.right_click", headline=True, short="Right-click menu", title="Right-
    "(zoom to it, show in the tree, hide, show only, label here, add joint here)", family="help",
    panel="VIEW3D_HT_header", button="fresing.view_menu", guide="keys-and-right-click", tour=("keys",),
    pccheck=("app.keys",), since="0.2.202")
+fn(id="settings.keys", headline=True, short="Keys", title="Keys: every key of the app in one list – moving the view, "
+   "selecting, Fresing's own, Blender's –, search, change Fresing's own keys (kept over a restart), a printable key "
+   "sheet; Fresing > Keys…", family="help", panel="TOPBAR_MT_fresing", button="fresing.keys", guide="keys",
+   tour=("keys_tab",), pccheck=("settings.keys",), since="0.2.245")          # task 0295
 
 fn(id="usage.my_usage", title="My usage: what you use, time per stage (only while you use the app), time saved (estimate)",
    family="help", panel="TOPBAR_MT_fresing", button="fresing.usage_window", guide="my-usage", tour=("usage",),

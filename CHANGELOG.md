@@ -5,6 +5,19 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.245 – 25 Nov 2026 – All keys in one list, change Fresing's own (task 0295)
+
+- **Fresing > Keys…** (also at the end of Help) opens Fresing Settings on its new tab **Keys**: every key and mouse
+  action of the app in five groups – moving the view (mouse, touchpad, number pad, Home), selecting, **Fresing's own
+  keys** (F12, Ctrl+F12, the right-click menu, Delete / X, Ctrl+C / V, M, Alt+M, G / R / S), **Blender keys that still
+  work** and, greyed, **Blender keys that do nothing outside Full access**. Each row says what the key does and where it
+  works; a search field finds a key by its words or by the key.
+- **Change one of Fresing's own keys:** click its key, press the new one. It works at once and is kept over a restart.
+  A key another Fresing key has is refused (the line under the title says which); one Blender uses is taken with a
+  warning naming what Blender does with it. The round arrow puts one key back, **Reset all** all of them.
+- **Print key sheet:** one A4 page with every key – your own marked – opens in your browser to print or save as PDF.
+- **Blender's own key settings** opens Blender's Preferences > Keymap (Blender's keys, used in Full access).
+
 ## 0.2.244 – 25 Nov 2026 – Measure in the 3D view (task 0322)
 
 - **Measure** (new, on the top bar right of Lead motions, or the key **M** over the 3D view – **Alt+M** in Full

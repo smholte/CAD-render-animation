@@ -118,6 +118,12 @@ def draw_usage(layout, context) -> None:
     ops_usage.draw_window(layout, context)
 
 
+def draw_keys(layout, context) -> None:
+    """Task 0295: every key of the app, Fresing's own changeable, the key sheet."""
+    from . import keys
+    keys.draw(layout, context)
+
+
 def draw_about(layout, context) -> None:
     from . import about
     about.draw_about(layout, width=chars(context))
@@ -129,6 +135,7 @@ TABS = (
     ("exports", "Exports", "EXPORT", draw_exports),                  # task 0272
     ("materials", "Materials", "MATERIAL", draw_materials),          # task 0273
     ("panel", "Side panel", "MENU_PANEL", draw_side_panel),
+    ("keys", "Keys", "KEYINGSET", draw_keys),                         # task 0295
     ("lessons", "Lessons", "LIGHT", draw_lessons),
     ("backups", "Backups", "FILE_BACKUP", draw_backups),
     ("updates", "Updates", "FILE_REFRESH", draw_updates),
