@@ -1624,6 +1624,12 @@ the release → Delete); the next run on `main` publishes it again.
   Its Lead motions button is found by drawing the top bar with and without it and comparing the pixels
   (``tools/ui_test_lead_motions.py``); a click on it needed a second click after a workspace switch (the first only
   focused the bar).
+- A bare `ob.update_tag()` tells Blender 5.2.3 that *everything* of the object changed, its shading too, and Blender then
+  goes over every object of the scene again: on the 11,228-part stress model a joint drag step cost 75–82 ms with it,
+  15 ms with `update_tag(refresh={"OBJECT", "DATA"})` (what Blender's own slider tags; task 0326) – whatever the
+  joint's size. Any scene update there costs ~15 ms by itself (a lone empty moved costs the same): Blender's floor for
+  that many objects. On a per-move path tag only what changed (`joints.tag_moved`); followers, mechanisms, cables and
+  hoses follow just the same.
 - The clash check's memory on a big model went into things made for every part "just in case" (task 0327, stress
   model 11,228 parts): a float64 ``Mesh`` with its orientation – which builds a BVH tree – for every unique mesh at the
   set-up (2.3 GB, 12 s), and the whole motion (P, T, 4, 4) worked out and copied several times to find the rigid bodies

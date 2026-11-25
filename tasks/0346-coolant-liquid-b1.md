@@ -1,6 +1,6 @@
 # 0346 – Coolant liquid B1: liquid on the 3-axis machine, the tray and the drain
 
-**Who:** worker · **Status:** done (26 Nov 2026, 0.2.262) · **Branch:** `task/0346-coolant-liquid-b1`
+**Who:** worker · **Status:** done (26 Nov 2026, 0.2.263) · **Branch:** `task/0346-coolant-liquid-b1`
 **Started by:** lead, 25 Nov 2026 (Machining lane: 0251 study → 0255 core A → 0257 → **B1** → B2 = 0347) ·
 **Model:** Opus · effort High · Claude Code on the web, environment "CAD-render-animation"
 **Area:** Machining lane – new `blender/liquid.py` (+ `ops_liquid.py` / `ui_liquid.py` if you need them, or additions to
@@ -128,7 +128,7 @@ real program.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** worker, Claude Code on the web, 25–26 Nov 2026 · version 0.2.262. Page for the owner:
+**Chat / date:** worker, Claude Code on the web, 25–26 Nov 2026 · version 0.2.263. Page for the owner:
 `tasks/0346_page/index.html` (before / after, 4 frames, two views, Cycles; test models only).
 
 **What changed:**
@@ -203,7 +203,7 @@ real program.
 **GitHub runs:** 2 full runs on the branch – the first (before the version raise) all green except two version
 bookkeeping checks (the new line's `since` ahead of the branch, the tour-version record), Windows install A with the
 PC check Full (`milling.liquid` with helper processes on Windows) green; the second after merging `main` (0.2.261)
-and raising to 0.2.262: RUN2. Then the report push and the fast-forward of `main`.
+and raising to 0.2.263: RUN2. Then the report push and the fast-forward of `main`.
 
 **Subagents:** one independent tester (Sonnet, worktree) wrote `tests/test_coolant_liquid_independent.py` (14 tests)
 from the brief and the code's functions. It found two real faults, both fixed by me and its tests kept as they are:

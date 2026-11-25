@@ -5381,7 +5381,7 @@ def _crane_still_scene(ctx):
     return scene
 
 
-@line("milling.liquid", "Milling: coolant collects on the machine", "0.2.262",
+@line("milling.liquid", "Milling: coolant collects on the machine", "0.2.263",
       what="The test mill cuts a pocket and an open slot with flood coolant and 'Liquid on the machine' ticked "
            "(Detail Draft): the liquid is worked out with the helper processes, fills the pocket, runs over the "
            "table into the chip tray and down the drain; the same frame twice gives the same liquid, an unchanged "

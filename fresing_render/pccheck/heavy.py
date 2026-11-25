@@ -567,7 +567,7 @@ def heavy_milling_finish(ctx):
     return f"{len(xs) * len(ys):,} points: the whole cut in {whole:.1f} s, {faces:,} faces, {per:.0f} ms per frame"
 
 
-@line("heavy.liquid", "Milling: coolant liquid of a 10-minute program", "0.2.262", (H,), expected=900,
+@line("heavy.liquid", "Milling: coolant liquid of a 10-minute program", "0.2.263", (H,), expected=900,
       what="The test mill roughs six pockets and slots with flood coolant, the program fitted to 10 minutes (14,400 "
            "frames); 'Liquid on the machine' at Detail Normal (2 mm cells on the table, 5 mm in the tray) is worked "
            "out with all helper processes",
