@@ -1,6 +1,6 @@
 # 0314 – Adjust a look: a few plain sliders per material, saved as your own; the cost of each look measured
 
-**Who:** worker · **Status:** open – waits for 0273 (and 0274) · **Branch:** `task/0314-adjust-a-look`
+**Who:** worker · **Status:** running (25 Nov) · **Branch:** `task/0314-adjust-a-look`
 **Started by:** lead, 23 Nov 2026 (owner 21:14: "Pre-made node textures? That are later editable by the user, or
 editable by a pre-made menu. How are the current textures made (procedural)? Or are there better ways, or ways better
 for performance?") · **Model:** Opus · effort Medium
