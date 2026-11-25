@@ -1,6 +1,6 @@
 # 0328 – Bug and friction hunt round 8 (findings only): 0.2.160 to the newest, used as three kinds of user
 
-**Who:** worker · **Status:** open · **Branch:** none (report on `main`, touching only `tasks/` and `TASKS.md`)
+**Who:** worker · **Status:** running · **Branch:** none (report on `main`, touching only `tasks/` and `TASKS.md`)
 **Started by:** lead, 25 Nov 2026 (owner 01:06: "Are there more tasks I can run overnight? I mostly want tasks to make
 the app more user friendly right now.") · **Model:** Opus · effort High · **Place:** Claude Code on the web, environment
 "CAD-render-animation". Findings only: no app code, no version, no test run of its own – it does not count towards the
