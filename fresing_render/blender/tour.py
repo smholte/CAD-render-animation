@@ -970,7 +970,7 @@ def _check_shapes(scene):
 
 # ----- the other test models -----
 
-@tour_set("looks", "Materials", "test_crane_a.step", added="0.2.47", changed="0.2.240")
+@tour_set("looks", "Materials", "test_crane_a.step", added="0.2.47", changed="0.2.241")
 def build_materials(b: Build):
     from . import logic
     sc, s = b.scene, b.s
@@ -1091,12 +1091,13 @@ def _round_face(ob) -> int:
     return -1
 
 
-@tour_set("welds", "Welds", "test_weldment.step", added="0.2.231")
+@tour_set("welds", "Welds", "test_weldment.step", added="0.2.231", changed="0.2.240")
 def build_welds(b: Build):
     from . import welds
     sc = b.scene
     _look("PRODUCT")
     welds.set_up_test_model(sc)
+    welds.settings(sc).symbols = True             # task 0320: the ISO 2553 symbols (view only)
     _camera(b, "ISO", "Tour view")
     _shot(b, "@welds")
 
@@ -1109,7 +1110,14 @@ def _check_welds(scene):
     beads = sum(1 for it in welds.items(scene) for o in welds.objects_of(it) if o.get("fr_kind") == welds.KIND)
     _check(beads == st["welds"], f"only {beads} of {st['welds']} welds have a bead")
     _check(2.0 < st["metres"] < 2.5, f"{st['metres']:.2f} m of bead, not about 2.2 m")
-    return f"{st['welds']} welds, {st['seams']} seams, {st['metres']:.2f} m of bead"
+    from ..core import weld_symbols as core_symbols     # task 0320: the symbols are on, in the view only
+    from . import weld_symbols
+    s = welds.settings(scene)
+    _check(s.symbols and not s.symbols_render, "the weld symbols are not on (view only)")
+    texts = [core_symbols.one_line(weld_symbols.symbol_of(it, i + 1)) for i, it in enumerate(welds.items(scene))]
+    _check(texts[0] == "a5 ◺/◸ 200 < 135", f"weld 1's symbol reads '{texts[0]}'")
+    _check(sum(t.startswith("○") for t in texts) == 3, f"{sum(t.startswith('○') for t in texts)} all-round symbols, not 3")
+    return f"{st['welds']} welds, {st['seams']} seams, {st['metres']:.2f} m of bead; symbols {', '.join(texts[:2])} …"
 
 
 def _check_decals(scene):
@@ -4885,7 +4893,7 @@ stop("material_picker", LOOK, "looks", "Material picker, project list",
      "paint RAL 5010, a diamond knurl, black rubber; a click on one gives the group that material. More materials… "
      "opens the Materials window: a picture of every material, filters Source / Material / Colour / Look on the left, "
      "the picked one large on the right with Use for <group>, Add to this project and Save as my material….",
-     where="3 Looks > a group > This project's materials, More materials…", check=_check_picker, since="0.2.240")
+     where="3 Looks > a group > This project's materials, More materials…", check=_check_picker, since="0.2.241")
 stop("faces", LOOK, "faces", "Painted faces",
      "The housing's two faces painted in CAD keep their own colours; one face of the cover is painted red by hand, "
      "the rest of the cover keeps its colour.", where="3 Looks > Paint faces", check=_check_faces, since="0.2.47")
@@ -4896,8 +4904,10 @@ stop("welds", LOOK, "welds", "Welds",
      "A small invented weldment: a blue painted fillet along the fin's foot (the paint over the ripples), a grey MAG "
      "weld with spatter under the gusset, a rusty one up its side, a stainless all-round weld with straw, purple and "
      "blue heat tint round the post, a pickled (matt, no tint) one round the branch, a bright aluminium saddle where "
-     "the branch meets the tube and a butt joint ground flush to the extension plate.",
-     where="3 Looks > Welds", check=_check_welds, since="0.2.231")
+     "the branch meets the tube and a butt joint ground flush to the extension plate. Beside each weld its ISO 2553 "
+     "symbol with its number 1–7: 'a5' and a triangle on both sides of the line for the fin, a circle at the bend for "
+     "the three all-round welds, the process number (135, 141, 131) in the tail. They show in the view only.",
+     where="3 Looks > Welds (Weld symbols, Weld list…)", check=_check_welds, since="0.2.231", changed="0.2.240")
 stop("cutaway", LOOK, "cutaway", "Slice: the pedestal opens up",
      "A slice slides in from the front and takes away the front half of the crane's pedestal and boom: the cut faces "
      "are red with hatch lines, the steel pin shows inside the fork. The other parts are not cut. Look in rendered "
