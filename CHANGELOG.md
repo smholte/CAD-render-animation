@@ -5,6 +5,12 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.251 – 25 Nov 2026 – The whole title row opens a panel (task 0335)
+
+- **Click anywhere on a section's or sub-panel's title row** – its icon, its words or the empty part on the right,
+  also the small state text such as "3 removed" – and it opens or folds, as on Blender's own panels. Before, only the
+  arrow and the words did.
+
 ## 0.2.250 – 25 Nov 2026 – Unlock right where you press G (task 0338)
 
 - **G or R on a locked part** no longer sends you to 2 Structure: a small box opens next to the mouse with the
