@@ -421,6 +421,8 @@ class FRESING_OT_place_window(bpy.types.Operator):
         return getattr(context.scene, "fresing", None) is not None and not lock.ON[0]
 
     def invoke(self, context, event):
+        if place.popup(context, "WINDOW"):           # task 0338: locked in place – the Unlock popup first
+            return {"CANCELLED"}
         return form_window.open(self, context, width=360, height=560, title="Move / turn", confirm=None)
 
     def execute(self, context):

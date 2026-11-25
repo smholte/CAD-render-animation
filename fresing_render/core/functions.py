@@ -347,10 +347,11 @@ fn(id="structure.tree", short="Hide parts", title="Structure: find, select, hide
    panel="FRESING_PT_structure", button="fresing.hide_selected", text="Hide", guide="structure", since="0.1.0",
    workspaces=("cnc", "offshore", "product", "education", "lifting"))
 # task 0307: G / R move and turn; what cannot move says why at once (locked in place, a built animation)
-fn(id="structure.move", short="Move / turn", title="Move and turn a model, subassembly or part with G / R; Unlock so it "
-   "can move (right-click); a line in the status bar when it cannot move", family="import",
-   panel="FRESING_PT_structure", button="fresing.toggle_lock", guide="moving-parts", pccheck=("structure.move",),
-   since="0.2.216", changed="0.2.219", workspaces=("cnc", "offshore", "product", "education", "lifting"))
+# task 0338: G / R on a locked part – the Unlock popup by the mouse, then Lock it again in the view's top left
+fn(id="structure.move", short="Move / turn", title="Move and turn a model, subassembly or part with G / R; a locked one "
+   "opens a small Unlock popup by the mouse (then Lock it again); a line in the status bar when it cannot move",
+   family="import", panel="FRESING_PT_structure", button="fresing.toggle_lock", guide="moving-parts",
+   pccheck=("structure.move", "structure.unlock_popup"), since="0.2.216", changed="0.2.250", workspaces=("cnc", "offshore", "product", "education", "lifting"))
 # task 0292: Place (numbers, steps, snap, mouse, arrows and rings, floor, back), Remove…, a lock in every tree row
 fn(id="structure.place", short="Place", title="Place a model, subassembly or part: X / Y / Z and turns, steps, snap, "
    "move and turn with the mouse, arrows and rings, Put on the floor, Back to the CAD place", family="import",
@@ -867,7 +868,7 @@ fn(id="help.right_click", headline=True, short="Right-click menu", title="Right-
 fn(id="settings.keys", headline=True, short="Keys", title="Keys: every key of the app in one list – moving the view, "
    "selecting, Fresing's own, Blender's –, search, change Fresing's own keys (kept over a restart), a printable key "
    "sheet; Fresing > Keys…", family="help", panel="TOPBAR_MT_fresing", button="fresing.keys", guide="keys",
-   tour=("keys_tab",), pccheck=("settings.keys",), since="0.2.250")          # task 0295
+   tour=("keys_tab",), pccheck=("settings.keys",), since="0.2.251")          # task 0295
 
 fn(id="usage.my_usage", title="My usage: what you use, time per stage (only while you use the app), time saved (estimate)",
    family="help", panel="TOPBAR_MT_fresing", button="fresing.usage_window", guide="my-usage", tour=("usage",),

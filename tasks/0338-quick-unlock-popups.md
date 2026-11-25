@@ -1,6 +1,6 @@
 # 0338 – Quick unlock popup by the mouse, "Lock it again" popup after the move
 
-**Who:** worker · **Status:** running · **Branch:** `task/0338-quick-unlock-popups`
+**Who:** worker · **Status:** done 25 Nov – 0.2.250 · **Branch:** `task/0338-quick-unlock-popups`
 **Started by:** lead, 25 Nov 2026 (owner 11:07: moving or turning a locked assembly means hunting for Unlock in
 2 Structure – "a small popup with a button to unlock it", and after the move "a small popup in the top left corner of the
 3D view to lock it again"; owner's answers 11:1x below; replaces 0328 row 29's "second G unlocks", taken out of 0335)
@@ -51,22 +51,64 @@ again.
 
 ## Done when
 
-- [ ] G / R / S / Move / turn on a locked assembly → popup by the mouse; Unlock → moves at once; click outside / × / Esc
+- [x] G / R / S / Move / turn on a locked assembly → popup by the mouse; Unlock → moves at once; click outside / × / Esc
       close it with nothing changed
-- [ ] After that move → "Lock it again" top left, not over anything, ≥ 5 s, then closed by a click anywhere; × and Esc work;
+- [x] After that move → "Lock it again" top left, not over anything, ≥ 5 s, then closed by a click anywhere; × and Esc work;
       Lock it again locks exactly what was unlocked
-- [ ] Client view and built animations behave as before
-- [ ] Tests added/updated; full suite passes; GitHub run green; real-app check
-- [ ] Report below filled in, merged, released
+- [x] Client view and built animations behave as before
+- [x] Tests added/updated; full suite passes; GitHub run green; real-app check
+- [x] Report below filled in, merged, released
 
 ---
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 25 Nov 2026 – 0.2.250
 
 **What changed:**
+- New `blender/place_popups.py`. **How it is built:** both popups are drawn by one POST_PIXEL draw handler in the 3D
+  view's window region (added only while a popup is up, removed when it closes – nothing is drawn per frame otherwise;
+  drawn only in the area it belongs to, so a second window or a second 3D view shows nothing) and their clicks are read
+  by a modal operator in that window – not Blender's popups, which close when the mouse leaves them.
+  - `fresing.unlock_popup`: opened by `fresing.move_key` (G / R) when everything selected is held by "Locked in place",
+    and by right-click > **Move / turn…** (`fresing.place_window`) on a locked part. Name, **Unlock** (tooltip as asked),
+    **×**. Unlock (or Return) unlocks every locked owner of the selection (`held_owners`, via `place.lock_owner`) and
+    starts the same move at once: Blender's translate / rotate (`release_confirm=False`), or the Move / turn window.
+    Click outside / × / Esc close it; the click outside does nothing else. While it is up it holds the keyboard; mouse
+    moves, wheel and middle button pass (the view can be turned).
+  - `fresing.lock_again`: after a **confirmed** move of what the popup unlocked (Blender's move: a timer watches
+    `Window.modal_operators` and compares the world matrices; Place / the Move / turn window: `place.apply` calls
+    `after_move`). Top left of the 3D view, right of an overlapping toolbar, below an overlapping header and below the
+    view's own text (3 lines; 12 with statistics on) – same place every time. **Lock it again** locks exactly what was
+    unlocked; × and Esc close at once; after `STAY` = 5 s any click in that window closes it and is passed on. It
+    passes every other event on. A second move of the same thing keeps one popup; another Unlock replaces it.
+  - **Undo:** Unlock = its own step ("Unlock '…'"), the move Blender's own step – two clear steps. Lock it again = one
+    step.
+- `place.py`: the status-bar text now says "click Unlock in the popup, or right-click it > Unlock so it can move …"
+  (fallback kept); `popup()` = no popup for S (parts keep their size – unlocking does not change that), a built
+  animation (its own message stays), the Client view, or a selection only partly locked (Blender moves the free part,
+  as before).
+- Guide (Moving and turning parts, 2 Structure's lock line, Place step 1), function entry `structure.move` changed
+  0.2.247 + PC-check line `structure.unlock_popup` (Full; `MIN_LINES_FULL` 156), CHANGELOG.
+- **No tour stop:** the popups are transient and modal (a tour stop's still would need the modal running at Go);
+  `structure.move` had no stop either. The real-app test covers the clicks instead.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, test crane):
+- `tests/test_place_popups.py` 12 tests (who is unlocked, cancelled move = no popup, unlocked in 2 Structure = no popup,
+  one popup for a second move, replace, Lock it again exact, 5 s, card places at scale 1 and 2, hit test, no popup for
+  S / built animation / Client view); `test_place.py`, functions, usage, guide, keys, place/remove: 130 passed.
+- Real app `tools/ui_test_move.py`: 27/27 (14 before) – G opens the popup by the mouse (no Blender move), typed keys
+  held, Esc / a click outside / × close it with the boom still selected, locked and in place; Unlock → translate runs at
+  once, X 100 Enter moves 100 mm; Lock it again shows top left below the view's text; a click after 0.6 s leaves it
+  (and still deselects), after 5 s a click closes it; a second round's Lock it again locks only BOOM.ASM; at UI scale 2
+  the popup is twice as big, inside the view, and its × works. Looked at both popups in a screenshot (not committed).
+- PC check `structure.unlock_popup` + `structure.move`: 2 OK (bpy module).
+- GitHub: run 45604032091 (branch, full) green, 31 min; the first run (45603968940) was cancelled by a fix pushed right after it; after merging main (0330 took 0.2.247) renumbered to 0.2.248, run 45608959356 green (67 min); main moved again (0334 = 0.2.248, 0337 = 0.2.249): renumbered to 0.2.250 and ran a third time.
 
 **Open points / follow-up tasks:**
+- Not checked in the real app: a second Blender window (the draw handler only draws in the popup's own area; the
+  modal handler lives in the window G was pressed in – a unit-level reason, not a measurement).
+- A move unlocked through the popup and then cancelled leaves the part unlocked without a popup (as the brief asks:
+  no popup after a cancel).
+- Place's own **Move with the mouse** button stays greyed on a locked part (its lock is beside it in the same panel).
+- No independent reviewer (no Windows-only code; the real-app test drives every click path).

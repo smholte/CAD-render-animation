@@ -43,7 +43,7 @@
   },
   "crane": {
    "added": "0.2.47",
-   "changed": "0.2.250",
+   "changed": "0.2.251",
    "fp": "7a2b6a0516a80ba0"
   },
   "crane_setup": {
