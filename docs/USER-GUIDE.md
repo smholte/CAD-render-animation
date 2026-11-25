@@ -1191,6 +1191,10 @@ your work.
    Normal, 0.2 mm at Fine; a Ø10 m ring used to have 3.7 mm at Normal), while bolts, nuts and washers that
    the app recognises by name get fewer segments (about 12 / 20 / 32 round), which you cannot see in a render
    but which makes big models lighter. Other small parts (cutters, lamps, workpieces) stay as detailed as before.
+   **Long cables and hoses** (a round section swept along a curve, recognised by shape) get their segments round
+   by their diameter (a Ø20 mm cable: about 10 / 16 / 25 at Draft / Normal / Fine) and rings along only where they
+   bend: a 30 m cable comes in with about a tenth of the triangles it used to have and looks the same, so a model
+   with many cables imports, turns in the view, renders and exports faster.
    A project imported earlier keeps its meshes until its next **Update to new revision…**: then the round parts
    come in with the new facets, and painted faces, joints and looks stay.
 2. **Up axis**: **Z up** for most files. **Y up** when the model comes in lying on its back. You can still
