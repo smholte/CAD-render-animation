@@ -18,6 +18,20 @@ installer of that version was built from.
   now a short grey hint. The Lead motions menu no longer draws greyed buttons in the Client view. The "animation is built" box
   in 4 Motion sits at the bottom, so the buttons above it stay where they are.
 
+## 0.2.258 – 25 Nov 2026 – A quieter window, a Client view that really locks (task 0332)
+
+- **Back to the Fresing window** always brings the app's layout back: if you had picked one of Blender's own tabs
+  (Animation, Shading …) in Full access, the window now returns to the app's layout instead of staying in Blender's.
+- **Client view:** **F2** (rename), **Ctrl+F2** (Batch Rename) and **Ctrl+,** (Blender's Preferences) now do nothing and
+  say the project is locked. Outside Full access the **Edit** menu has no Rename, Batch Rename or Preferences any more –
+  it has **Fresing Settings…** instead.
+- **After a render** (Render image or **F12**) the picture's window says **Saved: <file name>** with **Open**,
+  **Show in folder** and **Close**, instead of Blender's slots, view layer and passes; Blender's *Frame / Time / Mem*
+  line over the finished picture is gone.
+- **Side panel:** outside Full access only the **Fresing** tab shows – Blender's Tool, View and Animation tabs are hidden.
+- **No "Adjust Last Operation" box** at the bottom left of the 3D view outside Full access (it appeared after picking a
+  workspace or Build & play and only offered the same choice again).
+
 ## 0.2.257 – 25 Nov 2026 – The first-start set-up stays open; windows open in a good place (task 0331)
 
 - **Set up Fresing Render** on a new PC now stays open until you press **Next** to the end, **Skip set-up** or

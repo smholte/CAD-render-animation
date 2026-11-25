@@ -1,6 +1,6 @@
 # 0326 – Faster joint drag with many parts
 
-**Who:** worker · **Status:** open · **Branch:** `task/0326-faster-joint-drag`
+**Who:** worker · **Status:** running · **Branch:** `task/0326-faster-joint-drag`
 **Started by:** lead, 25 Nov 2026 (0315's slow place 3, the owner's Stress run on his PC) · **Model:** Opus · effort High
 **Area:** Motion lane – `blender/joints.py`, `blender/handlers.py` (what runs after a joint moves), and the per-move
 hooks they call (hover, cables that follow, live clash, lead motions' "moved by") only where the profile points; their tests,

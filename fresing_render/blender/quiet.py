@@ -13,7 +13,17 @@ model and the app's own buttons:
 * **the top bar's right part**: no Scene and View Layer selectors;
 * **the splash**: below the welcome / What's new box (``welcome.py``) Fresing's lines only – New project, Open…,
   Recover Last Session, the recent files, Take the test tour, Demo project, User guide;
-* **File > New** (and Ctrl+N, which opens the same menu): only New project = what a fresh app start gives.
+* **File > New** (and Ctrl+N, which opens the same menu): only New project = what a fresh app start gives;
+* **Edit** (task 0332, 0328 row 7): Undo, Redo, Undo History, Menu Search and Fresing Settings – no Rename Active Item,
+  Batch Rename, Lock Object Modes or Blender's Preferences (F2 / Ctrl+F2 / Ctrl+, are swallowed in lock.py); the F4
+  file menu likewise without Preferences, Link, Append, Import and Export;
+* **the picture after a render** (task 0332, row 13): the image editor's header of a Render Result says what was saved
+  in the app's words – Open, Show in folder, Close – instead of slots, view layer and passes; Blender's text over the
+  finished picture ("Frame:1 | Time … | Mem …") is switched off (it shows while the render runs);
+* **the redo panel** ("Adjust Last Operation", bottom left of the 3D view) off in every 3D view (task 0332, row 28);
+* **back to the app's layout** (task 0332, row 5): a Blender workspace tab picked in Full access (Animation, Shading …)
+  is left again when the window turns quiet – the main window goes back to the Blender workspace it had when Full
+  access began (else "Layout", the app's own), so Back to the Fresing window never strands the user without tabs.
 
 Everything switches with ``lock.blender_ui`` (the one switch of Blender's own tabs, task 0062): Full access, or
 Fresing > Show all of Blender, brings it all back at once.
@@ -35,11 +45,15 @@ import bpy
 from .panels import side_window
 
 ON = [False]                  # the quiet window is drawn
+_SEEN_LOUD = [False]          # task 0332: Blender's own drawing was on since the start (Full access was used)
 KEEP = "fr_ws_before_all"     # per scene: the workspace Show all of Blender came from (JSON of the three fields)
-DRAWN = {"header": 0, "header_blender": 0, "splash": 0, "file_new": 0}   # draws counted (tests, the PC check)
+DRAWN = {"header": 0, "header_blender": 0, "splash": 0, "file_new": 0, "edit": 0, "file_context": 0, "image": 0}   # draws counted (tests, the PC check)
 LOCKED_TEXT = "Not in the Client view – Workspace > Full access unlocks it"
 SHOW_TEXT = "Show all of Blender"
 BACK_TEXT = "Back to the Fresing window"
+APP_LAYOUT = "Layout"         # the Blender workspace that holds the app's layout (a fresh start's, the app template's)
+EDIT_KEEPS = ("ed.undo", "ed.redo", "TOPBAR_MT_undo_history", "wm.search_menu", "fresing.settings")
+EDIT_DROPS = ("wm.call_panel", "wm.batch_rename", "lock_object_mode", "screen.userpref_show")
 
 # what the quiet 3D view header keeps (tests, the PC check)
 HEADER_KEEPS = ("editor type", "View menu", "gizmos", "overlays", "X-ray", "shading")
@@ -193,6 +207,102 @@ def _file_new(self, context):
     new_project(layout)
 
 
+def _edit(self, context):
+    """Edit (task 0332): undo, redo, search and the app's own settings – nothing that renames or opens Blender's
+    Preferences (an extension can be switched off there; Fresing Settings holds the app's settings)."""
+    DRAWN["edit"] += 1
+    layout = self.layout
+    layout.operator("ed.undo", icon="LOOP_BACK")
+    layout.operator("ed.redo", icon="LOOP_FORWARDS")
+    layout.menu("TOPBAR_MT_undo_history")
+    layout.separator()
+    layout.operator("wm.search_menu", text="Menu Search...", icon="VIEWZOOM")
+    if _has("fresing.settings"):
+        layout.separator()
+        layout.operator("fresing.settings", text="Fresing Settings...", icon="PREFERENCES")
+
+
+def _file_context(self, context):
+    """F4's file menu (task 0332): New, Open, Open Recent – no Preferences, Link, Append, Import or Export."""
+    DRAWN["file_context"] += 1
+    layout = self.layout
+    layout.operator_context = "INVOKE_AREA"
+    layout.menu("TOPBAR_MT_file_new", text="New", icon="FILE_NEW")
+    layout.operator("wm.open_mainfile", text="Open...", icon="FILE_FOLDER")
+    layout.menu("TOPBAR_MT_file_open_recent")
+
+
+def render_words(scene) -> tuple:
+    """What the header of the finished picture says (task 0332): (text, icon, the saved file or '')."""
+    import os
+    if bpy.app.is_job_running("RENDER"):
+        return "Rendering – the picture is saved when it is done", "RENDER_STILL", ""
+    s = getattr(scene, "fresing", None) if scene is not None else None
+    path = getattr(s, "last_render", "") if s is not None else ""
+    if path and os.path.exists(path):
+        return "Saved: " + os.path.basename(path), "CHECKMARK", path
+    return "The rendered picture", "IMAGE", ""
+
+
+def render_areas():
+    """Image editors (any window) that show a render."""
+    wm = bpy.context.window_manager
+    for win in (wm.windows if wm is not None else ()):
+        for area in (win.screen.areas if win.screen is not None else ()):
+            if area.type == "IMAGE_EDITOR":
+                ima = getattr(area.spaces.active, "image", None)
+                if ima is not None and ima.type == "RENDER_RESULT":
+                    yield win, area
+
+
+def render_info(show: bool) -> None:
+    """Blender's text over a finished render ("Frame:1 | Time … | Mem …") on or off (task 0332: off while quiet; the
+    header says what was saved). Set with the area in the context."""
+    for win, area in list(render_areas()):
+        ov = area.spaces.active.overlay
+        if ov.show_text_info != show:
+            region = next((r for r in area.regions if r.type == "WINDOW"), None)
+            with bpy.context.temp_override(window=win, screen=win.screen, area=area, region=region):
+                ov.show_text_info = show
+
+
+def _render_info_tick():
+    try:
+        if ON[0] and not bpy.app.is_job_running("RENDER"):
+            render_info(False)
+    except Exception as exc:  # noqa: BLE001 - cosmetic
+        print("Fresing Render: render text not hidden:", exc)
+    return None
+
+
+def _image_header(self, context):
+    """The header of Blender's image editor showing a render (task 0332, 0328 row 13): the View menu (zoom, fit) and
+    the app's words – what was saved, Open, Show in folder, Close. Any other image, or another mode: Blender's own."""
+    sima = context.space_data
+    ima = getattr(sima, "image", None)
+    if ima is None or ima.type != "RENDER_RESULT" or getattr(sima, "mode", "VIEW") != "VIEW":
+        orig = blender_draw(bpy.types.IMAGE_HT_header)
+        if orig is not None:
+            return orig(self, context)
+        return None
+    DRAWN["image"] += 1
+    if (getattr(sima, "overlay", None) is not None and sima.overlay.show_text_info
+            and not bpy.app.is_job_running("RENDER") and not bpy.app.timers.is_registered(_render_info_tick)):
+        bpy.app.timers.register(_render_info_tick, first_interval=0.0)    # nothing is set while drawing
+    layout = self.layout
+    layout.menu("IMAGE_MT_view", text="View")
+    layout.operator("image.view_all", text="Fit", icon="FULLSCREEN_EXIT").fit_view = True
+    layout.separator_spacer()
+    text, icon, path = render_words(context.scene)
+    layout.label(text=text, icon=icon)
+    if path:
+        row = layout.row(align=True)
+        row.operator("fresing.open_file", text="Open", icon="IMAGE").path = path
+        row.operator("fresing.show_in_folder", text="Show in folder", icon="FILE_FOLDER").path = path
+    layout.separator_spacer()
+    layout.operator("render.view_cancel", text="Close", icon="X")
+
+
 def _has(idname: str) -> bool:
     from . import ui_topbar
     return ui_topbar._has(idname)
@@ -250,6 +360,9 @@ def _classes():
     t = bpy.types
     return ((getattr(t, "VIEW3D_HT_header", None), _header), (getattr(t, "WM_MT_splash", None), _splash),
             (getattr(t, "TOPBAR_MT_file_new", None), _file_new),
+            (getattr(t, "TOPBAR_MT_edit", None), _edit),                     # task 0332: rows 7 and 13
+            (getattr(t, "TOPBAR_MT_file_context_menu", None), _file_context),
+            (getattr(t, "IMAGE_HT_header", None), _image_header),
             (getattr(t, "VIEW3D_PT_tools_active", None), _no_tools))      # task 0260: the left panel without Blender's tools
 
 
@@ -274,33 +387,86 @@ def _views(include_setup: bool = False):
                 yield area
 
 
-_TOOL = {"show": None, "tries": 0}
+_TOOL = {"show": None, "tries": 0, "hud": None, "workspace": ""}
+LOUD_WS = [""]                # task 0332: the main window's Blender workspace when Full access began ("" = not known)
+
+
+def main_windows():
+    wm = bpy.context.window_manager
+    return [w for w in (wm.windows if wm is not None else ()) if w.screen is not None and not side_window(w)]
+
+
+def back_workspace() -> str:
+    """The Blender workspace the main window goes back to when it turns quiet (task 0332): the one it had when Full
+    access began, else the app's own ("Layout"); '' when neither is in the file."""
+    for name in (LOUD_WS[0], APP_LAYOUT):
+        if name and bpy.data.workspaces.get(name) is not None:
+            return name
+    return ""
+
+
+def _go_back_workspace() -> bool:
+    """Put every main window on ``_TOOL["workspace"]``. True when a window was switched (its screen changes at the
+    next event: the views are set at the tick after)."""
+    name = _TOOL["workspace"]
+    _TOOL["workspace"] = ""
+    ws = bpy.data.workspaces.get(name) if name else None
+    if ws is None:
+        return False
+    moved = False
+    for win in main_windows():
+        if win.workspace != ws:
+            win.workspace = ws
+            moved = True
+    return moved
+
+
+def _set_hud(area, show: bool) -> None:
+    """The redo panel of one 3D view on or off. Its update needs the area in the context: set from a timer without it,
+    switching it back ON crashed Blender 5.2.3 (segfault, also in a plain Blender – task 0332)."""
+    win = next((w for w in bpy.context.window_manager.windows
+                if w.screen is not None and any(a == area for a in w.screen.areas)), None)
+    region = next((r for r in area.regions if r.type == "WINDOW"), None)
+    if win is None or region is None:
+        return
+    with bpy.context.temp_override(window=win, screen=win.screen, area=area, region=region):
+        area.spaces.active.show_region_hud = show
 
 
 def _tool_header_tick():
-    """Set the tool header row once Blender's column is closed and the view was drawn (task 0221's lesson)."""
+    """Set the tool header row and the redo panel once Blender's column is closed and the view was drawn (task 0221's
+    lesson); first, a main window left on another Blender workspace goes back to the app's (task 0332)."""
     from . import editors
     _TOOL["tries"] += 1
     if (not editors.settled() or editors.busy()) and _TOOL["tries"] < 100:
         return 0.1
-    show = _TOOL["show"]
-    if show is None:
-        return None
+    try:
+        if _TOOL["workspace"] and _go_back_workspace():
+            _TOOL["tries"] = 0
+            return 0.1                       # the new screen is set at the next event: its views at the next tick
+    except Exception as exc:  # noqa: BLE001 - never break the switch over the layout
+        print("Fresing Render: workspace not put back:", exc)
+    show, hud = _TOOL["show"], _TOOL["hud"]
     try:
         for area in _views():
             sp = area.spaces.active
-            if sp.show_region_tool_header != show:
+            if show is not None and sp.show_region_tool_header != show:
                 sp.show_region_tool_header = show
+            if hud is not None and sp.show_region_hud != hud:
+                _set_hud(area, hud)
     except Exception as exc:  # noqa: BLE001 - never break the switch over the layout
         print("Fresing Render: tool header row not set:", exc)
     return None
 
 
-def tool_header(show: bool) -> None:
-    """Show or hide the tool header row of every 3D view (not the Set-up window), from a timer."""
+def tool_header(show: bool | None, hud: bool | None = None, workspace: str = "") -> None:
+    """Show or hide the tool header row (``show``) and the redo panel (``hud``) of every 3D view (not the Set-up
+    window) – None leaves it – and put the main window back on ``workspace`` first; from a timer."""
     if bpy.app.background:
         return
-    _TOOL["show"], _TOOL["tries"] = bool(show), 0
+    _TOOL["show"], _TOOL["hud"], _TOOL["tries"] = (None if show is None else bool(show)), hud, 0
+    if workspace:
+        _TOOL["workspace"] = workspace
     if not bpy.app.timers.is_registered(_tool_header_tick):
         bpy.app.timers.register(_tool_header_tick, first_interval=0.05)
 
@@ -325,11 +491,27 @@ def apply(quiet: bool, toolbar: bool = False) -> bool:
             _patch(upper, "draw_right", _draw_right)
         else:
             _unpatch(upper, "draw_right")
+    back = ""
+    if changed and not quiet:                # task 0332: Full access begins – remember the app's Blender workspace
+        wins = main_windows()
+        LOUD_WS[0] = wins[0].workspace.name if wins and wins[0].workspace is not None else ""
+    elif changed and quiet and ON[0] is False and _SEEN_LOUD[0]:
+        back = back_workspace()
+        wins = main_windows()
+        if back and all(w.workspace is not None and w.workspace.name == back for w in wins):
+            back = ""
+    if not quiet:
+        _SEEN_LOUD[0] = True
     ON[0] = quiet
+    if not quiet and changed:
+        try:
+            render_info(True)                # Blender's text over a render back in Full access
+        except Exception:  # noqa: BLE001
+            pass
     if quiet:
-        tool_header(False)
-    elif toolbar:
-        tool_header(True)
+        tool_header(False, hud=False, workspace=back)
+    else:
+        tool_header(True if toolbar else None, hud=True)
     if changed:
         from . import lock
         lock._topbar_redraw()
@@ -368,6 +550,8 @@ def unregister() -> None:
     _PATCHED.clear()
     _SWAPPED.clear()
     ON[0] = False
+    _SEEN_LOUD[0] = False
+    LOUD_WS[0] = ""
 
 
 # ---------------------------------------------------------------------------

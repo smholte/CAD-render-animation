@@ -40,7 +40,7 @@ class FRESING_OT_workspace_pick(bpy.types.Operator):
     bl_idname = "fresing.workspace_pick"
     bl_label = "Workspace"
     bl_property = "name"
-    bl_options = {"REGISTER", "UNDO"}
+    bl_options = {"UNDO"}         # task 0332 (0328 row 28): no redo panel offering the choice again
 
     name: EnumProperty(name="Workspace", items=_workspace_items,
                        description="The workspace this project uses from now on")
@@ -159,7 +159,7 @@ class FRESING_OT_family_toggle(bpy.types.Operator):
 
     bl_idname = "fresing.family_toggle"
     bl_label = "Show or hide a function family"
-    bl_options = {"REGISTER", "UNDO"}
+    bl_options = {"UNDO"}         # task 0332 (0328 row 28): no redo panel offering the choice again
 
     family: StringProperty(options={"SKIP_SAVE"})
     warning: StringProperty(options={"SKIP_SAVE", "HIDDEN"})
@@ -205,7 +205,7 @@ class FRESING_OT_workspace_show_used(bpy.types.Operator):
 
     bl_idname = "fresing.workspace_show_used"
     bl_label = "Show what the project uses"
-    bl_options = {"REGISTER", "UNDO"}
+    bl_options = {"UNDO"}         # task 0332 (0328 row 28): no redo panel offering the choice again
 
     def execute(self, context):
         shown = workspaces.show_used(context.scene)
@@ -221,7 +221,7 @@ class FRESING_OT_workspace_all(bpy.types.Operator):
 
     bl_idname = "fresing.workspace_all"
     bl_label = "Show everything"
-    bl_options = {"REGISTER", "UNDO"}
+    bl_options = {"UNDO"}         # task 0332 (0328 row 28): no redo panel offering the choice again
 
     def execute(self, context):
         workspaces.switch(context.scene, W.DEFAULT)

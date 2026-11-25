@@ -2,7 +2,10 @@
 X-ray, shading and the app's Make / Fresing buttons, no tool header row, no Scene / View Layer selectors in the top bar,
 the splash shows Fresing's lines, File > New and Ctrl+N give only New project (mm, Cycles, the app's layout). Fresing >
 Show all of Blender / Back to the Fresing window and Workspace > Full access bring everything back and away again,
-repeatedly, with the previous workspace restored; greyed in the Client view; Edit Mode keeps Blender's header; a dummy
+repeatedly, with the previous workspace restored; greyed in the Client view; Edit Mode keeps Blender's header; task
+0332: no redo panel and no Blender side-panel tabs while quiet, Back from Blender's Animation tab returns to the app's
+layout, F2 / Ctrl+F2 / Ctrl+, refused in the Client view, the quiet Edit menu, F12's picture fitted with the app's
+header words; a dummy
 add-on's appended items are drawn throughout; patch / unpatch / patch is clean; projects of every kind open quiet. The
 header width freed is measured from screenshots (px).
 
@@ -122,6 +125,10 @@ def tool_headers():
     return [a.spaces.active.show_region_tool_header for a in win0().screen.areas if a.type == "VIEW_3D"]
 
 
+def huds():
+    return [a.spaces.active.show_region_hud for a in win0().screen.areas if a.type == "VIEW_3D"]
+
+
 def header_empty_px(path):
     """Columns of the main 3D view's header that hold nothing (header colour from top to bottom)."""
     import numpy as np
@@ -155,13 +162,19 @@ def show_all():
 
 def quiet_ok(tag, quiet=True):
     q, lock = mod("blender.quiet"), mod("blender.lock")
+    with override():
+        side_tabs = bpy.types.VIEW3D_PT_view3d_properties.poll(bpy.context)   # task 0332: Blender's tab "View"
     if quiet:
         check(tag + ": quiet window on, Blender's tabs hidden", q.ON[0] and lock.tabs_hidden())
         check(tag + ": no tool header row", not any(tool_headers()), str(tool_headers()))
         check(tag + ": top bar without Scene / View Layer", bpy.types.TOPBAR_HT_upper_bar.draw_right is q._draw_right)
+        check(tag + ": no redo panel (task 0332)", not any(huds()), str(huds()))
+        check(tag + ": Blender's side-panel tabs hidden (task 0332)", side_tabs is False)
     else:
         check(tag + ": Blender's own drawing, tabs shown", not q.ON[0] and not lock.tabs_hidden())
         check(tag + ": top bar with Scene / View Layer", bpy.types.TOPBAR_HT_upper_bar.draw_right is not q._draw_right)
+        check(tag + ": the redo panel back (task 0332)", all(huds()), str(huds()))
+        check(tag + ": Blender's side-panel tabs back (task 0332)", side_tabs is True)
 
 
 def lists_ok(tag):
@@ -397,6 +410,173 @@ def s_back_default():
     q.apply(True)                                              # a patch / unpatch / patch round
     lists_ok("patch / unpatch / patch")
     check("... draw lists in the same order", lists_ok("order 2") == STATE["order"])
+    return 0.5
+
+
+# --- task 0332 (0328 F3) --------------------------------------------------------------------------------------------
+
+@step
+def s_tab_full():
+    show_all()                                                 # Full access, from the default workspace
+    return 1.0
+
+
+@step
+def s_tab_pick():
+    STATE["ws_before"] = win0().workspace.name
+    win0().workspace = bpy.data.workspaces["Animation"]        # a Blender workspace tab picked in Full access
+    return 1.5
+
+
+@step
+def s_tab_picked():
+    check("row 5: Full access, Blender's tab Animation picked", win0().workspace.name == "Animation",
+          win0().workspace.name)
+    show_all()                                                 # Fresing > Back to the Fresing window
+    return 2.0
+
+
+@step
+def s_tab_back():
+    check("row 5: Back to the Fresing window puts the window back on the app's layout",
+          win0().workspace.name == STATE["ws_before"], f"{win0().workspace.name} (was {STATE['ws_before']})")
+    quiet_ok("row 5: back from Blender's Animation tab")
+    _w, area, _r = view()
+    sp = area.spaces.active
+    check("row 5: ... the side panel and the left panel shown", sp.show_region_ui and sp.show_region_toolbar)
+    shot("0332_back_layout")
+    workspace("Client view")
+    return 1.0
+
+
+def key(k, **mods):
+    win, area, _r = view()
+    x, y = area.x + area.width // 3, area.y + area.height // 2
+    win.event_simulate(type="MOUSEMOVE", value="NOTHING", x=x, y=y)
+    win.event_simulate(type=k, value="PRESS", x=x, y=y, **mods)
+    win.event_simulate(type=k, value="RELEASE", x=x, y=y, **mods)
+
+
+@step
+def s_client_keys():
+    lock = mod("blender.lock")
+    STATE["sw"], STATE["wins"] = lock.SWALLOWED[0], len(bpy.context.window_manager.windows)
+    STATE["names"] = sorted(o.name for o in bpy.context.scene.objects)
+    key("F2")
+    key("F2", ctrl=True)
+    key("COMMA", ctrl=True)
+    return 1.0
+
+
+@step
+def s_client_keys_ok():
+    lock = mod("blender.lock")
+    check("row 7: Client view – F2, Ctrl+F2, Ctrl+, refused with the lock's message",
+          lock.SWALLOWED[0] - STATE["sw"] == 3, f"{lock.SWALLOWED[0] - STATE['sw']} of 3")
+    check("row 7: ... no Preferences window opened", len(bpy.context.window_manager.windows) == STATE["wins"],
+          str(len(bpy.context.window_manager.windows)))
+    check("row 7: ... no object renamed", sorted(o.name for o in bpy.context.scene.objects) == STATE["names"])
+    check("row 7: the lock stays on", lock.ON[0])
+    STATE["edit"] = mod("blender.quiet").DRAWN["edit"]
+    with override():
+        bpy.ops.wm.call_menu(name="TOPBAR_MT_edit")
+    return 0.8
+
+
+@step
+def s_edit_menu():
+    q = mod("blender.quiet")
+    check("row 7: the Edit menu is the quiet one (no Rename, Batch Rename, Preferences)",
+          q.DRAWN["edit"] > STATE["edit"], str(q.DRAWN))
+    shot("0332_edit_menu")
+    key("ESC")
+    workspace("All functions")
+    return 1.0
+
+
+@step
+def s_render_f12():
+    sc = bpy.context.scene
+    if sc.camera is None:
+        cam = bpy.data.objects.new("Camera", bpy.data.cameras.new("Camera"))
+        sc.collection.objects.link(cam)
+        sc.camera = cam
+    if not any(o.type == "MESH" for o in sc.objects):
+        with override():
+            bpy.ops.mesh.primitive_cube_add()
+    sc.camera.location = (8.0, -8.0, 6.0)
+    sc.camera.rotation_euler = (1.1, 0.0, 0.785)
+    sc.fresing.quality = "draft"
+    STATE["windows"] = len(bpy.context.window_manager.windows)
+    key("F12")                                                 # the app's Render image (lock.APP_KEYS)
+    STATE["tries"] = 0
+    return 3.0
+
+
+@step
+def s_render_wait():
+    STATE["tries"] += 1
+    if (bpy.app.is_job_running("RENDER") or not mod("blender.quiet").render_words(bpy.context.scene)[2]) \
+            and STATE["tries"] < 90:
+        _i[0] -= 1                                             # this step again
+        return 1.0
+    return 1.5
+
+
+def image_area():
+    for win in bpy.context.window_manager.windows:
+        for area in win.screen.areas:
+            if area.type == "IMAGE_EDITOR":
+                return win, area
+    return None, None
+
+
+@step
+def s_render_done():
+    q = mod("blender.quiet")
+    words = q.render_words(bpy.context.scene)
+    check("row 13: F12 rendered and saved the picture", bool(words[2]), str(words))
+    win, area = image_area()
+    check("row 13: the picture shows in an image editor", area is not None)
+    if area is None:
+        return 0.5
+    area.tag_redraw()
+    sima = area.spaces.active
+    region = next(r for r in area.regions if r.type == "WINDOW")
+    rx, ry = (bpy.context.scene.render.resolution_x * bpy.context.scene.render.resolution_percentage // 100,
+              bpy.context.scene.render.resolution_y * bpy.context.scene.render.resolution_percentage // 100)
+    zx, zy = sima.zoom
+    check("row 13: the whole picture fitted (0334's fit, reached by F12)",
+          rx * zx <= region.width + 2 and ry * zy <= region.height + 2 and (rx * zx >= region.width * 0.5
+                                                                            or ry * zy >= region.height * 0.5),
+          f"{rx}x{ry} at {zx:.3f} in {region.width}x{region.height}")
+    STATE["imgwin"] = win
+    STATE["image"] = q.DRAWN["image"]
+    return 1.0
+
+
+@step
+def s_render_header():
+    q = mod("blender.quiet")
+    check("row 13: the image editor's header is the app's (Saved, Open, Show in folder, Close)",
+          q.DRAWN["image"] > 0, str(q.DRAWN))
+    infos = [a.spaces.active.overlay.show_text_info for _w, a in q.render_areas()]
+    check("row 13: Blender's Frame / Time / Mem text over the picture is off", infos and not any(infos), str(infos))
+    shot("0332_render_window")
+    win, area = image_area()
+    if area is not None:
+        region = next(r for r in area.regions if r.type == "WINDOW")
+        with bpy.context.temp_override(window=win, area=area, region=region):
+            bpy.ops.render.view_cancel()                       # the header's Close
+    return 1.0
+
+
+@step
+def s_render_closed():
+    _w, area = image_area()
+    check("row 13: Close closes the picture's window", area is None
+          or len(bpy.context.window_manager.windows) == STATE["windows"],
+          str(len(bpy.context.window_manager.windows)))
     return 0.5
 
 

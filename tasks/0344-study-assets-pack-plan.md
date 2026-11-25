@@ -33,16 +33,31 @@ his choices (ownership).
 Ground rules from 0343 (check them, don't re-research): the code stays GPL-3.0-or-later; the pack is its own folder with
 its own licence, never inside code files; **the app must run without the pack** (GPL condition and safety); no lock, no
 online check (the app is fully offline); today's code looks are GPL for ever in 232 versions – they stay as the free
-fallback; the pack's working files live in a private repository (owner's GitHub Free minutes: tiny Linux-only CI
-there).
+fallback.
+
+**Changed while running (owner 25 Nov 21:35 – test minutes):** **no tests in the private repository** (the owner's
+GitHub Free minutes are shared and limited; public repositories run tests for free). Only the **working files** stay
+private (source `.blend` scenes, full-size textures, the owner's raw photos, sets not yet approved, the per-set records of
+his choices) – that repository has **no CI**. The **finished pack** is public: a download attached to a GitHub release
+(not Git LFS – LFS downloads, also by CI and forks, count against the owner's 10 GB a month), under the **Fresing Assets
+Licence** with the licence file inside the pack. **All pack tests run in the public repository** – with and without
+the pack – against that release download, cached between runs. Compare this with a private-CI plan in one short table
+and recommend one.
+
+**Added while running (owner 25 Nov 21:41 – outputs):** for the Web 3D export and every other output that carries files
+(a project sent to a client), plan (1) a sentence in the licence draft: **assets inside an output may only be used as
+part of that output**; (2) the export **never carries the pack's full-size HDRIs or 360° photos** – a reduced background
+and textures baked at the page's own size (e.g. 1–2K, with the light) – with the size and look cost measured. The 3D
+page's player code stays dual GPL / MIT; the page itself is the user's output (0343 draft, point 4).
 
 ## Questions to answer
 
 1. **Pack format and place:** folder and zip layout, `pack.json` (id, version, the app versions it fits, asset list
    with stable ids, licence), where the installer puts it (beside the extension, not inside it), how the in-app update
    updates it apart from the app, how a company's approved-version folder and `.frsetup` (0272) carry it, uninstall,
-   a broken or missing pack (the settings-file pattern of 0283: ignore, one line, never a crash). Where the public
-   download of the built pack lives (the source `.blend` files stay private).
+   a broken or missing pack (the settings-file pattern of 0283: ignore, one line, never a crash). The public
+   download of the finished pack as a release asset (size, how a pack version maps to a release, how the installer and
+   CI fetch it); the working files stay private.
 2. **One asset registry** every system asks ("material `steel.painted`", "HDRI `studio.soft`", "environment
    `quay.small`") → pack item if present, else the built-in code item with the same id; ids never change. Test in
    Blender 5.2.3: **append vs link** of pack materials / node groups / collections into a project – a saved project
@@ -56,14 +71,15 @@ there).
    (baking pack textures; the page is the user's output), Fresing Viewer (MIT – exports only), PC check + Stress
    (lines with and without the pack; VRAM and render time with real textures), backups, Client view, workspaces,
    Settings ("Use Fresing assets" switch?), first-start set-up (the usage question), About + export window (licence
-   lines, nudge), installer + update + uninstall, CI (public CI without the pack + a tiny public **test pack** made by
-   a tool; private pack CI), the user guide + function list.
+   lines, nudge), installer + update + uninstall, CI (all in the public repository: without the pack, with a tiny
+   **test pack** made by a tool, and with the real pack from its release download, cached; **no private CI**), the
+   user guide + function list.
 4. **Old projects:** nothing changes in a project until the user chooses (like 0340); an "Use the new Fresing looks"
    action with before / after; models already imported keep their materials.
 5. **Speed and size budget:** texture sizes per quality (Draft / Normal / Final), pack size in the installer, memory on
    the stress model (11,228 parts) and the demo; nothing slower than today without the user choosing it.
 6. **Making the assets:** a pipeline per kind (node materials, textures – procedural and from the owner's photos, HDRIs
-   from the Insta360, environments, models) built by workers in the private repository; the **owner's pick page per
+   from the Insta360, environments, models) built by workers in the private repository (no CI there); the **owner's pick page per
    set** with before / after pictures, his choices recorded (`OWNERSHIP.md` per set); quality bar = clearly better
    than today's code looks.
 7. **Order of tasks** (lanes, sizes, model · effort, what waits for what) so the app is never broken in between: first
