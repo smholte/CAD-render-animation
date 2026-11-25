@@ -1,6 +1,6 @@
 # 0323 – Welds from the CAD file: solid weld beads in a STEP are recognised, split per weld, sized, and get the app's weld looks
 
-**Who:** worker · **Status:** done (0.2.246) ·
+**Who:** worker · **Status:** done (0.2.251) ·
 **Branch:** `task/0323-welds-from-cad`
 **Started by:** lead, 24 Nov 2026 (owner 12:47: "Could we also recognize welds from the imported cad model? Like the
 welds placed in inventor or other cad programs." – and: "Could the app recognize the size and material automatically?
@@ -128,7 +128,7 @@ file carries any, say what is there – a later task), 2D drawings.
   any name with weld / welds / weld bead / Schweißnaht / Lasnaad … and finds unnamed beads by shape anyway.
 
 **Tested and measured** (4-core web machine):
-- Tests: `test_weld_cad_core.py` 53, `test_weld_cad_independent.py` 70 (independent tester), `test_weld_cad.py` 15
+- Tests: `test_weld_cad_core.py` 65, `test_weld_cad_independent.py` 70 (independent tester), `test_weld_cad.py` 16
   (Blender), the 0319 / 0320 weld tests unchanged (237 passed), real-app welds 23/23, tour set welds built + its 3 stops'
   checks, precheck. All three exports give the same 6 welds within 0.5 mm; look-alikes never taken, also when every
   part goes through the full shape check.
@@ -147,7 +147,9 @@ file carries any, say what is there – a later task), 2D drawings.
   look first, contact checks only near the bead, and at an import the search by shape stops after 10 s (said; Find in
   CAD file has no limit). Thor's candidates: 108 → 8, the finder ~20 s (stopped at 10 s at an import).
 - GitHub runs: 1st (full) – real-app way covers failed (the flange above), one pytest group stopped at 40 min (Thor in
-  `test_site_projects.py`; every group ran 1.5–2 x slower than usual that hour). 2nd: see the merge commit.
+  `test_site_projects.py`; every group ran 1.5–2 x slower than usual that hour). 2nd–4th: green (two more only
+  because 0337 and 0338 took the version numbers meanwhile: 0.2.246 → 0.2.249 → 0.2.250 → 0.2.251). `main`
+  fast-forwarded to the green commit a065d156 (release run: see the commit after it).
 
 **Owner's test steps** (on your PC, after the update):
 1. Inventor: open your small weldment (2 plates, 1 solid fillet weld, 1 cosmetic weld), **File > Export > CAD
