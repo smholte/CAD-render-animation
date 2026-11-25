@@ -3,8 +3,9 @@
   Removes Fresing Render (its Blender, settings and shortcuts). Projects and renders are kept.
 
 .DESCRIPTION
-  Started by Uninstall.bat next to the installer, or from Settings > Apps > Installed apps (task 0265): the entry's
-  Uninstall runs the copy in the install's Tools folder with -Pause. That copy lives in the folder it removes, so it
+  Started by Uninstall.bat next to the installer, from Settings > Apps > Installed apps (task 0265): the entry's
+  Uninstall runs the copy in the install's Tools folder with -Pause - or by the shortcut "Uninstall Fresing Render" in
+  the install folder and next to Fresing Render.exe (task 0329), which runs the same command. That copy lives in the folder it removes, so it
   first starts a copy of itself in %TEMP% and waits for it. The entry in Installed apps goes last, and only when the
   folder is gone.
 #>
@@ -22,8 +23,14 @@ function Finish([int]$code) {
     exit $code
 }
 
-# Never run from inside the folder that is removed (the temp copy would hold it too)
+# Never run from inside the folder that is removed (the temp copy would hold it too): PowerShell's folder and the
+# process' own working folder (a program started from a shortcut in that folder may have been given it)
 try { Set-Location -LiteralPath ([IO.Path]::GetTempPath()) } catch { }
+try { [Environment]::CurrentDirectory = [IO.Path]::GetTempPath() } catch { }
+if (-not (Test-Path -LiteralPath $InstallDir)) {
+    Write-Host "Fresing Render is not installed in $InstallDir any more (the folder is gone). Nothing to remove." -ForegroundColor Yellow
+    Finish 0
+}
 # Only an install made by Install.bat is removed (a wrong -InstallDir must never delete another folder)
 if (-not (Test-Path -LiteralPath (Join-Path $InstallDir "installed.txt"))) {
     Write-Host "No Fresing Render installation found in $InstallDir (installed.txt is missing). Nothing was removed." -ForegroundColor Yellow
@@ -84,7 +91,9 @@ if ($ToolboxHome -and [IO.Path]::IsPathRooted($ToolboxHome)) {
         }
     }
 }
-if (Test-Path -LiteralPath $InstallDir) {
+# task 0329: Explorer or a virus scan may hold a file a moment longer (the shortcut that started this): a few tries
+for ($try = 0; $try -lt 4 -and (Test-Path -LiteralPath $InstallDir); $try++) {
+    if ($try) { Start-Sleep -Seconds 1 }
     Remove-Item -LiteralPath $InstallDir -Recurse -Force -ErrorAction SilentlyContinue
 }
 if (Test-Path -LiteralPath $InstallDir) {

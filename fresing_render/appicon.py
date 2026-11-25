@@ -15,6 +15,9 @@
   Start-menu folder "Fresing Render": ``tidy_plan`` removes those by name, only when their target lies inside the
   install folder, moves the app's own Start-menu shortcut out of that folder, and the empty folder goes. Install.bat
   does the same in PowerShell; the app at start for a PC that got the new version through Update now.
+* **Uninstall where the app is (task 0329).** "Uninstall Fresing Render.lnk" in the install folder and next to
+  "Fresing Render.exe" runs the Installed-apps entry's command (``core/installed_apps.shortcut_spec``); an older install
+  gets both at its next start, a wrong one (another folder, icon) is written again (``ensure_uninstall_shortcuts``).
 * **Windows and taskbar.** The running program is Blender's, so its windows carry Blender's icon. At start the app
   sets the Fresing icon on its windows (``WM_SETICON``) and on their window class (windows Blender opens later -
   render window, preferences - are of the same class), and the AppUserModelID on the process and on each window
@@ -624,6 +627,37 @@ def ensure_installed_apps(folder: str, icon: str = "") -> list[str]:
     return installed_apps.ensure(folder, str(__version__), icon if icon and os.path.isfile(icon) else "")
 
 
+def ensure_uninstall_shortcuts(folder: str, binary_path: str, icon: str = "") -> list[str]:
+    """Windows (task 0329): "Uninstall Fresing Render.lnk" in the install folder and next to "Fresing Render.exe",
+    made for an older install and rewritten when it does not run the Installed-apps entry's command any more (another
+    install folder, another icon). Nothing without the uninstaller in the Tools folder (no shortcut to nothing)."""
+    from . import winexe
+    from .core import installed_apps
+    if not os.path.isfile(installed_apps.uninstaller_path(folder)):
+        return []
+    spec = installed_apps.shortcut_spec(folder)
+    if not os.path.isfile(spec["target"]):
+        return []
+    blender_dir = os.path.dirname(os.path.abspath(winexe.blender_exe_of(binary_path)))
+    done = []
+    for path in installed_apps.uninstall_shortcuts(folder, blender_dir):
+        info = None
+        if os.path.isfile(path):
+            try:
+                info = read_shortcut(path)
+            except Exception as exc:  # noqa: BLE001 - unreadable: write it again
+                log(f"could not read {os.path.basename(path)}:", exc)
+        if not installed_apps.shortcut_needs(info, spec, icon):
+            continue
+        try:
+            make_shortcut(path, spec["target"], spec["arguments"], spec["workdir"], icon, spec["description"])
+            where = "install folder" if os.path.dirname(path) == folder else "Fresing Render.exe's folder"
+            done.append(f"{installed_apps.UNINSTALL_LNK}: {'made' if info is None else 'set right'} in the {where}")
+        except Exception as exc:  # noqa: BLE001
+            log(f"could not make {installed_apps.UNINSTALL_LNK}:", exc)
+    return done
+
+
 def app_target_for(binary_path: str, icon: str) -> str:
     """Windows (task 0177): make "Fresing Render.exe" when needed; the program the app's shortcuts should start – the
     copy, or Blender's launcher when the copy cannot be used ('' when there is neither)."""
@@ -652,7 +686,8 @@ def refresh_installed(binary_path: str, desktop: str = "", programs: str = "", a
     # task 0212: tidy and the Tools folder need no icon file of their own (the shipped one serves for new shortcuts)
     for name, step in (("tidy", lambda: tidy_old(folder, desktop, programs)),
                        ("tools", lambda: ensure_tools(folder, binary_path, desktop, icon or SHIPPED_ICON)),
-                       ("installed-apps entry", lambda: ensure_installed_apps(folder, icon))):
+                       ("installed-apps entry", lambda: ensure_installed_apps(folder, icon)),
+                       ("uninstall", lambda: ensure_uninstall_shortcuts(folder, binary_path, icon or SHIPPED_ICON))):
         try:
             done += step()
         except Exception as exc:  # noqa: BLE001 - one step's fault does not stop the others

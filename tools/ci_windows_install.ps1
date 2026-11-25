@@ -149,6 +149,36 @@ function Check-AppsEntry([string]$when, [string]$expectVersion) {
     $script:Summary += "| Installed apps entry ($when) | $(if (-not $bad) { '✅' } else { '❌ ' + ($bad -join '; ') }) | |"
 }
 
+# Task 0329: "Uninstall Fresing Render" in the install folder and next to Fresing Render.exe (Blender's folder): it runs
+# exactly the Installed-apps entry's UninstallString (powershell.exe + its arguments).
+$UninstallLnk = "Uninstall Fresing Render.lnk"
+function Uninstall-Links {
+    $dirs = @($InstallDir) + @(Get-ChildItem -LiteralPath $InstallDir -Directory -Filter "blender-*-windows-x64" -ErrorAction SilentlyContinue |
+        ForEach-Object { $_.FullName })
+    return @($dirs | ForEach-Object { Join-Path $_ $UninstallLnk })
+}
+function Check-UninstallLinks([string]$when) {
+    $bad = @()
+    $e = Get-ItemProperty -LiteralPath $AppsKey -ErrorAction SilentlyContinue
+    $links = Uninstall-Links
+    if ($links.Count -ne 2) { $bad += "$($links.Count - 1) Blender folders in $InstallDir" }
+    $wsh = New-Object -ComObject WScript.Shell
+    foreach ($path in $links) {
+        if (-not (Test-Path -LiteralPath $path)) { $bad += "missing: $path"; continue }
+        $l = $wsh.CreateShortcut($path)
+        $cmd = "powershell.exe " + $l.Arguments
+        $where = Split-Path -Leaf (Split-Path -Parent $path)
+        if ((Split-Path -Leaf $l.TargetPath) -ne "powershell.exe" -or -not (Test-Path -LiteralPath $l.TargetPath)) { $bad += "${where}: starts '$($l.TargetPath)'" }
+        if (-not $e -or $cmd -cne $e.UninstallString) { $bad += "${where}: runs '$cmd', the entry '$($e.UninstallString)'" }
+        if ($l.Arguments -notlike "*-Pause") { $bad += "${where}: no -Pause" }
+        if ($l.Description -cne "Removes Fresing Render from this PC. Your projects, renders and backups are kept") { $bad += "${where}: tooltip '$($l.Description)'" }
+        if ($l.WorkingDirectory -and $l.WorkingDirectory.StartsWith("$InstallDir\", [StringComparison]::OrdinalIgnoreCase)) { $bad += "${where}: works in '$($l.WorkingDirectory)'" }
+        Write-Host "   ($when) $where\$UninstallLnk -> `"$($l.TargetPath)`" $($l.Arguments) (icon $($l.IconLocation))"
+    }
+    foreach ($b in $bad) { Problem "Uninstall shortcut ($when): $b" }
+    $script:Summary += "| Uninstall Fresing Render in the install folder and next to Fresing Render.exe ($when) | $(if (-not $bad) { '✅' } else { '❌ ' + ($bad -join '; ') }) | |"
+}
+
 # Task 0296: Windows' graphics preference "High performance" for the app's programs (the installer writes it, the
 # uninstaller removes it). The runner has no graphics card: the value is only written, never used here.
 function Gpu-Prefs {
@@ -270,21 +300,29 @@ if (`$errs.Count) { `$errs | ForEach-Object { 'PARSE line ' + `$_.Extent.StartLi
 }
 
 if ($Uninstall) {
-    # task 0265: what Settings > Apps > Installed apps > Uninstall runs - the key's own UninstallString, not Uninstall.bat
+    # task 0265: what Settings > Apps > Installed apps > Uninstall runs - the key's own UninstallString, not Uninstall.bat;
+    # task 0329: started as a double-click on "Uninstall Fresing Render" in the install folder does it - the shortcut's
+    # own program, arguments and working folder (checked equal to the UninstallString first)
     $e = Get-ItemProperty -LiteralPath $AppsKey -ErrorAction SilentlyContinue
     if (-not $e -or -not $e.UninstallString) { throw "no Installed-apps entry to uninstall from (run the install part first)" }
+    Check-UninstallLinks "before uninstall"
+    $links = Uninstall-Links
+    $lnkPath = $links[0]
+    if (-not (Test-Path -LiteralPath $lnkPath)) { throw "no $UninstallLnk in $InstallDir (run the install part first)" }
+    $l = (New-Object -ComObject WScript.Shell).CreateShortcut($lnkPath)
     # a project in Documents beforehand: it must still be there afterwards
     $Documents = [Environment]::GetFolderPath("MyDocuments")
     $project = Join-Path $Documents "Fresing uninstall test project.blend"
     Set-Content -LiteralPath $project -Value "a project of mine"
-    Note "UninstallString from Installed apps: $($e.UninstallString)"
-    $r = Run-Bat (Join-Path $env:WINDIR "System32\cmd.exe") "uninstall" 5 ("/d /s /c `"" + $e.UninstallString + "`"")
+    Note "Uninstall Fresing Render in the install folder: `"$($l.TargetPath)`" $($l.Arguments) (in $($l.WorkingDirectory))"
+    $r = Run-Bat $l.TargetPath "uninstall" 5 $l.Arguments
     if (-not (Test-Path -LiteralPath $project)) { Problem "Uninstall removed a project in Documents" }
     Remove-Item -LiteralPath $project -Force -ErrorAction SilentlyContinue
     if (Test-Path -LiteralPath $AppsKey) { Problem "Uninstall left the entry in Installed apps" }
     if ((Gpu-Prefs).Count) { Problem "Uninstall left Windows' graphics preference of the app's programs" }
     if ($r.Text -notmatch "projects" ) { Problem "Uninstall did not say that projects are kept" }
     if (Test-Path -LiteralPath $InstallDir) { Problem "Uninstall left $InstallDir behind" }
+    foreach ($p in $links) { if (Test-Path -LiteralPath $p) { Problem "Uninstall left $p" } }
     if (Test-Path -LiteralPath (Join-Path $Desktop "Fresing Render.lnk")) { Problem "Uninstall left the Desktop shortcut" }
     if (Test-Path -LiteralPath (Join-Path $Programs "Fresing Render.lnk")) { Problem "Uninstall left the Start-menu shortcut" }
     if (Test-Path -LiteralPath $OldMenu) { Problem "Uninstall left the Start-menu folder" }
@@ -294,7 +332,12 @@ if ($Uninstall) {
     # task 0217: only the app's own folder of the Toolbox folder goes
     if (Test-Path -LiteralPath (Join-Path $ToolboxHome "tools\nl.fresing.render")) { Problem "Uninstall left tools\nl.fresing.render in the Toolbox folder" }
     if (-not (Test-Path -LiteralPath (Join-Path $ToolboxHome "toolbox-folder.json"))) { Problem "Uninstall removed the Toolbox folder itself" }
-    $Summary += "| Uninstall from Installed apps | $(if ($Problems) { '❌' } else { '✅' }) exit code $($r.Code) | $($r.Seconds) s |"
+    $Summary += "| Uninstall (the install folder's shortcut = the Installed-apps command) | $(if ($Problems) { '❌' } else { '✅' }) exit code $($r.Code) | $($r.Seconds) s |"
+    # a second run when the folder is already gone says so plainly (Uninstall.bat, the repository's uninstaller)
+    $again = Run-Bat $l.TargetPath "uninstall-again" 2 ("-NoProfile -ExecutionPolicy Bypass -File `"" + (Join-Path (Resolve-Path (Join-Path $PSScriptRoot "..")).Path "installer\Uninstall-FresingRender.ps1") + "`" -InstallDir `"$InstallDir`"")
+    $plain = ($again.Code -eq 0) -and ($again.Text -match "the folder is gone")
+    if (-not $plain) { Problem "a second uninstall did not say plainly that the folder is gone (exit code $($again.Code))" }
+    $Summary += "| Uninstall again: the folder is gone, said plainly | $(if ($plain) { '✅' } else { '❌' }) | $($again.Seconds) s |"
 } else {
     if (-not $OnlyUpdate) {
         # ---- 1. unzip like a user -------------------------------------------------------
@@ -631,6 +674,13 @@ if ($Uninstall) {
 
         Note "Settings > Apps > Installed apps (Install.bat)"
         Check-AppsEntry "after Install.bat" $Expected
+        Check-UninstallLinks "after Install.bat"
+        # (the log is in the console's code page: the accent of the install folder is not compared)
+        $closing = "To remove Fresing Render later: Settings > Apps > Installed apps, or 'Uninstall Fresing Render' in "
+        $said = Get-Content -LiteralPath (Join-Path $OutDir "install.log") -Raw -ErrorAction SilentlyContinue
+        $saysIt = [bool]$said -and ($said -match ([regex]::Escape($closing) + ".*\\FresingRender"))
+        if (-not $saysIt) { Problem "Install.bat's last lines do not say where uninstall is ('$closing')" }
+        $Summary += "| Install.bat says where uninstall is | $(if ($saysIt) { '✅' } else { '❌' }) | |"
         Check-GpuPref "after Install.bat"
 
         Note "Fresing icon on the shortcuts (Install.bat)"
@@ -674,6 +724,7 @@ if ($Uninstall) {
             $Summary += "| Icon: older install refreshed + window checks | | $([math]::Round(((Get-Date) - $t0).TotalSeconds)) s |"
             Check-Links "older install after the app's refresh"
             Check-OneShortcut "after the app's refresh of an older install"
+            Check-UninstallLinks "older install after the app's refresh"
         }
         }
 
