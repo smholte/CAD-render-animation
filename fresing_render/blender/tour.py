@@ -518,7 +518,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.242")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.256")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -6241,6 +6241,45 @@ stop("settings", OUT, HUB_SET, "Fresing Settings",
      "stays open.",
      where="Fresing menu > Settings…; the gear on the left panel", since="0.2.201",
      shot="Tour view", check=_check_settings, auto=lambda ctx, scene, st: "")
+
+def _check_keys_tab(scene):
+    """Task 0295: Settings > Keys – the list from the live key lists, every group, a change and Reset (the user's own
+    changed keys are put back as they were)."""
+    import bpy
+
+    from ..core import keys as core
+    from . import keys, lock, prefs, ui_settings, ui_topbar
+    _check("fresing.keys" in ui_topbar.entries(), "Keys… is not in the Fresing menu")
+    _check("keys" in ui_settings.draw_all(bpy.context), "the tab Keys does not draw")
+    rows = keys.rows()
+    _check({r.group for r in rows} == set(core.GROUP_KEYS), "a group of keys is missing")
+    p = prefs.get()
+    if p is None:                     # no preferences (Blender as a module): the rules only, nothing stored
+        _check(not core.check_new("copy", "M", {}, keys.own_now({}), []).ok, "a clash was not refused")
+    else:
+        was = p.key_changes
+        try:
+            keys.reset()
+            _check(keys.change("measure_all", "K", {"ctrl": True, "alt": True}).ok,
+                   "Ctrl+Alt+K for Measure was refused")
+            _check(not keys.change("copy", "K", {"ctrl": True, "alt": True}).ok, "a clash was not refused")
+            keys.reset()
+        finally:
+            p.key_changes = was
+            lock.refresh_keys()
+    own = sum(1 for r in rows if r.group == "own")
+    return f"{len(rows)} keys in {len(core.GROUPS)} groups, {own} of them Fresing's own"
+
+
+stop("keys_tab", OUT, HUB_SET, "All keys in one list",
+     "Fresing > Keys… opens Fresing Settings on its tab Keys: the keys in groups – Move the view, Select, Fresing's "
+     "own keys, Blender keys that still work and, greyed, Blender keys that do nothing outside Full access. Type "
+     "render in the search field: only the render keys stay. Click F12 (Render the picture), press F9: the line under "
+     "the title says it is now F9, F9 renders, F12 no longer does; close the app and start it again: still F9. Click "
+     "Measure's M and press F9: refused, \"already Fresing's key for: Render the picture\". Reset all puts F12 back. Print key sheet "
+     "opens one A4 page in the browser.",
+     where="Fresing menu > Keys… (also Help > Keys…); Fresing Settings > Keys", since="0.2.256",
+     shot="Tour view", check=_check_keys_tab, auto=lambda ctx, scene, st: "")
 
 def _check_locations(scene):
     """Task 0272: Locations and Exports in Fresing Settings – what the tour reads only (the user's own folders and

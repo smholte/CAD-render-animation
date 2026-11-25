@@ -5,7 +5,9 @@ counts only the user's own input: a played animation with no mouse or key adds n
 the project – are counted while it plays, to show what was counted before), a real mouse move marks presence.
 Task 0283: one setting of each tab changed, the app started again (``ui_test_settings_restart.py``, same settings
 folder, app template): every value is back; a damaged settings file: the app starts with the defaults and one note.
-Guide pictures of each tab when GUIDE_OUT is set.
+Task 0295: Fresing > Keys… opens the tab Keys; Measure's key changed by pressing Ctrl+Alt+K in the window, Copy on M
+refused (Measure has it), Ctrl+Alt+K starts Measure in the 3D view and Alt+M no longer; the key is back after the
+restart. Guide pictures of each tab when GUIDE_OUT is set.
 
 Install the extension and the app template first (see ui_test_app.py), then run (FRESING_USAGE_TEST=1 so the usage
 tracker counts although events are simulated):
@@ -449,6 +451,121 @@ def s_client_back():
 wait_until("Close closes it", lambda: not settings_wins(), 10)
 
 
+# ----- task 0295: Settings > Keys – a key changed by pressing it, a clash refused, the new key works -----
+
+def settings_override():
+    win = settings_wins()[0]
+    area, reg = side_region(win)
+    return bpy.context.temp_override(window=win, screen=win.screen, area=area, region=reg, scene=win.scene)
+
+
+@step
+def s_keys_open():
+    with override():
+        r = bpy.ops.fresing.keys("INVOKE_DEFAULT")
+    check("Fresing > Keys… starts the Settings window", r == {"FINISHED"}, r)
+    return 1.0
+
+
+wait_until("Keys…: the Settings window opens on Keys",
+           lambda: len(settings_wins()) == 1 and mod("blender.ui_settings").current() == "keys", 20)
+
+
+@step
+def s_keys_capture():
+    keys = mod("blender.keys")
+    keys.reset()
+    with settings_override():
+        r = bpy.ops.fresing.key_change("INVOKE_DEFAULT", id="measure_all")
+    check("a click on Measure's key waits for a key press", r == {"RUNNING_MODAL"} and keys.CAPTURE[0] == "measure_all",
+          r)
+    win = settings_wins()[0]
+    _area, reg = side_region(win)
+    x, y = reg.x + reg.width // 2, reg.y + reg.height // 2
+    win.event_simulate(type="MOUSEMOVE", value="NOTHING", x=x, y=y)
+    win.event_simulate(type="K", value="PRESS", x=x, y=y, ctrl=True, alt=True)
+    win.event_simulate(type="K", value="RELEASE", x=x, y=y, ctrl=True, alt=True)
+    return 1.0
+
+
+@step
+def s_keys_changed():
+    keys, lock = mod("blender.keys"), mod("blender.lock")
+    got = keys.changes()
+    check("the pressed key is Measure's new key", got == {"measure_all": ("K", {"ctrl": True, "alt": True})}, got)
+    items = [(kmi.idname, kmi.type, kmi.ctrl == 1, kmi.alt == 1) for _km, kmi in lock._KEYMAPS]
+    check("the keymap has Ctrl+Alt+K for Measure, no Alt+M", ("fresing.measure", "K", True, True) in items
+          and ("fresing.measure", "M", False, True) not in items, [i for i in items if i[0] == "fresing.measure"])
+    bpy.context.window_manager.fresing_keys_search = "measure"     # the picture shows the changed key
+    redraw()
+    return 1.0
+
+
+@step
+def s_keys_shot():
+    win = settings_wins()[0]
+    path = shot("12_keys_changed")
+    crop_window(path, win, "settings_keys_changed")
+    bpy.context.window_manager.fresing_keys_search = ""
+    with settings_override():                       # a clash: Copy on M (Measure's key) is refused
+        bpy.ops.fresing.key_change("INVOKE_DEFAULT", id="copy")
+    _area, reg = side_region(win)
+    x, y = reg.x + reg.width // 2, reg.y + reg.height // 2
+    win.event_simulate(type="M", value="PRESS", x=x, y=y)
+    win.event_simulate(type="M", value="RELEASE", x=x, y=y)
+    return 1.0
+
+
+@step
+def s_keys_clash():
+    keys = mod("blender.keys")
+    check("a key another Fresing key has is refused", "copy" not in keys.changes() and keys._LAST["warn"]
+          and "Measure" in keys._LAST["text"], keys._LAST)
+    with settings_override():
+        bpy.ops.fresing.settings_close("EXEC_DEFAULT")
+    win, area, _r = view()                          # the new key in the 3D view
+    x, y = area.x + area.width // 2, area.y + area.height // 2
+    S["mouse"] = (x, y)
+    win.event_simulate(type="MOUSEMOVE", value="NOTHING", x=x, y=y)
+    win.event_simulate(type="K", value="PRESS", x=x, y=y, ctrl=True, alt=True)
+    win.event_simulate(type="K", value="RELEASE", x=x, y=y, ctrl=True, alt=True)
+    return 1.0
+
+
+@step
+def s_keys_works():
+    measure = mod("blender.measure")
+    check("Ctrl+Alt+K starts Measure in the 3D view", measure.tool_state() is not None)
+    win, _area, _r = view()
+    x, y = S["mouse"]
+    win.event_simulate(type="ESC", value="PRESS", x=x, y=y)
+    win.event_simulate(type="ESC", value="RELEASE", x=x, y=y)
+    return 0.8
+
+
+@step
+def s_keys_old():
+    win, _area, _r = view()
+    x, y = S["mouse"]
+    S["old_tool"] = mod("blender.measure").tool_state()
+    win.event_simulate(type="M", value="PRESS", x=x, y=y, alt=True)
+    win.event_simulate(type="M", value="RELEASE", x=x, y=y, alt=True)
+    return 1.0
+
+
+@step
+def s_keys_old_check():
+    tool = mod("blender.measure").tool_state()
+    check("Measure was left with Esc", S["old_tool"] is None, S["old_tool"])
+    check("Alt+M no longer starts Measure", tool is None)
+    if tool is not None:
+        win, _area, _r = view()
+        x, y = S["mouse"]
+        win.event_simulate(type="ESC", value="PRESS", x=x, y=y)
+        win.event_simulate(type="ESC", value="RELEASE", x=x, y=y)
+    return 0.8
+
+
 # ----- task 0283: one setting of each tab changed, the app started again, every value back; a damaged file -----
 KEPT = {
     "hover_highlight": False,                 # General
@@ -459,6 +576,7 @@ KEPT = {
     "backup_minutes": 12,                     # Backups
     "check_updates": False,                   # Updates
     "settings_tab": "backups",                # the window's last tab
+    "key_changes": '{"measure_all": {"alt": true, "ctrl": true, "key": "K"}}',   # Keys (task 0295)
 }
 
 
@@ -517,6 +635,9 @@ def s_keep_restart():
         ok = (g == v) if n != "lesson_colour" else (isinstance(g, list) and all(abs(a - b) < 1e-3 for a, b in zip(g, v)))
         check(f"after a restart {n} is as chosen", ok, f"{g}, chosen {v}")
     check("after a restart no note about the settings file", got.get("notes") == [], str(got.get("notes")))
+    check("after a restart the changed key is in the keymap (Ctrl+Alt+K for Measure)",
+          ["K", True, True] in got.get("measure_keys", []) and ["M", False, True] not in got.get("measure_keys", []),
+          got.get("measure_keys"))
     return 0.3
 
 
@@ -546,6 +667,7 @@ def s_keep_back():
     p = mod("blender.prefs").get()
     for n, v in S.get("was", {}).items():
         setattr(p, n, v)
+    mod("blender.keys").reset()                     # task 0295: Measure's own key back (the keymap too)
     return 2.5
 
 

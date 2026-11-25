@@ -110,6 +110,12 @@ def load(p=None) -> bool:
     _S["loaded"] = True
     _S["written"] = None if (not res.found or res.notes) else current(p)
     save(p)                                   # no file yet / a damaged one: write what is in use now
+    if res.found and getattr(p, "key_changes", ""):
+        try:                                  # task 0295: the user's own keys, read only now
+            from . import lock
+            lock.refresh_keys()
+        except Exception as exc:  # noqa: BLE001
+            print("Fresing Render: changed keys not applied:", exc)
     return True
 
 

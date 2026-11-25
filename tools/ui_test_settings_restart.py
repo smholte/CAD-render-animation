@@ -36,6 +36,9 @@ def look():
         data["notes"] = store.notes()
         data["path"] = store.path()
         data["started"] = hasattr(bpy.types, "FRESING_OT_settings")
+        lock = importlib.import_module(name + ".blender.lock")          # task 0295: the changed key in the keymap
+        data["measure_keys"] = [[kmi.type, kmi.ctrl == 1, kmi.alt == 1] for _km, kmi in lock._KEYMAPS
+                                if kmi.idname == "fresing.measure"]
     except Exception as exc:  # noqa: BLE001
         data["error"] = repr(exc)
     if OUT:

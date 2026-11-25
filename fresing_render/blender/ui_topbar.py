@@ -65,6 +65,7 @@ class TOPBAR_MT_fresing(bpy.types.Menu):
         _op(layout, "fresing.whats_new", text=f"What's new in {welcome.version()}" + ("  •" if pending else ""),
             icon="INFO")
         _op(layout, "fresing.settings", text="Settings…", icon="PREFERENCES")     # task 0271: Fresing Settings
+        _op(layout, "fresing.keys", text="Keys…", icon="KEYINGSET")              # task 0295: Settings > Keys
         _op(layout, "fresing.first_setup", text="Set up again…", icon="TOOL_SETTINGS")  # task 0276
         _op(layout, "fresing.show_panel", text="Show the Fresing panel", icon="MENU_PANEL")
         from . import editors                  # task 0221: Blender's Outliner and Properties, hidden by default
@@ -234,7 +235,7 @@ def mark_entries() -> list:
 
 def entries() -> list:
     """The menu's operator ids in order (tests, the PC check)."""
-    return ["fresing.tour_take", "fresing.learn_lessons", "fresing.whats_new", "fresing.settings", "fresing.first_setup", "fresing.show_panel", "fresing.blender_editors", "fresing.blender_all",
+    return ["fresing.tour_take", "fresing.learn_lessons", "fresing.whats_new", "fresing.settings", "fresing.keys", "fresing.first_setup", "fresing.show_panel", "fresing.blender_editors", "fresing.blender_all",
             "fresing.demo_make", "fresing.user_guide",
             "fresing.self_test", "fresing.pc_check", "fresing.open_app_folder", "fresing.update_check", "fresing.backups_window", "fresing.usage_window", "fresing.learn_window", "fresing.welcome",
             "fresing.about"]

@@ -423,6 +423,7 @@ On Windows it opens where it was and as big as you left it. It also opens in the
 | **General** | The default template, the default rule set, the workspace for new projects, the highlight while you pick on the model; **Graphics**: which GPU draws the window and which renders ([below](#graphics-card)) |
 | **Locations** | The folders the app reads from – STEP models, materials, logos, stickers, 360° photos, templates, rule sets, workspaces, brand kits, lifting equipment – of your company, your department and your own; set-up files ([below](#locations)) |
 | **Exports** | Where pictures, videos and 3D pages go; the default place; also a copy to a second place ([below](#export-places)) |
+| **Keys** | Every key of the app in one list, Fresing's own keys changeable, a printable key sheet ([below](#keys)) |
 | **Side panel** | Keep sections as I left them, keep How it works open, the favourites bar (on/off, how many buttons), the quiet questions about unused panels (hide, teach, after how many starts) and **Suggest what to learn next** |
 | **Lessons** | How a lesson shows the button, a folded section and a part; its colour; **Play on** |
 | **Backups** | The [automatic backups](#backups): on/off, every how many minutes, how many are kept |
@@ -650,6 +651,35 @@ the project stay as they are, and leaving the Client view shows those parts agai
 **Blender's keys and menu back:** **Fresing > Show all of Blender** (or Workspace > Full access) gives every key and
 Blender's own right-click menu back at once; **Back to the Fresing window** takes them away again. If you moved one of
 these actions to another key in Blender's Preferences, that key is not swallowed: only the keys above are.
+
+<a id="keys"></a>
+### All keys in one list – change Fresing's own
+
+**Fresing > Keys…** (also at the end of **Help**) opens Fresing Settings on its tab **Keys**: every key and mouse
+action of the app, in five groups – **Move the view** (turn, pan, zoom with the mouse and a touchpad, the number pad
+views, Home), **Select**, **Fresing's own keys**, **Blender keys that still work** and, greyed, **Blender keys that do
+nothing outside Full access** ("works in Full access"). Each row says what the key does and where it works. Type in the
+search field at the top (for example *render*, *F12* or *hide*) to see only the rows that hold it.
+
+<img class="panel" src="img/settings_keys.png" alt="Fresing Settings, tab Keys: the search field, Print key sheet and the groups of keys">
+
+**Change one of Fresing's own keys:** click its key (for example **F12**) – it reads *Press a key…* – then press the
+new key, with Ctrl, Shift or Alt if you like. It works at once and is kept over a restart (in the app's settings file,
+like every other setting). **Esc** or a click elsewhere leaves it as it was.
+
+- A key that another Fresing key already has is refused, and the line under the group's title says which one.
+- A key Blender uses for something in the 3D view is taken, with a warning naming what Blender does with it: outside
+  Full access your Fresing key wins; in Full access the key is Blender's again.
+- The round arrow beside a changed key puts it back; **Reset all** puts all of them back.
+- The right-click menu and **G** / **R** / **S** cannot be changed: they are Blender's own moves with a check first.
+
+<img class="panel" src="img/settings_keys_changed.png" alt="Fresing Settings, tab Keys: Measure changed to Ctrl+Alt+K, the line that says so and the round arrow to put it back">
+
+**Print key sheet** makes one A4 page with every key – your changed ones marked "yours" – and opens it in your web
+browser: print it there or save it as a PDF.
+
+**Blender's own key settings** opens Blender's Preferences > Keymap. That is Blender's list: it changes Blender's keys
+(used in Full access), not Fresing's.
 
 <a id="saving"></a>
 ### Saving a project – its name

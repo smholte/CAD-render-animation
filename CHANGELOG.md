@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.255 – 25 Nov 2026 – The first-start set-up stays open; windows open in a good place (task 0331)
+## 0.2.257 – 25 Nov 2026 – The first-start set-up stays open; windows open in a good place (task 0331)
 
 - **Set up Fresing Render** on a new PC now stays open until you press **Next** to the end, **Skip set-up** or
   **Close**. Before, it could close itself a second after it opened, and came back (and went again) at every start.
@@ -22,6 +22,19 @@ installer of that version was built from.
   processor) instead of "draws: llvmpipe …; renders: CPU"; **Restore a backup…** with backups off points to
   **Fresing Settings > Backups**.
 - PC check: a new line **app.window_place**.
+
+## 0.2.256 – 25 Nov 2026 – All keys in one list, change Fresing's own (task 0295)
+
+- **Fresing > Keys…** (also at the end of Help) opens Fresing Settings on its new tab **Keys**: every key and mouse
+  action of the app in five groups – moving the view (mouse, touchpad, number pad, Home), selecting, **Fresing's own
+  keys** (F12, Ctrl+F12, the right-click menu, Delete / X, Ctrl+C / V, M, Alt+M, G / R / S), **Blender keys that still
+  work** and, greyed, **Blender keys that do nothing outside Full access**. Each row says what the key does and where it
+  works; a search field finds a key by its words or by the key.
+- **Change one of Fresing's own keys:** click its key, press the new one. It works at once and is kept over a restart.
+  A key another Fresing key has is refused (the line under the title says which); one Blender uses is taken with a
+  warning naming what Blender does with it. The round arrow puts one key back, **Reset all** all of them.
+- **Print key sheet:** one A4 page with every key – your own marked – opens in your browser to print or save as PDF.
+- **Blender's own key settings** opens Blender's Preferences > Keymap (Blender's keys, used in Full access).
 
 ## 0.2.254 – 25 Nov 2026 – The whole title row opens a panel (task 0335)
 

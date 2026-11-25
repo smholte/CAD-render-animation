@@ -6247,7 +6247,7 @@ def app_first_setup(ctx):
 
 
 @line("app.window_place", "App windows: the first one beside the side panel, the next ones offset; the set-up stays",
-      "0.2.255", what="Checks where the app's windows (the set-up, Settings, function and output windows, the Set-up "
+      "0.2.257", what="Checks where the app's windows (the set-up, Settings, function and output windows, the Set-up "
                       "window) open the first time – beside the side panel, each next one offset, over the view's "
                       "middle when they do not fit –, that the set-up window is closed at a load only when the opened "
                       "project brought it, that 'Your PC' says who draws the window in plain words, and that Product "
@@ -6267,7 +6267,7 @@ def app_window_place(ctx):
     _check(P.moved((0, 0, 400, 500), (10, 700, 400, 500), 60, 1100) == (50, 100, 450, 600),
            "a place is turned into the wrong outer rectangle")
     _check(hasattr(first_setup, "_window_key") and hasattr(ops_setup, "_tidy") and hasattr(ops_setup, "first_place"),
-           "the windows' fixes of 0.2.255 are missing")
+           "the windows' fixes of 0.2.257 are missing")
     words = core.window_words("draws: llvmpipe (LLVM); renders: CPU")
     _check(words and "draws:" not in words and "llvmpipe" not in words, f"'Your PC' is not in plain words: {words!r}")
     _check("Full access" in ui_setup.LOCKED_TEXT, "the Set-up window does not say why it is grey in the Client view")
@@ -6442,6 +6442,50 @@ def app_settings(ctx):
     _check(s["stages"].get("render", 0.0) == 0.0, f"10 min away counted {s['stages'].get('render')} s")
     _check(usage._on_change.__code__.co_names.count("activity") == 0, "a change of the project still counts as you")
     return f"{len(drawn)} tabs draw; 10 min of playback with no input: 0 s counted"
+
+
+@line("settings.keys", "Keys: every key of the app in one list; Fresing's own keys changed, refused on a clash, reset",
+      "0.2.256",
+      what="Settings > Keys lists every key in five groups, made from the app's live key lists; a changed Fresing key "
+           "goes into the keys the app adds, a key another Fresing key has is refused, Reset puts it back, and the "
+           "printable key sheet is written (your own keys are put back as they were)")
+def settings_keys(ctx):
+    import os
+
+    import bpy
+
+    from ..blender import keys, lock, prefs, ui_settings, ui_topbar
+    from ..core import keys as core
+    _check("fresing.keys" in ui_topbar.entries() and ui_topbar._has("fresing.keys"), "Keys… is not in the Fresing menu")
+    _check("keys" in ui_settings.draw_all(bpy.context), "the tab Keys does not draw")
+    p = prefs.get()
+    _check(p is not None, "the add-on's preferences are missing")
+    was = p.key_changes
+    try:
+        rows = keys.rows()
+        groups = {r.group for r in rows}
+        _check(groups == set(core.GROUP_KEYS), f"groups missing: {set(core.GROUP_KEYS) - groups}")
+        own = [r for r in rows if r.group == "own"]
+        _check(len(own) == len(lock.APP_KEYS), f"{len(own)} own keys listed, {len(lock.APP_KEYS)} in the app")
+        keys.reset()
+        res = keys.change("render_image", "F9", {"ctrl": True})
+        _check(res.ok, f"Ctrl+F9 for Render image was refused: {res.refusal}")
+        bound = [(k, core.norm(m)) for _n, _sp, k, m, op, pr in lock._wanted()
+                 if op == "fresing.key_render" and not pr.get("animation")]
+        _check(bound == [("F9", {"ctrl": True})], f"Render image is bound to {bound}")
+        clash = keys.change("copy", "F9", {"ctrl": True})
+        _check(not clash.ok and "Render" in clash.refusal, "a key Render image has was not refused for Copy")
+        keys.reset()
+        bound = [k for _n, _sp, k, m, op, pr in lock._wanted() if op == "fresing.key_render"]
+        _check(bound == ["F12", "F12"], f"after Reset the render keys are {bound}")
+        path = keys.write_sheet(os.path.join(ctx.work, "Fresing keys é.html"))
+        with open(path, encoding="utf-8") as fh:
+            page = fh.read()
+        _check("Fresing's own keys" in page and "F12" in page, "the key sheet has no keys")
+    finally:
+        p.key_changes = was
+        lock.refresh_keys()
+    return f"{len(rows)} keys in {len(groups)} groups; {len(own)} Fresing keys; a change, a clash and Reset work"
 
 
 @line("app.windows", "Function windows: Make a crane and the other forms in a window of their own", "0.2.217",
