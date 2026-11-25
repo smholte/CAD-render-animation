@@ -5,6 +5,14 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.248 – 25 Nov 2026 – One undo step per action, messages beside their own button (task 0334)
+- Ctrl+Z now undoes one thing at a time after picking a RAL colour, loading a template (also from the library) and
+  picking a 360° photo – before, one Ctrl+Z took the colour pick back together with the step before it.
+- "Saved …png" and "Rendering on CPU…" now show under the **Render image** button, and "20 parts in 9 groups" under
+  **Sort parts into groups** – no longer under 1 Import.
+- After a render the image window shows the whole picture, fitted.
+- A small model says "4,200 triangles" instead of "0.0 M triangles".
+
 ## 0.2.247 – 25 Nov 2026 – Build keeps your own keys and steps (task 0330)
 
 - **A key you change by hand stays.** Change a key of a built animation in Blender's Graph Editor or Dope Sheet and
