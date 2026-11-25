@@ -2776,6 +2776,39 @@ def lead_motion(ctx):
     return f"slider {max(times):.1f} ms; the step half way = the slider at {p:.0f} %"
 
 
+@line("animation.user_keys", "Build keeps your own keys and steps", "0.2.247",
+      what="A key of a built joint changed by hand stays at the next Build; Turntable again keeps a step you added; "
+           "a lead slider on a built animation takes the Build off")
+def user_keys(ctx):
+    from ..blender import animation, joints, lead_motions, tour, turntable
+    from ..core import lead_motions as core
+    scene = ctx.fresh(CRANE_A)
+    s = scene.fresing
+    _boom_joint(scene)
+    a = s.animations.add()
+    a.name, a.fps, a.tail = "Boom up", "25", 0.0
+    tour._joint_step(a, "Boom", 0.0, 2.0, math.radians(30))
+    animation.bake(scene, a)
+    j = joints.find(scene, "Boom")
+    fc = animation._bag(j.motion).fcurves.find(f'["{joints.VALUE}"]', index=0)
+    key = fc.keyframe_points[-1]
+    key.co[1] = key.handle_left[1] = key.handle_right[1] = 0.444      # what a change in the Graph Editor does
+    w = animation.bake(scene, a)["warnings"]
+    fc = animation._bag(j.motion).fcurves.find(f'["{joints.VALUE}"]', index=0)
+    _check(abs(fc.keyframe_points[-1].co[1] - 0.444) < 1e-5, "Build put the changed key back to the step's value")
+    _check(any("Kept your own change" in x for x in w), f"Build did not say it kept the change: {w}")
+    lm = lead_motions.add(scene, "Boom up", [core.Row("Boom", 0.0, math.radians(25))])
+    lead_motions.set_position(lm, 100.0)
+    _check(not animation.has_keys(scene), "the lead slider left the Build on (the next frame puts the boom back)")
+    t = turntable.make(scene)["animation"]
+    tour._joint_step(t, "Boom", 1.0, 1.0, math.radians(20), label="My step")
+    s.turntable_seconds = s.turntable_seconds + 2.0
+    turntable.make(scene)
+    _check(len(t.blocks) == 2 and any(b.name == "My step" for b in t.blocks),
+           f"Turntable again left {len(t.blocks)} step(s): the step added by hand is gone")
+    return "changed key kept, lead slider took the Build off, turntable kept the added step"
+
+
 @line("states.poses", "Poses, explode, visibility, saved scenes", "0.2.0",
       what="Save a pose, explode, hide a part, save a scene; each comes back exactly")
 def states_all(ctx):
@@ -5888,7 +5921,7 @@ def structure_move(ctx):
 
 
 @line("structure.unlock_popup", "G / R on a locked subassembly: the Unlock popup unlocks it, Lock it again after the "
-      "move locks exactly that", "0.2.247",
+      "move locks exactly that", "0.2.248",
       what="On the test crane: the popup's Unlock unlocks the boom's subassembly (nothing else); a cancelled move brings "
            "no Lock it again; a confirmed one does; Lock it again locks it in place again; S and the Client view open "
            "no popup")

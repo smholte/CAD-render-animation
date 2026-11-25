@@ -1,6 +1,6 @@
 # 0338 – Quick unlock popup by the mouse, "Lock it again" popup after the move
 
-**Who:** worker · **Status:** running · **Branch:** `task/0338-quick-unlock-popups`
+**Who:** worker · **Status:** done 25 Nov – 0.2.248 · **Branch:** `task/0338-quick-unlock-popups`
 **Started by:** lead, 25 Nov 2026 (owner 11:07: moving or turning a locked assembly means hunting for Unlock in
 2 Structure – "a small popup with a button to unlock it", and after the move "a small popup in the top left corner of the
 3D view to lock it again"; owner's answers 11:1x below; replaces 0328 row 29's "second G unlocks", taken out of 0335)
@@ -51,19 +51,19 @@ again.
 
 ## Done when
 
-- [ ] G / R / S / Move / turn on a locked assembly → popup by the mouse; Unlock → moves at once; click outside / × / Esc
+- [x] G / R / S / Move / turn on a locked assembly → popup by the mouse; Unlock → moves at once; click outside / × / Esc
       close it with nothing changed
-- [ ] After that move → "Lock it again" top left, not over anything, ≥ 5 s, then closed by a click anywhere; × and Esc work;
+- [x] After that move → "Lock it again" top left, not over anything, ≥ 5 s, then closed by a click anywhere; × and Esc work;
       Lock it again locks exactly what was unlocked
-- [ ] Client view and built animations behave as before
-- [ ] Tests added/updated; full suite passes; GitHub run green; real-app check
-- [ ] Report below filled in, merged, released
+- [x] Client view and built animations behave as before
+- [x] Tests added/updated; full suite passes; GitHub run green; real-app check
+- [x] Report below filled in, merged, released
 
 ---
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web, 25 Nov 2026 – 0.2.247
+**Chat / date:** Claude Code on the web, 25 Nov 2026 – 0.2.248
 
 **What changed:**
 - New `blender/place_popups.py`. **How it is built:** both popups are drawn by one POST_PIXEL draw handler in the 3D
@@ -103,7 +103,7 @@ again.
   (and still deselects), after 5 s a click closes it; a second round's Lock it again locks only BOOM.ASM; at UI scale 2
   the popup is twice as big, inside the view, and its × works. Looked at both popups in a screenshot (not committed).
 - PC check `structure.unlock_popup` + `structure.move`: 2 OK (bpy module).
-- GitHub: see runs below.
+- GitHub: run 45604032091 (branch, full) green, 31 min; the first run (45603968940) was cancelled by a fix pushed right after it; after merging main (0330 took 0.2.247) renumbered to 0.2.248 and ran again.
 
 **Open points / follow-up tasks:**
 - Not checked in the real app: a second Blender window (the draw handler only draws in the popup's own area; the

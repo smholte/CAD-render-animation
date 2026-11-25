@@ -3219,6 +3219,9 @@ Good to know:
 
 - Joints that follow another joint (couplings, tables, cylinders, mechanisms) move with it and are never a row.
 - A joint may be in several lead motions: the last one moved wins (above).
+- On a **built** animation a slider would be put back by the animation's keys at the next frame: moving one (also ▶
+  and Back to start) takes the Build off first and says so ("Moving a lead motion took the built animation off").
+  Build & play again to play the animation.
 - Saved with the project, in backups and Save as. A **model update** keeps them; a renamed joint is followed, a joint
   that is gone leaves its row marked **missing** in red (the rest still works).
 - Only the joints of the lead motion you drag are touched: a slider change costs what moving those joints by hand
@@ -4591,8 +4594,8 @@ machine stays sharp). The button makes three things you can also look at yoursel
 **Turntable camera**, the saved scene **Turntable** and the animation **Turntable** in 6 Animation.
 To change the video's size, shape, frame rate or file: change them there, then click **Make
 turntable video** again (it fits the camera and the turn to them). Also click it again after
-changing the machine or the background; it makes the turn anew, so steps you added to the
-animation "Turntable" are replaced.
+changing the machine or the background; it makes only its own turn ("Once round the machine") anew – steps
+you added to the animation "Turntable" stay, and the animation picked in 6 Animation stays picked.
 
 In a hall the panel says that halls take 1.4 to 2.8 times as long to render as the studio (measured
 on a test PC without a graphics card) and offers **Use Simple (faster)**.
@@ -5116,6 +5119,14 @@ about 30 minutes on the machine, 45,349 frames at 25 fps) builds in 2–3 s, too
    <kbd>Space</kbd> plays it again. Here the section says **Built · Space plays it again**, and the **X** beside it takes the
    animation off the model, so the joints can be moved by hand again (before it is built: "Not built yet").
 7. **Fit camera to the whole motion** zooms the start camera out so nothing leaves the picture.
+
+**Your own keys.** Build & play fits the timeline to the whole animation. A key of the built animation you change by
+hand (in Blender's Graph Editor or Dope Sheet, Full access) stays at the next Build & play – also in the render queue
+and with F12 – as long as the steps that made it stay the same; the warnings say "Kept your own change to the keys
+of …". When you change such a step, Build & play makes its keys anew and says so. To go back to the steps' keys:
+the **X** (Stop animation), then Build & play again. Keys of your own on a part (keyed by hand before Build) play
+along while the animation is built – also on a part a Fade step fades – and are back as they were after the X;
+where a step moves the same thing, the step wins while built and the warnings name it.
 
 <a id="camera-path"></a>
 **Camera that rides along, flies a path or watches a part**
