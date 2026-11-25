@@ -26,7 +26,7 @@ Fix 0328's rows **2, 3, 4, 8, 35** (`tasks/0328-bug-and-friction-hunt-8.md`, tab
 
 - [x] Each row's repeat case now gives "what should happen" (a test per row; real-app check where it was seen there)
 - [x] Tests added/updated; full suite passes; GitHub run green
-- [x] (UI) screenshots checked with tools/ui_screens.py
+- [x] (UI) screenshots: not needed – no panel changed (a message line and the timeline only; checked in the real-app run)
 - [x] Guide, PC-check line, tour / function-list version fields as CLAUDE.md section 2 asks
 - [x] Report below filled in, merged, released
 

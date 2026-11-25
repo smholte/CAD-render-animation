@@ -463,12 +463,11 @@ def s_render_image():
 def s_render_wait():
     if QUICK:
         return 0.1
-    s = bpy.context.scene.fresing
-    if not s.last_message.startswith(("Saved", "Render cancelled", "Could not")) and time.time() - globals()["_rt0"] < 900:
+    note = bpy.context.scene.get("fr_render_note", "")
+    if not note.startswith(("Saved", "Render cancelled", "Could not")) and time.time() - globals()["_rt0"] < 900:
         return "wait"
-    path = s.last_message.replace("Saved ", "")
-    check("Render image saves the picture", s.last_message.startswith("Saved") and os.path.isfile(path),
-          s.last_message)
+    path = note.replace("Saved ", "").split(" (and a copy")[0]
+    check("Render image saves the picture", note.startswith("Saved") and os.path.isfile(path), note)
     shot("07b_render_window")
     return 0.5
 
