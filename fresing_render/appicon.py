@@ -651,7 +651,7 @@ def ensure_uninstall_shortcuts(folder: str, binary_path: str, icon: str = "") ->
             continue
         try:
             make_shortcut(path, spec["target"], spec["arguments"], spec["workdir"], icon, spec["description"])
-            where = "install folder" if os.path.dirname(path) == folder else "Fresing Render.exe's folder"
+            where = "install folder" if is_inside(os.path.dirname(path), folder) and is_inside(folder, os.path.dirname(path)) else "Fresing Render.exe's folder"
             done.append(f"{installed_apps.UNINSTALL_LNK}: {'made' if info is None else 'set right'} in the {where}")
         except Exception as exc:  # noqa: BLE001
             log(f"could not make {installed_apps.UNINSTALL_LNK}:", exc)

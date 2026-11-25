@@ -155,6 +155,9 @@ def test_the_uninstaller_started_from_inside_the_folder_leaves_it_free():
     gone = t.index("the folder is gone")
     assert gone < t.index("installed.txt is missing")                     # a second run says so plainly
     assert "for ($try = 0; $try -lt 4" in t
+    # a partly removed folder keeps installed.txt, so the second try is not refused (independent review)
+    fail = t[t.index("could not be removed (in use?)") - 900:t.index("could not be removed (in use?)")]
+    assert 'Join-Path $InstallDir "installed.txt"' in fail and "Set-Content -LiteralPath $marker" in fail
     assert "Uninstall Fresing Render" in t
     t.encode("ascii")
 
