@@ -19,7 +19,9 @@ deleted and the set-up is rebuilt on the old model: the project is as it was, an
 
 from __future__ import annotations
 
+import json
 import re
+import time
 
 import bpy
 from mathutils import Matrix, Vector
@@ -502,6 +504,24 @@ def _model_objects_of(root, tree) -> list:
     return [root] + [d for d in tree.descendants(root) if d.get(build.PROP_KIND) in build.MODEL_KINDS]
 
 
+class _Clock:
+    """Seconds per stage of an update (task 0324): ``lap(name)`` adds the time since the last lap to ``name``."""
+
+    def __init__(self):
+        self.t0 = self.t = time.perf_counter()
+        self.laps: dict = {}
+
+    def lap(self, name: str) -> None:
+        now = time.perf_counter()
+        self.laps[name] = self.laps.get(name, 0.0) + now - self.t
+        self.t = now
+
+    def table(self) -> dict:
+        out = {k: round(v, 2) for k, v in self.laps.items()}
+        out["total"] = round(time.perf_counter() - self.t0, 2)
+        return out
+
+
 class UpdateFailed(RuntimeError):
     """The model update did not happen; the message says why (and whether the project is unchanged)."""
 
@@ -523,6 +543,7 @@ class _State:
         self.rebuilding = False
         self.pairs: list = []                  # (old object, new object)
         self.aside: list = []                  # old collections out of the scene: (collection, parents)
+        self.clock = _Clock()
 
 
 def _set_aside(scene, old_collections, old_names: set) -> list:
@@ -598,15 +619,21 @@ def update_model(context, old_root, cache_dir: str, copies: bool = True) -> dict
     before = {"objects": _names(bpy.data.objects), "meshes": _names(bpy.data.meshes),
               "collections": _names(bpy.data.collections)}
     build.ensure_bases(scene)
+    clock = _Clock()
     # 1. the new revision first: when it cannot be read or built, nothing has changed yet
     try:
         # the new revision keeps the old one's part-ID scope (task 0056: the second copy of a STEP stays itself)
-        new_root = build.build(cache_dir, scope=build.uid_scope(old_root), taken=build.used_uids(but=old_root))
+        from ..importer.runner import update_full
+        pool = None if update_full() else build.mesh_pool(_model_objects_of(old_root, logic.Tree(scene)))
+        new_root = build.build(cache_dir, scope=build.uid_scope(old_root), taken=build.used_uids(but=old_root),
+                               reuse=pool, link=False)     # in the scene once the old model is taken apart (0324)
     except Exception as exc:
         _remove_new(before)
         raise UpdateFailed(f"the new revision could not be built ({exc or type(exc).__name__}). "
                            "Nothing was changed") from exc
+    clock.lap("build new")
     st = _State(old_root, new_root, before)
+    st.clock = clock
     from . import vessel_motion
     with vessel_motion.at_rest(scene):           # task 0085: joints are rebuilt from world places on a still sea
         try:
@@ -629,6 +656,10 @@ def update_model(context, old_root, cache_dir: str, copies: bool = True) -> dict
         for n in remove.after_update(scene, removed, out.get("root")):
             scene.fresing.report_notes.add().text = n
             out["notes"].append(n)
+    clock.lap("after")
+    out["stages"] = clock.table()
+    if out.get("root") is not None:
+        out["root"]["fr_update_stats"] = json.dumps(out["stages"])
     title = scene.fresing.report_title
     for name in followers:                       # task 0293: the copies of a whole model follow it
         other = bpy.data.objects.get(name)
@@ -780,6 +811,8 @@ def _carry_over(context, st) -> dict:
     sequence.end_preview(scene)          # parts an Assembly sequence preview moved are not free moves (0121)
     animation.clear_keys(scene)
     old_root, new_root = st.old_root, st.new_root
+    lap = st.clock.lap
+    lap("before")
 
     # 1. joints off (parts back in the CAD tree), remember free moves by part ID
     tree = logic.Tree(scene)
@@ -791,8 +824,13 @@ def _carry_over(context, st) -> dict:
               if n in old_set}
     old_meshes = {ob.data for ob in old_objs if ob.type == "MESH" and ob.data is not None}
     old_collections = list(old_root.users_collection)
+    lap("take apart")
 
-    # 2. the new revision (built first, in update_model), placed where the old one was
+    # 2. the new revision (built first, in update_model, outside the scene: taking the old model apart updates the
+    #    scene again and again, and need not work out 10,000 new objects each time), placed where the old one was
+    for col in new_root.users_collection:
+        if col is not scene.collection and col.name not in scene.collection.children:
+            scene.collection.children.link(col)
     new_root.matrix_basis = old_root.matrix_basis.copy()
     from . import copy as copy_mod
     kept_root = copy_mod.carry_root(old_root, new_root)     # task 0293: a copy keeps its group and name
@@ -804,8 +842,10 @@ def _carry_over(context, st) -> dict:
         if ob.get(build.PROP_KIND) == "assembly":
             ob[build.PROP_LOCKED] = True
 
+    lap("place new")
     # 3. match
     old_recs, new_recs = records(old_objs), records(new_objs)
+    lap("records")
     pairs = match(old_recs, new_recs)
     pairs += _made_root(old_recs, new_root, pairs)
     renamed = [f"{o['ob'].get(build.PROP_NAME, '')} is now called {n['ob'].get(build.PROP_NAME, '')}: same shape "
@@ -819,6 +859,7 @@ def _carry_over(context, st) -> dict:
         mapping[o["ob"].get(build.PROP_UID)] = n["ob"].get(build.PROP_UID)
         by_uid_new[o["ob"].get(build.PROP_UID)] = n["ob"]
     st.mapping = mapping
+    lap("match")
 
     # 4. carry over per-part settings
     pairs_ob = [(o["ob"], n["ob"]) for o, n in pairs] + [(old_root, new_root)]
@@ -847,12 +888,14 @@ def _carry_over(context, st) -> dict:
         logic.exclude(to_exclude, True)
     for ob in to_hide:
         logic.set_hidden(ob, True, tree)
+    lap("settings")
     lost_faces = faces.carry_over([(o["ob"], n["ob"]) for o, n in pairs if o["kind"] == "part"])
     from . import decals
     st.decals_moved = True
     decal_notes = decals.carry_over([(o["ob"], n["ob"]) for o, n in pairs if o["kind"] == "part"], old_objs)
     from . import welds                          # task 0319: welds find their faces again on the new parts
     weld_notes, st.welds_undo = welds.carry_over(scene, [(o["ob"], n["ob"]) for o, n in pairs if o["kind"] == "part"])
+    lap("faces, decals, welds")
 
     matched_new = {id(n) for _o, n in pairs}
     matched_old = {id(o) for o, _n in pairs}
@@ -865,10 +908,13 @@ def _carry_over(context, st) -> dict:
     st.rebuilding = True
     st.aside = _set_aside(scene, old_collections, old_set)
     bpy.context.view_layer.update()
+    lap("set aside")
     notes = _put_together(scene, st, by_uid_new, mapping)
+    lap("joints and set-up")
     st.pairs = pairs_ob
     _repoint(scene, {o.name: n for o, n in pairs_ob}, notes)
     states.remap_uids(scene, mapping)
+    lap("repoint")
 
     # 6. the old model goes (from here on there is no way back)
     st.old_objs = None
@@ -889,13 +935,17 @@ def _carry_over(context, st) -> dict:
         new_root.users_collection[0].name = old_name
     copy_mod.after_root(new_root, kept_root)
     bpy.context.view_layer.update()
+    lap("remove old")
     logic.apply_rules(scene)
+    lap("sort")
     logic.rebuild_tree(scene)
+    lap("structure list")
     logic.update_bounds(scene)
     from . import section
     section.sync(scene)                          # cutaways (task 0086): groups are known only now
     from . import world
     world.apply(scene, s)
+    lap("bounds, surroundings")
 
     # 7. report
     s.report_new.clear()

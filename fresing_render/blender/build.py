@@ -19,7 +19,7 @@ import bpy
 import numpy as np
 from mathutils import Matrix
 
-from ..core import ral
+from ..core import part_hash, ral
 
 PROP_UID = "fr_uid"
 PROP_NAME = "fr_name"
@@ -125,6 +125,50 @@ def _new_mesh(name: str, pos: np.ndarray, nrm: np.ndarray, tri: np.ndarray) -> b
     return me
 
 
+MESH_KEY = "fr_mesh_key"        # task 0324: the mesh's key (core/part_hash.blender_key) …
+MESH_OF = "fr_mesh_of"          # … and the name it was made under: a copy of it (milling's own mesh) has another
+
+
+def mesh_pool(objs) -> dict:
+    """{mesh key: [meshes]} of the part meshes of ``objs`` a model update may give the new revision (task 0324):
+    meshes the build made, under the name they were made with. A copy of one (the milled workpiece's, a renamed one) is
+    left out. Two parts of the same shape (PLATE A, PLATE B) have the same key: each keeps its own mesh by its name."""
+    pool: dict = {}
+    seen: set = set()
+    for ob in objs:
+        me = ob.data if ob.type == "MESH" else None
+        if me is None or ob.get(PROP_KIND) != "part" or getattr(me, "library", None) is not None:
+            continue
+        key = me.get(MESH_KEY)
+        if isinstance(key, str) and key and me.get(MESH_OF) == me.name and me.as_pointer() not in seen:
+            seen.add(me.as_pointer())
+            pool.setdefault(key, []).append(me)
+    return pool
+
+
+def _take_from_pool(pool: dict, key: str, name: str):
+    """An old mesh of this key – the one of this name (``name`` or ``name.001`` …) first – taken out of the pool."""
+    meshes = pool.get(key) if key else None
+    if not meshes:
+        return None
+    pick = next((m for m in meshes if m.name == name or m.name.rsplit(".", 1)[0] == name), meshes[0])
+    meshes.remove(pick)
+    return pick
+
+
+def _same_mesh(me, pos: np.ndarray, n_tris: int) -> bool:
+    """Does the Blender mesh ``me`` hold exactly these points and as many triangles as the cache (what ``_new_mesh``
+    would make)? Its key already says it was made from the same cache mesh; this catches a mesh changed since."""
+    try:
+        if len(me.vertices) != len(pos) or len(me.polygons) != n_tris or len(me.loops) != 3 * n_tris:
+            return False
+        co = np.empty(len(pos) * 3, dtype=np.float32)
+        me.vertices.foreach_get("co", co)
+        return bool(np.array_equal(co, np.asarray(pos, dtype=np.float32).reshape(-1)))
+    except Exception:
+        return False
+
+
 def _set_uv(me, uv: np.ndarray, tri: np.ndarray) -> None:
     """UVs per corner from UVs per point (a mesh model's, task 0117): the layer "UVMap"."""
     if len(uv) != len(me.vertices) or len(tri) != len(me.polygons):
@@ -184,12 +228,19 @@ def free_scope(uids, used: set) -> str:
 
 
 def build(cache_dir: str, collection: bpy.types.Collection | None = None, progress=None,
-          scope: str | None = None, taken: set | None = None) -> bpy.types.Object:
+          scope: str | None = None, taken: set | None = None, reuse: dict | None = None,
+          link: bool = True) -> bpy.types.Object:
     """Create objects for a cache. Returns the root empty of the model.
+
+    ``link`` False: the new collection is not put in the scene yet (the caller does). ``reuse`` (a model update, task
+    0324): {mesh key: mesh} of the old revision (``mesh_pool``); a part whose key is
+    there and whose points and triangle count are exactly the cache's takes that mesh instead of a new one (each old
+    mesh once). LAST_TIMES["reused"] says how many.
 
     Part IDs get a scope in front when they are taken by a model already in the project (task 0056; ``taken``:
     the IDs in use, default every model's). ``scope``: the one to keep when its IDs are free (a model update gives
     the new revision the old one's); ``None`` = a new import: '' unless taken."""
+    t_start = time.perf_counter()
     info, arrays = load_cache(cache_dir)
     nodes = info["nodes"]
     meshes_meta = info["meshes"]
@@ -202,7 +253,8 @@ def build(cache_dir: str, collection: bpy.types.Collection | None = None, progre
 
     if collection is None:
         collection = bpy.data.collections.new(src_name)
-        bpy.context.scene.collection.children.link(collection)
+        if link:                                # a model update links it once the old model is taken apart (0324)
+            bpy.context.scene.collection.children.link(collection)
 
     # ---- meshes (one per unique part) ------------------------------------------
     from . import faces
@@ -218,12 +270,25 @@ def build(cache_dir: str, collection: bpy.types.Collection | None = None, progre
     if info.get("materials"):                   # a mesh model's own materials (task 0117)
         from . import mesh_import
         file_mats = mesh_import.make_materials(info, cache_dir)
+    reused = 0
+    reuse = {k: list(v) for k, v in (reuse or {}).items()}
     for k, mid in enumerate(sorted(used)):
         key = f"p{mid}"
         if key not in arrays:
             continue
-        me = _new_mesh(meshes_meta[mid]["name"] or f"Part {mid}", arrays[key], arrays[f"n{mid}"], arrays[f"t{mid}"])
         meta = meshes_meta[mid]
+        cols = part_colours.get(mid)
+        bkey = part_hash.blender_key(meta.get("key") or "", meta.get("palette") or [],
+                                     max(cols, key=cols.get) if cols else None) if f"u{mid}" not in arrays else ""
+        old = _take_from_pool(reuse, bkey, meta["name"] or f"Part {mid}")
+        if old is not None and _same_mesh(old, arrays[key], int(meta.get("tris") or 0)):
+            mesh_blocks[mid] = old                  # unchanged: the old revision's mesh, with all that is on it
+            reused += 1
+            continue
+        me = _new_mesh(meta["name"] or f"Part {mid}", arrays[key], arrays[f"n{mid}"], arrays[f"t{mid}"])
+        if bkey:
+            me[MESH_KEY] = bkey
+            me[MESH_OF] = me.name
         if f"u{mid}" in arrays:                 # a mesh model's UVs (task 0117)
             _set_uv(me, arrays[f"u{mid}"], arrays[f"t{mid}"])
         fm = meta.get("file_material")
@@ -235,7 +300,6 @@ def build(cache_dir: str, collection: bpy.types.Collection | None = None, progre
             me["fr_axis_faces"] = meta.get("axis_faces", [])
         if f"f{mid}" in arrays:
             # CAD faces (for picking whole faces) and faces painted in the CAD file
-            cols = part_colours.get(mid)
             faces.cad_sets(me, arrays[f"f{mid}"], arrays[f"c{mid}"] if f"c{mid}" in arrays else None,
                            meta.get("palette") or [], meta.get("palette_names") or [],
                            max(cols, key=cols.get) if cols else None)
@@ -243,6 +307,7 @@ def build(cache_dir: str, collection: bpy.types.Collection | None = None, progre
         if progress and k % 25 == 0:
             progress(k / total * 0.7, f"Creating part {k + 1} of {total}")
 
+    t_meshes = time.perf_counter()
     # ---- objects ----------------------------------------------------------------
     objects: list[bpy.types.Object] = []
     root_obj = None
@@ -302,7 +367,13 @@ def build(cache_dir: str, collection: bpy.types.Collection | None = None, progre
         root_obj["fr_cache"] = cache_dir
         root_obj["fr_stats"] = json.dumps(info.get("stats", {}))
         root_obj[PROP_LOCKED] = True
+    LAST_TIMES.clear()
+    LAST_TIMES.update(meshes=round(t_meshes - t_start, 2), objects=round(time.perf_counter() - t_meshes, 2),
+                      reused=reused, unique=len(used))
     return root_obj
+
+
+LAST_TIMES: dict = {}           # the last build's seconds: meshes (with reading the cache), objects (task 0324)
 
 
 def model_roots(scene=None) -> list[bpy.types.Object]:

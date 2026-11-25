@@ -280,7 +280,12 @@ class FRESING_OT_import_step(bpy.types.Operator, ImportHelper):
             prune_old_caches(cache_root())
         except Exception as exc:
             print("Fresing Render: pruning old caches failed:", exc)
-        job = ImportJob(path, self.quality, cache_root())
+        reuse = None
+        if self.update_root:                  # task 0324: unchanged parts' meshes come from the old revision's cache
+            from ..importer.runner import reuse_dir_for
+            old = bpy.data.objects.get(self.update_root)
+            reuse = reuse_dir_for(str(old.get("fr_cache", "") or ""), self.quality) if old is not None else None
+        job = ImportJob(path, self.quality, cache_root(), reuse=reuse)
         if job.cached:
             self._job = job
             return self._finish(context, cached=True)

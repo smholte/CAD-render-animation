@@ -352,7 +352,7 @@ def crane_with_work(tmp_path):
     return sc
 
 
-@pytest.mark.parametrize("where", ["build", "decals", "rebuild", "last"])
+@pytest.mark.parametrize("where", ["build", "build_reused", "decals", "rebuild", "last"])
 def test_failed_update_leaves_the_project_as_it_was(tmp_path, monkeypatch, where):
     sc = crane_with_work(tmp_path)
     before = snapshot(sc)
@@ -373,6 +373,7 @@ def test_failed_update_leaves_the_project_as_it_was(tmp_path, monkeypatch, where
         monkeypatch.setattr(module, name, step)
 
     if where == "build":                       # half-way through building the new revision
+        monkeypatch.setenv("FRESING_UPDATE_FULL", "1")         # every mesh made again (task 0324)
         real, calls = build._new_mesh, []
 
         def new_mesh(*a, **k):
@@ -381,6 +382,16 @@ def test_failed_update_leaves_the_project_as_it_was(tmp_path, monkeypatch, where
                 boom()
             return real(*a, **k)
         monkeypatch.setattr(build, "_new_mesh", new_mesh)
+    elif where == "build_reused":              # task 0324: half-way through taking the old meshes
+        real_take, taken = build._take_from_pool, []
+
+        def take(*a, **k):
+            got = real_take(*a, **k)
+            taken.append(got)
+            if sum(1 for t in taken if t is not None) > 3:
+                boom()
+            return got
+        monkeypatch.setattr(build, "_take_from_pool", take)
     elif where == "decals":                    # after the joints came apart, before anything is rebuilt
         once(decals, "carry_over")
     elif where == "rebuild":                   # joints rebuilt on the new model, mechanisms not yet
@@ -390,7 +401,7 @@ def test_failed_update_leaves_the_project_as_it_was(tmp_path, monkeypatch, where
     assert update_model(sc, CRANE_B, "TEST.CRANE") == {"CANCELLED"}
     msg = sc.fresing.last_message
     assert msg.startswith("Model update failed") and "forced for the test" in msg
-    assert ("Nothing was changed" in msg) if where == "build" else ("as it was before" in msg)
+    assert ("Nothing was changed" in msg) if where.startswith("build") else ("as it was before" in msg)
     assert snapshot(sc) == before
     assert (boom_tip(sc) - tip).length < TOL
     assert not any(o.get(build.PROP_NAME) == "BOOM.LAMP" for o in sc.objects)     # nothing of revision B

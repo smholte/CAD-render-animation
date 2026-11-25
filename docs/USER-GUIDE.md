@@ -1193,7 +1193,10 @@ that goes back to its place at the next pose or Build, unless a pose or an anima
 <a id="update-model"></a>
 **Update to a new revision**
 
-1. Click **Update to new revision…** under the model's name and pick the new STEP file.
+1. Click **Update to new revision…** under the model's name and pick the new STEP file. Only the parts that changed
+   are meshed again: a part whose shape, face colours and Detail are the same keeps its mesh from the last import, so
+   an update with a few changed parts is much quicker than reading the model fresh. (The first update of a project
+   imported with an older version reads every part once.)
 2. Your work stays: materials, painted faces, logos and stickers, hidden parts, joints, cylinders,
    mechanisms, way covers, slices, poses, saved scenes, animations, labels and the camera's sharp spot. Joints,
    cylinders and mechanisms that link this model to another one in the project (a crane on a ship's

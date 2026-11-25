@@ -25,6 +25,7 @@ READER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "step_reader.p
 MESH_READER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "mesh_reader.py")
 MESH_EXTENSIONS = (".glb", ".gltf", ".obj", ".fbx")      # task 0117: read by mesh_reader.py
 STALE_PARTIAL_S = 6 * 3600                                # a half-written folder this old is from a stopped import
+FULL_ENV = "FRESING_UPDATE_FULL"                          # task 0324: "1" = a model update reads every part again
 _JOB_NUMBER = itertools.count(1)
 
 
@@ -80,6 +81,27 @@ def side_files_changed(head: dict) -> bool:
     return False
 
 
+def update_full() -> bool:
+    """The hidden switch of task 0324: a model update takes nothing from the old revision (today's full path)."""
+    return os.environ.get(FULL_ENV, "").strip() == "1"
+
+
+def reuse_dir_for(old_cache: str, quality: str) -> str | None:
+    """The old revision's cache a model update may take unchanged parts' meshes from (task 0324): only a valid STEP
+    cache of this cache version and the same Detail; None otherwise (an old project, a moved or cleared cache, the
+    switch FRESING_UPDATE_FULL=1) – the update then reads every part, as before."""
+    if update_full() or not old_cache or not os.path.isdir(old_cache) or not cache_is_valid(old_cache):
+        return None
+    try:
+        with open(os.path.join(old_cache, "tree.json"), encoding="utf-8") as fh:
+            head = json.load(fh)
+    except (OSError, ValueError):
+        return None
+    if head.get("source_kind") == "mesh" or head.get("quality") != quality:
+        return None
+    return old_cache
+
+
 def python_executable() -> str:
     """The Python to run the reader with. Inside Blender this is Blender's own Python."""
     exe = sys.executable
@@ -99,8 +121,9 @@ class ImportJob:
     off); ``converter``: Blender's program, for FBX and compressed glTF (``mesh_reader.convert_with_blender``)."""
 
     def __init__(self, step_path: str, quality: str, cache_root: str, options: dict | None = None,
-                 converter: str | None = None):
+                 converter: str | None = None, reuse: str | None = None):
         self.step_path = step_path
+        self.reuse = reuse                    # task 0324: the old revision's cache (STEP only)
         self.mesh = is_mesh(step_path)
         self.options = {k: str(v) for k, v in (options or {}).items()} if self.mesh else {}
         if self.mesh:
@@ -127,7 +150,10 @@ class ImportJob:
     def command(self) -> list[str]:
         """The reader's command line."""
         if not self.mesh:
-            return [python_executable(), READER, self.step_path, self.tmp_dir, "--quality", self.quality]
+            cmd = [python_executable(), READER, self.step_path, self.tmp_dir, "--quality", self.quality]
+            if self.reuse and os.path.abspath(self.reuse) != os.path.abspath(self.cache_dir):
+                cmd += ["--reuse", self.reuse]
+            return cmd
         cmd = [python_executable(), MESH_READER, self.step_path, self.tmp_dir]
         for key in ("units", "up", "split"):
             cmd += [f"--{key}", self.options[key]]

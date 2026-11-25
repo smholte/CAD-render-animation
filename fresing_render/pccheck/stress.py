@@ -684,11 +684,11 @@ def stress_web3d(ctx):
     return out["text"]
 
 
-@stress_line("stress.update", "Stress model: model update with about 1 % changed", 120, 360, requires=("stress.save",),
+@stress_line("stress.update", "Stress model: model update with about 1 % changed", 60, 240, requires=("stress.save",),
              what="A second revision of the model (about 1 % of the placed parts changed: cables re-routed, a cabinet "
                   "type, a spool, valve bonnets, the boom's sheave) is made and read in with Model update",
-             shows="How long a model update of a big model takes when only a few parts changed, and that the joints "
-                   "stay",
+             shows="How long a model update of a big model takes when only a few parts changed (unchanged parts keep "
+                   "their meshes: 'N of M parts reused'), and that the joints stay",
              not_shown="An update where most parts changed (about a fresh import)")
 def stress_update(ctx):
     import bpy
@@ -714,7 +714,23 @@ def stress_update(ctx):
            "the model update lost joints")
     parts = sum(1 for _ in build.iter_parts(scene))
     _check(parts >= info["placed"] * 0.99, f"only {parts} of {info['placed']} parts after the update")
-    return f"{info['changed_placed']} of {info['placed']} parts changed; joints kept"
+    root = _root(scene)
+    reused, unique = 0, 0                       # task 0324: unchanged parts keep their meshes
+    try:
+        with open(os.path.join(root.get("fr_cache", ""), "tree.json"), encoding="utf-8") as fh:
+            stats = json.load(fh).get("stats", {})
+        reused, unique = int(stats.get("parts_reused", 0)), int(stats.get("unique_parts", 0))
+    except (OSError, ValueError, TypeError):
+        pass
+    ctx.metric("parts reused", reused, "")
+    try:
+        for name, secs in json.loads(root.get("fr_update_stats", "{}")).items():
+            if name in ("build new", "take apart", "remove old"):
+                ctx.metric(f"update: {name}", secs, "s")
+    except (ValueError, TypeError, AttributeError):
+        pass
+    return (f"{info['changed_placed']} of {info['placed']} parts changed; {reused} of {unique} parts reused; "
+            "joints kept")
 
 
 def write_table(run, folder: str) -> str:

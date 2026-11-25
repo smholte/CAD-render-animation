@@ -511,6 +511,12 @@ def carry_over(pairs) -> list[str]:
     for old_me, new_me, obs in by_mesh.values():
         if not _worth_keeping(old_me, [o for o, _n in obs]):
             continue
+        if old_me == new_me:                    # task 0324: an unchanged part kept its mesh – its sets are there
+            keys = {st["key"] for st in get_sets(new_me)}
+            for old, new in obs:
+                _put_copy(new, {k: v for k, v in get_copy(old).items() if k in keys})
+                link_slots(new)
+            continue
         if not same_faces(old_me, new_me):
             lost.append(obs[0][0].get(build.PROP_NAME, obs[0][0].name))
             continue
