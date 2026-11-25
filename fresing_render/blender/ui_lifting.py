@@ -264,6 +264,8 @@ class FRESING_PT_lifting_load(_Panel, bpy.types.Panel):
         gap(layout)
         n = len(lifting.load_parts(ld))
         layout.label(text=f"{ld.name}: " + ("a box" if ld.kind == "BOX" else plural(n, "part")), icon="PACKAGE")
+        if ld.kind == "PARTS" and n == 0:             # task 0337 (0328 row 24): never used, never a green readout
+            wrap(layout, context, lifting.NO_PARTS.format(name=ld.name), icon="ERROR", alert=True)
         col = split_props(layout)
         if ld.kind == "PARTS":
             col.prop(ld, "mass_mode", text="Mass")

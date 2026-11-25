@@ -706,7 +706,7 @@ fn(id="house.toolbox", short="House alone", title="A house from House Planner by
    panel="FRESING_PT_house", button="fresing.toolbox_start", guide="house-toolbox", tour=("house_toolbox",),
    pccheck=("house.toolbox",), since="0.2.173")
 fn(id="web.export", title="Web 3D model", family="web", panel="FRESING_PT_web3d", button="fresing.web3d_export",
-   guide="web3d", tour=("web3d",), pccheck=("web3d.export", "web3d.small"), since="0.2.77", changed="0.2.249",
+   guide="web3d", tour=("web3d",), pccheck=("web3d.export", "web3d.small"), since="0.2.77", changed="0.2.250",
    manual_estimate=("use", 7200, "bake the materials, export a glTF and build a viewer page"))
 fn(id="web.surroundings", title="Web 3D model with surroundings", family="web", panel="FRESING_PT_web3d",
    prop="env_mode", guide="web3d-surroundings", tour=("web3d_env",), pccheck=("web3d.surroundings",),
@@ -726,10 +726,10 @@ fn(id="web.view_names", title="Web 3D model: View names – camera names or numb
    since="0.2.140")
 fn(id="web.page_views", title="Web 3D model: Page views – tick which cameras become saved views", family="web",
    panel="FRESING_PT_web3d", button="fresing.web3d_view", guide="web3d-page-views", tour=("web3d",),
-   pccheck=("web3d.export",), since="0.2.249")
+   pccheck=("web3d.export",), since="0.2.250")
 fn(id="web.phone", short="Web 3D, phone", title="Web 3D page on a phone: one views control, nothing overlapping, the model in the free area",
    family="web", panel="FRESING_PT_web3d", button="fresing.web3d_export", guide="web3d-phone", tour=("web3d",),
-   pccheck=("web3d.export",), since="0.2.140", changed="0.2.249")
+   pccheck=("web3d.export",), since="0.2.140", changed="0.2.250")
 fn(id="web.film", short="Web 3D Film", title="Web 3D page: Film – the motion seen through the video's camera, with captions, labels and cards",
    family="web", panel="FRESING_PT_web3d", prop="film_captions", guide="web3d-film", tour=("web3d",),
    pccheck=("web3d.film",), since="0.2.194")

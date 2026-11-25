@@ -5657,7 +5657,7 @@ before that. The app remembers it for you (a preference), so it asks once per us
 Every joint, cylinder, pose and cable of a placed crane carries its name – "AT-40 · Slew", "AT-40 · Working" – so
 two cranes in one project (even two of one class: "AT-40" and "AT-40 2") never mix. The list of placed cranes is
 at the top of Equipment: click one to work with it. **Move…** places it again (the same mouse, wheel and click; Esc
-puts it back), **Remove** takes it out of the project with its joints, cylinders, poses and model.
+puts it back), **Remove** takes it out of the project with its joints, cylinders, poses and model. The general **Remove…** on a placed crane does the same: its rope, drum, joints, poses and its entry in the plan go too (the window says "is a lifting crane"). A load whose model was removed shows a red line "has no parts left" and is not used for the crane's use.
 
 - **On a moving deck** (vessel motion on, 5 Scene & Render): click the deck as you see it, at any frame – the crane
   stands where you clicked and rides with the deck. A **Box…** load rides with the deck too.

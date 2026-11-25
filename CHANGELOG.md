@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.249 – 25 Nov 2026 – 3D page: Open page in sight, page views by tick, phone sideways (task 0336)
+## 0.2.250 – 25 Nov 2026 – 3D page: Open page in sight, page views by tick, phone sideways (task 0336)
 
 - **Open page** and the folder button now sit on the **Export…** row (Make > 3D page, and 5 Scene & Render > Web 3D
   model). After an export they are right where you clicked – in the small Make window the result used to be below the
@@ -18,6 +18,12 @@ installer of that version was built from.
 - **On a phone held sideways** the page's saved views are one ‹ name › control, as upright, and the settings menu ends
   above the views and the play bar (it scrolls) – it covered the time line, the speed and Film.
 - **Smaller file**: its tooltip and the guide no longer name the packing method.
+## 0.2.249 – 25 Nov 2026 – Removing a crane or a load's model (task 0337)
+
+- **Remove… on a placed crane takes all of it.** The hoist rope, drum, sheaves, joints, poses and its entry in
+  8 Lifting plan went on showing; now they go with the crane, and the Remove window says it is a lifting crane.
+- **A load with no parts left says so.** Remove the load's model and the load showed a stale centre of gravity and a
+  green "within limits". Now a red line says "has no parts left" and the load is not used.
 ## 0.2.248 – 25 Nov 2026 – One undo step per action, messages beside their own button (task 0334)
 - Ctrl+Z now undoes one thing at a time after picking a RAL colour, loading a template (also from the library) and
   picking a 360° photo – before, one Ctrl+Z took the colour pick back together with the step before it.
