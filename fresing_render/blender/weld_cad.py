@@ -46,19 +46,30 @@ def _np(m) -> np.ndarray:
     return np.array([list(r) for r in m], np.float64)
 
 
-def meshes_of(objs) -> list:
-    """``core.weld_cad.Mesh`` of each part (world metres), key = the object's name."""
+def meshes_of(objs, tables: dict | None = None) -> list:
+    """``core.weld_cad.Mesh`` of each part (world metres), key = the object's name. ``tables``: the mesh tables read
+    so far, by mesh (copies of a part share one)."""
     out = []
+    tables = {} if tables is None else tables
     for ob in objs:
         if ob.type != "MESH" or ob.data is None or not len(ob.data.polygons):
             continue
-        p, t, f = welds.mesh_tables(ob.data)
+        if ob.data.name not in tables:
+            tables[ob.data.name] = welds.mesh_tables(ob.data)
+        p, t, f = tables[ob.data.name]
         M = _np(ob.matrix_world)
         if np.linalg.det(M[:3, :3]) < 0:
             t = t[:, ::-1]
         out.append(cad.Mesh(ob.name, ob.get(build.PROP_NAME, ob.name), p @ M[:3, :3].T + M[:3, 3], t, f,
                             ob.get(build.PROP_CAD_MATERIAL, "") or ""))
     return out
+
+
+def _may_be(ob) -> bool:
+    """Before reading its mesh: a part that may be a bead by its shape (not a known part, not a big mesh)."""
+    if ob.type != "MESH" or ob.data is None or not len(ob.data.polygons) or len(ob.data.polygons) > 20000:
+        return False
+    return not cad.known_part(ob.get(build.PROP_NAME, ob.name))
 
 
 def _parts_of(root, include=()) -> list:
@@ -85,18 +96,24 @@ def _cad_welds_of(scene, root) -> list:
     return out
 
 
-def detect(scene, root, progress=None, include=()) -> tuple:
-    """(found, {key: object}, named keys, meshes) of one model."""
+def detect(scene, root, progress=None, include=(), budget=cad.SHAPE_BUDGET) -> tuple:
+    """(found, {key: object}, named keys, meshes) of one model (``budget``: seconds for the search by shape). The other
+    parts' meshes are read only when there is a body to look at (an import without welds costs next to nothing)."""
     objs = _parts_of(root, include)
-    ms = meshes_of(objs)
     obs = {o.name: o for o in objs}
     done = {it.cad_source.name for it in _cad_welds_of(scene, root) if it.cad_source is not None}
-    named = {m.key for m in ms if cad.weld_name(m.name) and m.key not in done}
-    bodies = [m for m in ms if m.key not in done and (m.key in named or cad.maybe_bead(m))]
-    parts = [m for m in ms if m.key not in named and m.key not in done]
+    tables: dict = {}
+    named_obs = [o for o in objs if o.name not in done and cad.weld_name(o.get(build.PROP_NAME, o.name))]
+    named = {o.name for o in named_obs}
+    maybe = meshes_of([o for o in objs if o.name not in done and o.name not in named and _may_be(o)], tables)
+    bodies = meshes_of(named_obs, tables) + [m for m in maybe if cad.maybe_bead(m)]
     if not bodies:
-        return [], obs, named, ms
-    return cad.find(bodies, parts, named, progress=progress), obs, named, ms
+        return [], obs, named, bodies
+    ms = meshes_of([o for o in objs if o.name not in done], tables)
+    by = {m.key: m for m in ms}
+    bodies = [by[b.key] for b in bodies]
+    parts = [m for m in ms if m.key not in named]
+    return cad.find(bodies, parts, named, progress=progress, budget=budget), obs, named, ms
 
 
 def after_import(scene, root) -> str:
@@ -111,7 +128,12 @@ def after_import(scene, root) -> str:
         print("Fresing Render: welds from the CAD file not read:", exc)
         LAST.update(welds=0, by_shape=0, seconds=time.perf_counter() - t0, error=str(exc))
         return ""
-    LAST.update(welds=len(made), by_shape=by_shape, seconds=time.perf_counter() - t0, error="")
+    LAST.update(welds=len(made), by_shape=by_shape, seconds=time.perf_counter() - t0, error="",
+                stopped=cad.STOPPED[0])
+    if cad.STOPPED[0]:
+        _NOTICE[0] = (f"{plural(len(made), 'weld')} from the CAD file; the search for unnamed weld beads stopped "
+                      f"after {cad.SHAPE_BUDGET:.0f} s – 3 Looks > Welds > Find in CAD file looks further")
+        return _NOTICE[0]
     if not made:
         return ""
     text = f"{plural(len(made), 'weld')} from the CAD file (3 Looks > Welds)"
@@ -121,9 +143,9 @@ def after_import(scene, root) -> str:
     return text
 
 
-def make_all(scene, root) -> tuple:
+def make_all(scene, root, budget=cad.SHAPE_BUDGET) -> tuple:
     """The welds of one model: (new weld keys, how many of them by shape)."""
-    found, obs, _named, ms = detect(scene, root)
+    found, obs, _named, ms = detect(scene, root, budget=budget)
     by_key = {m.key: m for m in ms}
     keys = []
     by_shape = 0
@@ -386,7 +408,7 @@ def find_again(scene) -> tuple:
     made, by_shape = [], 0
     bpy.context.view_layer.update()
     for root in build.model_roots(scene):
-        m, s = make_all(scene, root)
+        m, s = make_all(scene, root, budget=None)        # asked for: no time limit
         made += m
         by_shape += s
     return made, by_shape

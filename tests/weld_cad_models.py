@@ -20,14 +20,14 @@ def path(kind: str) -> str:
     return os.path.join(DATA, f"test_weldment_cad_{kind}.step")
 
 
-def meshes(kind: str, tmp: str):
+def meshes(kind: str, tmp: str, step: str | None = None):
     from fresing_render.core import web3d_faces
     from fresing_render.core.weld_cad import Mesh
     from fresing_render.importer import step_reader
     if kind in _CACHE:
         return _CACHE[kind]
     out = os.path.join(tmp, f"cache_{kind}")
-    step_reader.read_step(path(kind), out, "normal")
+    step_reader.read_step(step or path(kind), out, "normal")
     with open(os.path.join(out, "tree.json"), encoding="utf-8") as fh:
         info = json.load(fh)
     arrays = np.load(os.path.join(out, "meshes.npz"))
@@ -38,7 +38,7 @@ def meshes(kind: str, tmp: str):
         world.append(world[n["parent"]] @ m if n["parent"] >= 0 else m)
     res, by = [], {}
     for i, n in enumerate(nodes):
-        if n["kind"] != "part" or n["mesh"] < 0:
+        if n["kind"] != "part" or n["mesh"] < 0 or f"p{n['mesh']}" not in arrays:
             continue
         mid = n["mesh"]
         p = np.asarray(arrays[f"p{mid}"], float)
@@ -52,9 +52,9 @@ def meshes(kind: str, tmp: str):
     return res, by
 
 
-def detect(kind: str, tmp: str, by_shape: bool = True):
+def detect(kind: str, tmp: str, by_shape: bool = True, step: str | None = None):
     from fresing_render.core import weld_cad
-    ms, _by = meshes(kind, tmp)
+    ms, _by = meshes(kind, tmp, step)
     named = {m.key for m in ms if weld_cad.weld_name(m.name)}
     bodies = [m for m in ms if m.key in named or (by_shape and weld_cad.maybe_bead(m))]
     parts = [m for m in ms if m.key not in named]

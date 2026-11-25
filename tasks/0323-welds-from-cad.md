@@ -138,7 +138,16 @@ file carries any, say what is there – a later task), 2D drawings.
   `test_placed_parts_in_a_grid`. The 6-weld frame: ~1 s.
 - Independent tester (subagent, Sonnet): 70 tests from the brief; 1 fault found and fixed (a bead whose triangles face
   inward was not found). No other subagents; nothing re-done after merging.
-- GitHub runs: see below.
+- **Every other test model** (55 STEP files in tests/data): no weld found; the finder costs 0.02 s on most imports
+  (0.67 s at most, test_finishes) – it reads the parts' meshes only when a body may be a bead. The first GitHub run
+  found two faults this way: a way-cover flange strip (3 x 40 mm in a corner) taken for a groove weld by shape
+  (now: legs at most 3:1, a groove's section at most 1.8 x its V; test over 11 models), and Thor's import (the
+  site's robot arm, 517 parts) taking 890 s in the finder – screws and printed shells went through the full check.
+  Now: no known part words (screw, washer, pin …), at most 40 CAD faces, 5 x as long as wide, a quick 96-point contact
+  look first, contact checks only near the bead, and at an import the search by shape stops after 10 s (said; Find in
+  CAD file has no limit). Thor's candidates: 108 → 8, the finder ~20 s (stopped at 10 s at an import).
+- GitHub runs: 1st (full) – real-app way covers failed (the flange above), one pytest group stopped at 40 min (Thor in
+  `test_site_projects.py`; every group ran 1.5–2 x slower than usual that hour). 2nd: see the merge commit.
 
 **Owner's test steps** (on your PC, after the update):
 1. Inventor: open your small weldment (2 plates, 1 solid fillet weld, 1 cosmetic weld), **File > Export > CAD

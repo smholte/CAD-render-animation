@@ -274,3 +274,26 @@ def test_transform_and_pack_keep_the_seams(tmp):
         again = core.unpack_seams(core.pack_seams(moved))
         assert len(again) == len(moved)
         assert abs(sum(s.length for s in again) - sum(s.length for s in moved)) < 1e-3
+
+
+@pytest.mark.parametrize("name", ["test_waycover_a", "test_waycover_b", "test_waycover_c", "test_waycover_d",
+                                  "test_mill_cabinet", "test_gantry", "test_sequence_frame", "test_tracks",
+                                  "test_flex_chains_a", "test_crane_a", "test_weldment"])
+def test_other_test_models_have_no_welds_by_shape(name, tmp):
+    """No part of the app's other test models is a weld bead (way-cover flanges, sheet covers, chain links …): a flange
+    strip 3 x 40 mm lying in a corner was once taken for a groove weld."""
+    found, meshes = models.detect(name, tmp, step=os.path.join(models.DATA, name + ".step"))
+    assert found == [], [(meshes[f.body].name, weld_cad.describe(f)) for f in found]
+
+
+def test_the_search_by_shape_has_a_time_budget(tmp):
+    """At an import the search for unnamed beads stops after ``SHAPE_BUDGET`` (said); named bodies are always looked
+    at; Find in CAD file (budget None) looks at all."""
+    ms, _by = models.meshes("unnamed", tmp)
+    bodies = [m for m in ms if weld_cad.maybe_bead(m)]
+    assert weld_cad.find(bodies, ms, set(), budget=0.0) == [] and weld_cad.STOPPED[0]
+    assert len(weld_cad.find(bodies, ms, set(), budget=None)) == 6 and not weld_cad.STOPPED[0]
+    ms, _by = models.meshes("inventor", tmp)
+    named = {m.key for m in ms if weld_cad.weld_name(m.name)}
+    got = weld_cad.find([m for m in ms if m.key in named], [m for m in ms if m.key not in named], named, budget=0.0)
+    assert len(got) == 6

@@ -1985,7 +1985,9 @@ What comes through, by CAD program:
 - **Fusion** and others: a bead the designer drew as a body. Named "Weld …" it is taken by its name; with another
   name it is taken **by its shape** – a long thin body in the corner or the gap between two parts, with a triangular
   or groove section, lying on both. Those are said in the import's message ("found 2 welds by their shape – check
-  them") and in the weld's box. Bars, keys and gaskets that only look a bit like a bead are left alone.
+  them") and in the weld's box. Bars, keys, gaskets, screws and folded strips that only look a bit like a bead are left
+  alone. At an import this search by shape takes at most 10 seconds (the message says so when it stopped); **Find in
+  CAD file** looks without a limit.
 
 What the app reads from each bead:
 

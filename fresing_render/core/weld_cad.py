@@ -51,6 +51,11 @@ COVER = 0.0006            # m: a seam point this close to the bead lies under it
 LEG_MAX = 0.040           # m: a leg longer than this is no weld bead (by shape)
 LEG_MIN = 0.0008          # m
 FILL = 1.5                # section area / triangle of the legs: a fillet ~1.0–1.2, a square bar 2.0
+FILL_GROOVE = 1.8         # … a groove: its V and its cap (the test groove 1.3; a flat strip in a corner 2.5)
+MAX_FACES = 40            # by shape: a bead has few CAD faces (a fillet 5, a ring 4, round a square post 10)
+SLENDER = 5.0             # by shape: a bead is at least this many times as long as its section is wide
+SHAPE_BUDGET = 10.0       # s: at an import the search by shape stops after this (Find in CAD file: no limit)
+LEGS_RATIO = 3.0          # by shape: legs more unequal than this are no weld (a strip 3 x 40 lying in a corner)
 ALONG = 0.6               # the seam under a bead (found by shape) covers this share of the bead's length at least
 THIN = 0.006              # m: 2·volume / surface of a bead is ~z/3.4 (z: its legs) – a body thicker than this is no bead
 #                            by shape (a plate: its thickness)
@@ -185,11 +190,40 @@ def volume(points, tris) -> float:
     return abs(float(np.einsum("ij,ij->i", w[:, 0], np.cross(w[:, 1], w[:, 2])).sum()) / 6.0)
 
 
+_PART_WORDS = {
+    "SCREW", "SCREWS", "BOLT", "BOLTS", "NUT", "NUTS", "WASHER", "WASHERS", "PIN", "PINS", "RIVET", "STUD", "KEY",
+    "SPRING", "BEARING", "GEAR", "PULLEY", "CLIP", "SPACER", "BUSH", "BUSHING", "SHAFT", "AXLE", "SEAL", "ORING",
+    "GASKET", "MAGNET", "SENSOR", "MOTOR", "CABLE", "HOSE", "BELT", "CHAIN", "INSERT", "SCHRAUBE", "MUTTER", "SCHEIBE",
+    "STIFT", "BOUT", "MOER", "RING", "SLEEVE", "DOWEL", "THREAD", "PLUG", "CAP", "TUBE", "PIPE", "ROD", "BAR",
+}
+
+
+def known_part(name: str) -> bool:
+    """A part the library knows by its name (a screw, a washer, a bearing, a plate …), or one named with a plain part
+    word ("Screw010"): never a bead by its shape."""
+    words = set(re.findall(r"[A-Z]+", _norm(name)))
+    if words & _PART_WORDS:
+        return True
+    try:
+        from . import fasteners, part_types
+        if fasteners.parse(name) is not None:
+            return True
+        t = part_types.own_type(name)
+        return t is not None and t != "weld_bead"
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def maybe_bead(mesh: Mesh) -> bool:
-    """A quick look before the full check (a body found by its shape only): thin for its surface – 2·volume / surface
-    is ~z / 3.4 for a fillet of legs z (a plate is half its thickness)."""
+    """A quick look before the full check (a body found by its shape only): no part the library knows by its name, thin
+    for its surface – 2·volume / surface is ~z / 3.4 for a fillet of legs z (a plate: its thickness) – and long for its
+    section (``SLENDER``: a washer or a short pin is not)."""
     if len(mesh.tris) < 4 or len(mesh.tris) > 20000:
         return False
+    if known_part(mesh.name):
+        return False
+    if len(np.unique(mesh.face)) > MAX_FACES:
+        return False                                      # (a printed shell, a casting: hundreds of faces)
     _v, _n, ar = _tri_geom(mesh.points, mesh.tris)
     A = float(ar.sum())
     if A <= 0:
@@ -199,7 +233,9 @@ def maybe_bead(mesh: Mesh) -> bool:
         return False
     # a small section for its length (the legs' triangle at most LEG_MAX² / 2): a sheet-metal plate is not
     ext = _extent(mesh.points)
-    return ext > 0 and vol / ext <= 0.5 * LEG_MAX ** 2
+    if ext <= 0 or vol / ext > 0.5 * LEG_MAX ** 2:
+        return False
+    return ext >= SLENDER * math.sqrt(max(vol / ext, 1e-12))
 
 
 # ---------------------------------------------------------------------------
@@ -335,21 +371,66 @@ _BARY = np.array([[1 / 3, 1 / 3, 1 / 3], [2 / 3, 1 / 6, 1 / 6], [1 / 6, 2 / 3, 1
                   [0.45, 0.45, 0.1], [0.1, 0.45, 0.45], [0.45, 0.1, 0.45]])
 
 
+def _nearest(side, pts, order):
+    """``Side.nearest_local`` for points taken in ``order`` (near ones together: small boxes, few triangles each)."""
+    d, _q, t = side.nearest_local(pts[order], CONTACT + 0.001)
+    dd, tt = np.empty_like(d), np.empty_like(t)
+    dd[order], tt[order] = d, t
+    return dd, tt
+
+
+def _touches(body: Mesh, parts: list, n: int = 96) -> int:
+    """How many parts a body lies on, from the centres of some of its triangles (a quick look before the full
+    ``_contacts``)."""
+    v, nrm, ar = _tri_geom(body.points, body.tris)
+    # the biggest triangles and some of every face (a ring's face on its tube is many thin triangles)
+    pick = np.unique(np.concatenate([np.argsort(-ar)[:n // 2], np.linspace(0, len(ar) - 1, n).astype(int)]))
+    cen, nn = v[pick].mean(1), nrm[pick]
+    lo, hi = body.lo - 0.002, body.hi + 0.002
+    hits = 0
+    for p in parts:
+        if np.any(p.lo > hi) or np.any(p.hi < lo):
+            continue
+        side = p.side()
+        side.restrict(lo, hi)
+        try:
+            d, _q, t = side.nearest_local(cen, CONTACT + 0.001)
+        finally:
+            side.restrict()
+        ok = (t >= 0) & (d <= CONTACT)
+        if ok.any() and ((nn[ok] * side.n[t[ok]]).sum(1) <= FACING).any():
+            hits += 1
+            if hits >= 2:
+                break
+    return hits
+
+
 def _contacts(bead: Mesh, tri_idx: np.ndarray, parts: list) -> dict:
-    """{part key: (area m², bead triangles on it, part CAD faces touched)} of one bead piece. Each bead triangle is
-    looked at in 7 points (a big CAD triangle may lie on two parts, or reach past a part's end)."""
+    """{part key: (area m², bead triangles on it, part CAD faces touched)} of one bead piece. A big bead triangle is
+    looked at in 7 points (it may lie on two parts, or reach past a part's end), a small one (≤ 5 mm) at its centre."""
     v, n, ar = _tri_geom(bead.points, bead.tris[tri_idx])
+    edge = np.max(np.linalg.norm(v - np.roll(v, 1, axis=1), axis=2), axis=1)
+    big = edge > 0.005
     k = len(_BARY)
-    pts = np.einsum("sk,tkj->tsj", _BARY, v).reshape(-1, 3)        # (t * 7, 3)
-    nn = np.repeat(n, k, axis=0)
+    many = np.einsum("sk,tkj->tsj", _BARY, v[big]).reshape(-1, 3)
+    pts = np.concatenate([many, v[~big].mean(1)])
+    owner = np.concatenate([np.repeat(np.flatnonzero(big), k), np.flatnonzero(~big)])
+    weight = np.concatenate([np.full(int(big.sum()) * k, 1.0 / k), np.ones(int((~big).sum()))])
+    nn = n[owner]
     lo, hi = v.reshape(-1, 3).min(0) - 0.002, v.reshape(-1, 3).max(0) + 0.002
+    g = np.floor(pts / 0.004).astype(np.int64)            # the points in little boxes, near ones together
+    order = np.lexsort((g[:, 0], g[:, 1], g[:, 2]))
     out = {}
     taken = np.zeros(len(pts), bool)
     for p in parts:
         if np.any(p.lo > hi) or np.any(p.hi < lo):
             continue
         side = p.side()
-        d, _q, t = side.nearest_local(pts, CONTACT + 0.001)
+        side.restrict(lo, hi)                             # only its triangles where the bead is
+        try:
+            d, t = _nearest(side, pts, order)
+        finally:
+            side.restrict()
         hit = (t >= 0) & (d <= CONTACT) & ~taken
         if not hit.any():
             continue
@@ -357,8 +438,7 @@ def _contacts(bead: Mesh, tri_idx: np.ndarray, parts: list) -> dict:
         if not hit.any():
             continue
         taken |= hit
-        per = hit.reshape(-1, k)
-        share = per.mean(1)
+        share = np.bincount(owner[hit], weights=weight[hit], minlength=len(tri_idx))
         on = share > 0
         out[p.key] = (float((ar * share).sum()), tri_idx[on], set(int(x) for x in side.face[t[hit]]))
     return out
@@ -475,14 +555,27 @@ def _half(x: float) -> float:
     return round(x * 2000.0) / 2000.0
 
 
-def find(bodies: list, parts: list, named: set | None = None, progress=None) -> list[Found]:
+STOPPED = [False]          # the last ``find`` stopped its search by shape at SHAPE_BUDGET
+
+
+def find(bodies: list, parts: list, named: set | None = None, progress=None,
+         budget: float | None = SHAPE_BUDGET) -> list[Found]:
     """The welds in ``bodies`` (Mesh): those whose key is in ``named`` are welds by their name (every piece a bead),
-    the others only by their shape. ``parts``: every other part (Mesh) a bead may lie on."""
+    the others only by their shape – looked at for ``budget`` seconds at most (None: all; ``STOPPED`` says so)."""
+    import time
     named = set(named or ())
+    STOPPED[0] = False
     found: list[Found] = []
     pending = []                                       # (body, piece triangles, contacts)
+    t0 = time.perf_counter()
+    bodies = sorted(bodies, key=lambda b: b.key not in named)     # the named ones first: never cut short
     for bi, body in enumerate(bodies):
+        if budget is not None and body.key not in named and time.perf_counter() - t0 > budget:
+            STOPPED[0] = True                          # the search by shape stopped (said in the import's message)
+            break
         others = [p for p in parts if p.key != body.key]
+        if body.key not in named and _touches(body, others) < 2:
+            continue                                      # by shape: it must lie on two parts (a quick look first)
         for piece in components(body.points, body.tris):
             v = body.points[body.tris[piece]]
             c = v.reshape(-1, 3).mean(0)
@@ -623,7 +716,7 @@ def _root_seams(body, piece, tris_a, tris_b, sa, sb) -> list | None:
         # split at sharp turns (a square post's corners): pieces joined end to end for mitres
         n = len(p)
         cuts = []
-        for i in range(n if closed else 1, n if closed else n - 1):
+        for i in (range(n) if closed else range(1, n - 1)):
             a, b, c = p[(i - 1) % n], p[i % n], p[(i + 1) % n]
             if float(core.unit(b - a) @ core.unit(c - b)) < cos_s:
                 cuts.append(i % n)
@@ -700,6 +793,8 @@ def _measure(body, piece, con, keys, is_named, by_key, seams_of) -> Found | None
     roots = _root_seams(body, piece, con[A.key][1], con[B.key][1], pa, pb)
     if roots:
         got = [(-1, 0.0, _arc(s.points, s.closed)[-1], s) for s in roots]
+    elif not is_named:
+        return None                                       # by shape only: its root must be in its own mesh
     else:
         for si, s in enumerate(seams_of.seams(A.key, B.key)):
             for s0, s1 in _trim(s, bead_side):
@@ -774,10 +869,12 @@ def _measure(body, piece, con, keys, is_named, by_key, seams_of) -> Found | None
             f.note = f"legs {_mm(za)} × {_mm(zb)} mm"
     if not is_named:
         # the shape check: a bead lies along its seam, small legs, a section no fuller than a triangle
-        tri_area = 0.5 * za * zb * math.sin(math.radians(min(theta, 179.0))) if f.kind == "FILLET" else None
+        tri_area = 0.5 * za * zb * math.sin(math.radians(min(theta, 179.0)))
         if f.length < ALONG * extent or max(za, zb) > LEG_MAX or min(za, zb) < LEG_MIN:
             return None
-        if tri_area is not None and (vol / max(f.length, 1e-9)) > FILL * tri_area:
+        if max(za, zb) > LEGS_RATIO * min(za, zb):
+            return None
+        if (vol / max(f.length, 1e-9)) > (FILL if f.kind == "FILLET" else FILL_GROOVE) * tri_area:
             return None
         if f.length < 2.0 * max(za, zb):
             return None

@@ -13,8 +13,8 @@ installer of that version was built from.
 - **Inventor**: all solid welds of a weldment come as one part ("Welds"): the app splits it into one weld per bead and
   leaves the part itself out. **Creo**: each solid weld is a body of its own. **Other CAD**: a part named "Weld …"
   (also Lasnaad, Schweißnaht, Soudure …) is taken by its name; a long thin bead in the corner between two parts with
-  another name is taken **by its shape** – said as "found by their shape – check them". Bars, keys and gaskets that
-  look a bit like a bead are left alone. **Cosmetic welds** (Inventor) and SolidWorks' weld beads are only drawn on the
+  another name is taken **by its shape** – said as "found by their shape – check them". Bars, keys, gaskets, screws
+  and strips that look a bit like a bead are left alone; at an import that search takes at most 10 s. **Cosmetic welds** (Inventor) and SolidWorks' weld beads are only drawn on the
   screen: they are not in a STEP file.
 - **Measured from the bead**: the two parts it joins, fillet or groove (butt), the throat **a** and the legs (unequal
   legs said: "legs 10 × 6 mm"), the cap width of a groove, the length, **all round**, and pieces on one line as one
