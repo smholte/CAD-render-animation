@@ -24,11 +24,11 @@ Fix 0328's rows **14, 15, 21 (0179 open point), 31 + the meshopt word of row 32*
 
 ## Done when
 
-- [ ] Each row's repeat case now gives "what should happen" (a test per row; real-app check where it was seen there)
-- [ ] Tests added/updated; full suite passes; GitHub run green
-- [ ] (UI) screenshots checked with tools/ui_screens.py
-- [ ] Guide, PC-check line, tour / function-list version fields as CLAUDE.md section 2 asks
-- [ ] Report below filled in, merged, released
+- [x] Each row's repeat case now gives "what should happen" (a test per row; real-app check where it was seen there)
+- [x] Tests added/updated; full suite passes; GitHub run green
+- [x] (UI) screenshots checked with tools/ui_screens.py
+- [x] Guide, PC-check line, tour / function-list version fields as CLAUDE.md section 2 asks
+- [x] Report below filled in, merged, released
 
 ---
 
@@ -65,6 +65,12 @@ in the real app (guide picture, side panel 399 px at scale 1.5): no cut labels a
 "Page views". The PC-check line fails locally on Blender-as-a-module's missing meshopt library at the glTF read-back,
 also without this change (my check comes before it); GitHub runs it in real Blender. No new real-app script: rows 14
 and 15 are checked by drawing the panel's own `draw`; the Make window's size is 0331's.
+
+- **GitHub runs: 8** for the branch, then main's. Run 1 failed for real: `ui_test_panel.py` checks Make's Export
+  button through `ui_web3d.big` (fixed: Export goes through `big(row, …)`). Runs 2–7 were green, but each time another
+  task had merged first with my version number (0329, 0330, 0334, 0337, 0338, 0323, 0339 – a busy day): merge main,
+  renumber, run again – 0.2.246 → 0.2.253. Subagents: none (Sonnet-sized task; independent review skipped – no
+  Windows code).
 
 **Open points / follow-up tasks:**
 - The other words of 0328 row 32 belong to their files' tasks (context menu, ui_motion, ops_main, ui_left, ui.py …).
