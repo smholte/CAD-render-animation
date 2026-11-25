@@ -329,7 +329,7 @@ fn(id="import.mesh", short="Import mesh", title="Import a mesh model (glTF, OBJ,
    pccheck=("import.mesh", "import.mesh_fbx"), since="0.2.99")
 fn(id="import.update", short="Update revision", title="Model update to a new revision", family="import", panel="FRESING_PT_import",
    button="fresing.import_step", text="Update to new revision…", guide="update-model", tour=("update",),
-   pccheck=("model.update", "model.update_safe"), since="0.2.0",
+   pccheck=("model.update", "model.update_safe"), since="0.2.0", changed="0.2.243",
    manual_estimate=("use", 1800, "import the new revision and set up joints, looks and the animation again"))
 fn(id="import.two_copies", short="STEP twice", title="The same STEP twice", family="import", panel="FRESING_PT_import",
    button="fresing.import_step", guide="import", tour=("copies",), pccheck=("model.two_copies",), since="0.2.44")
@@ -769,7 +769,7 @@ fn(id="motion.lead_motions", short="Lead motions", title="Lead motions: one slid
 # task 0322: measuring in the 3D view – on the top bar in every workspace and in the Client view, keys M / Alt+M
 fn(id="view.measure", short="Measure", title="Measure in the 3D view: distance, edge, gap, angle, Ø, point to axis",
    family="scene", panel="TOPBAR_PT_fresing_measure", button="fresing.measure", guide="measure", tour=("measure",),
-   pccheck=("view.measure",), since="0.2.243", headline=True,
+   pccheck=("view.measure",), since="0.2.244", headline=True,
    workspaces=_WORK + ("client", "lifting"),         # (and every task workspace: _COMMON)
    manual_estimate=("use", 90, "read the size off the drawing or measure it in the CAD program and type it in"))
 fn(id="animation.lead_motion_step", short="Lead motion step", title="Lead motion step", family="animation",

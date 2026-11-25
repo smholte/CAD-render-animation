@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.243 – 25 Nov 2026 – Measure in the 3D view (task 0322)
+## 0.2.244 – 25 Nov 2026 – Measure in the 3D view (task 0322)
 
 - **Measure** (new, on the top bar right of Lead motions, or the key **M** over the 3D view – **Alt+M** in Full
   access, where M stays Blender's own): click the model and read the value, the way the 3D page's measure tool does.
@@ -20,6 +20,17 @@ installer of that version was built from.
   labels are never in a picture or video unless you tick it.
 - Works through a **Slice** (measures on the cut face) and in the **Client view** (there it is never saved).
 
+## 0.2.243 – 25 Nov 2026 – Faster model update: unchanged parts keep their meshes (task 0324)
+
+- **Update to new revision… only meshes what changed.** Each part now gets a fingerprint of its exact shape, its face
+  colours and the Detail. A part whose fingerprint is the same in the new revision keeps its mesh from the last import
+  – nothing is meshed or built again for it. A part where even one face moved 0.1 mm is meshed again.
+- Measured on the made-up 11,228-part stress model (4-core test machine, 1 % of the parts changed): the model update
+  took **236 s** before, now **112 s** (a fresh import of the same file: 140 s). 1,899 of 1,995 unique parts were kept.
+- The result is the same as reading every part again: groups, painted faces, decals, joints, hoses, cables and welds
+  are kept as before. The PC check's Stress line "model update" now says how many parts were reused.
+- The first update of a project imported with an older version reads every part once; after that, updates are quick.
+- A fresh import is as fast as before.
 ## 0.2.242 – 25 Nov 2026 – Four more workspaces: Welding, Machine builder, Video producer, Houses; Sales moves joints (task 0321)
 
 - **Welding** (new workspace): import, the parts' looks, **3 Looks > Welds** (placement, types, looks, finish, rust),

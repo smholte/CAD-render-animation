@@ -1532,7 +1532,7 @@ def _check_cutaway(scene):
     return f"{len(names)} parts cut, slid {moved * 1000:.0f} mm into the middle"
 
 
-@tour_set("measure", "Measure", "test_crane_a.step", added="0.2.243")
+@tour_set("measure", "Measure", "test_crane_a.step", added="0.2.244")
 def build_measure(b: Build):
     """Task 0322: the crane's base measured – its thickness, two bolt holes, a hole's Ø and, through a slice that takes
     the base's front half away, the cut face to the back face (``measure.set_up_test``, shared with the PC check).
@@ -4996,7 +4996,7 @@ stop("measure", LOOK, "measure", "Measure in the 3D view",
      "4 500.00 mm' with X / Y / Z, a hole's 'Ø 33.00 mm', and through the slice (the base's front half is gone) the cut "
      "face to the back face '1 500.00 mm'. Then click Measure on the top bar (or press M), click a face, another face: "
      "a new label. Corners, edge middles and hole centres snap; Shift does not.", where="Top bar > Measure (key M)",
-     since="0.2.243", check=_check_measure)
+     since="0.2.244", check=_check_measure)
 stop("cut_look", LOOK, "mill", "Cut faces and raw stock",
      "The steel block has dark mill scale outside; the walls and floor of the milled slot look freshly machined "
      "(bright steel).", where="4 Motion > Milling > Cut faces; 3 Looks (the block's group)",

@@ -1067,12 +1067,18 @@ def carry_over(pairs, old_objects) -> list[str]:
         sources = []
         if old.data.name not in done_meshes:
             done_meshes.add(old.data.name)
-            sources += [(it, new.data.fresing_decals) for it in old.data.fresing_decals]
+            if old.data == new.data:            # task 0324: an unchanged part kept its mesh, decals and all
+                sources += [(it, None) for it in new.data.fresing_decals]
+            else:
+                sources += [(it, new.data.fresing_decals) for it in old.data.fresing_decals]
         sources += [(it, new.fresing_decals) for it in old.fresing_decals]
         for it, target in sources:
-            n = target.add()
-            n.key = it.key
-            copy_settings(it, n)
+            if target is None:
+                n = it
+            else:
+                n = target.add()
+                n.key = it.key
+                copy_settings(it, n)
             found = relocate(n, new.data)
             _set_quiet(n, "lost", not found)
             if not found:
@@ -1091,7 +1097,7 @@ def carry_over(pairs, old_objects) -> list[str]:
     # every copy of a new part (also copies whose old copy did not match)
     meshes = {p.data.name for p in touched}
     sync([ob for ob in bpy.data.objects if ob.type == "MESH" and ob.data is not None and ob.data.name in meshes
-          and ob.get(build.PROP_KIND) == "part"])
+          and ob.get(build.PROP_KIND) == "part" and ob.name not in old_names])   # (0324: an old part may share it)
     return notes
 
 

@@ -560,7 +560,7 @@ def test_importer_face_axis_on_spheres():
     from OCP.TopoDS import TopoDS
 
     from fresing_render.importer import step_reader as sr
-    assert sr.CACHE_VERSION == 7
+    assert sr.CACHE_VERSION >= 7            # 7: spheres have an axis (8: mesh keys, task 0324)
     occ = sr._occ()
 
     def sphere_face(shape):

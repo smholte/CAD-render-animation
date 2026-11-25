@@ -35,11 +35,13 @@ try:                                   # inside the package (tests, Blender)
     from . import step_meta
     from ..core import cad_materials
     from ..core import fasteners
+    from ..core import part_hash
 except ImportError:                    # run as a script by the import job
     sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "core"))
     import step_meta                   # noqa: E402  (next to this file)
     import cad_materials               # noqa: E402
     import fasteners                   # noqa: E402
+    import part_hash                   # noqa: E402
 
 # Linear deflection relative to each part's size, angular deflection in radians.
 QUALITY = {
@@ -64,10 +66,12 @@ FACETS = {
     "fine": {"cap_mm": 0.2, "small_mm": 200.0, "small_gap": 0.1, "small_ang": 0.39},
 }
 
-CACHE_VERSION = 7          # 3: axes of round faces (joint picking), instance names; 4: CAD material names;
+CACHE_VERSION = 8          # 3: axes of round faces (joint picking), instance names; 4: CAD material names;
                            # 5: triangle range of every face (f<mesh>), appearance names of face colours;
                            # 6: facets by size (FACETS): capped in mm for big parts, fewer for small ones;
-                           # 7: spheres have an axis too (task 0318: domed caps, carbon on a cup)
+                           # 7: spheres have an axis too (task 0318: domed caps, carbon on a cup);
+                           # 8: a mesh key per unique part (task 0324: a model update takes unchanged parts' meshes
+                           #    from the old cache, core/part_hash.py)
 MM_TO_M = 0.001
 
 
@@ -881,21 +885,77 @@ def _part_blob(occ, shape) -> bytes:
 # Main reader
 # --------------------------------------------------------------------------
 
-def read_step(path: str, out_dir: str, quality: str = "normal", workers: int | None = None) -> dict:
-    """``workers``: helper processes for meshing; None = automatic (all cores but one, big files only)."""
+def _old_cache(reuse_dir: str | None):
+    """The cache of the revision a model update replaces (task 0324): ({mesh key: old mesh id}, old mesh metas, its
+    meshes.npz opened lazily), or None when there is none to use (another cache version, no keys, unreadable)."""
+    if not reuse_dir:
+        return None
+    try:
+        with open(os.path.join(reuse_dir, "tree.json"), encoding="utf-8") as fh:
+            head = json.load(fh)
+        if head.get("version") != CACHE_VERSION:
+            return None
+        metas = head.get("meshes") or []
+        by_key: dict = {}
+        for mid, meta in enumerate(metas):
+            key = meta.get("key") if isinstance(meta, dict) else None
+            if isinstance(key, str) and key and key not in by_key and int(meta.get("tris") or 0) > 0:
+                by_key[key] = mid
+        if not by_key:
+            return None
+        arrays = np.load(os.path.join(reuse_dir, "meshes.npz"))
+    except Exception:                           # any doubt: every part is meshed again
+        return None
+    return by_key, metas, arrays
+
+
+def _take_old(old, key: str):
+    """The old cache's mesh of ``key`` in the shape a mesher's reply has: ((positions, normals, triangles, colour
+    per triangle, palette), axes, axis faces, face starts) – None when anything does not add up."""
+    by_key, metas, arrays = old
+    omid = by_key.get(key)
+    if omid is None:
+        return None
+    try:
+        meta = metas[omid]
+        pos = np.array(arrays[f"p{omid}"], dtype=np.float32)
+        nrm = np.array(arrays[f"n{omid}"], dtype=np.float32)
+        tri = np.array(arrays[f"t{omid}"], dtype=np.int32)
+        if pos.ndim != 2 or pos.shape[1] != 3 or nrm.shape != pos.shape or tri.ndim != 2 or tri.shape[1] != 3 \
+                or len(tri) != int(meta.get("tris") or -1) or (len(tri) and int(tri.max()) >= len(pos)):
+            return None
+        palette = [tuple(c) for c in meta.get("palette") or []]
+        if palette:
+            tcol = np.array(arrays[f"c{omid}"], dtype=np.int16)
+            if len(tcol) != len(tri):
+                return None
+        else:
+            tcol = np.full(len(tri), -1, dtype=np.int16)
+        starts = [int(v) for v in arrays[f"f{omid}"]] if f"f{omid}" in arrays.files else []
+        return (pos, nrm, tri, tcol, palette), list(meta.get("axes") or []), list(meta.get("axis_faces") or []), \
+            starts
+    except Exception:
+        return None
+
+
+def read_step(path: str, out_dir: str, quality: str = "normal", workers: int | None = None,
+              reuse_dir: str | None = None) -> dict:
+    """``workers``: helper processes for meshing; None = automatic (all cores but one, big files only).
+    ``reuse_dir``: the cache of the revision a model update replaces – parts whose mesh key is in it take its mesh
+    instead of being meshed again (task 0324)."""
     if workers is None:
         workers = worker_count()
         if os.path.getsize(path) < PARALLEL_MIN_BYTES and not os.environ.get("FRESING_IMPORT_WORKERS"):
             workers = 0
     helpers = _Helpers(workers) if workers >= 2 else None
     try:
-        return _read_step(path, out_dir, quality, helpers)
+        return _read_step(path, out_dir, quality, helpers, reuse_dir)
     finally:
         if helpers is not None:
             helpers.close()
 
 
-def _read_step(path: str, out_dir: str, quality: str, helpers: "_Helpers | None") -> dict:
+def _read_step(path: str, out_dir: str, quality: str, helpers: "_Helpers | None", reuse_dir: str | None = None) -> dict:
     t0 = time.time()
     occ = _occ()
     lin_rel, ang = QUALITY.get(quality, QUALITY["normal"])
@@ -1027,6 +1087,41 @@ def _read_step(path: str, out_dir: str, quality: str, helpers: "_Helpers | None"
     results: list = [None] * len(mesh_labels)       # (mesh result, axes, axis faces, error, face starts)
     counter = [0]
     where = [""]
+    use_helpers = helpers is not None and bool(helpers.procs) and len(mesh_labels) >= 2
+
+    # mesh keys (task 0324): the part's binary copy (what the helpers get anyway) + how it is meshed
+    th = time.time()
+    blobs: list = [None] * len(shapes)
+    keys = [""] * len(shapes)
+    for mid in range(len(shapes)):
+        try:
+            blob = _part_blob(occ, shapes[mid])
+        except Exception:                               # (out of memory...) no key: meshed, never taken from old
+            continue
+        names = [_face_look(c, face_looks) for c in part_hash.palette_of(face_colours[mid])]
+        keys[mid] = part_hash.part_key(blob, quality=quality, lin_rel=lin_rel, ang=ang, facets=facets,
+                                       standard=standard[mid], face_colours=face_colours[mid], colour_names=names,
+                                       version=CACHE_VERSION)
+        if use_helpers:
+            blobs[mid] = blob
+    t_hash = time.time() - th
+    reused: set = set()
+    old = _old_cache(reuse_dir)
+    if old is not None:
+        for mid, key in enumerate(keys):
+            got = _take_old(old, key) if key else None
+            if got is not None:
+                res, ax, af, starts = got
+                results[mid] = (res, ax, af, None, starts)
+                reused.add(mid)
+                blobs[mid] = None
+        try:
+            old[2].close()
+        except Exception:
+            pass
+        counter[0] = len(reused)
+        if reused:
+            emit("mesh", 30 + 65 * len(reused) / total, f"{len(reused)} of {total} parts unchanged: kept")
 
     def store(reply) -> None:
         mid, res, ax, af, err = reply[:5]
@@ -1038,13 +1133,16 @@ def _read_step(path: str, out_dir: str, quality: str, helpers: "_Helpers | None"
 
     used_helpers = 0
     t_copy = 0.0
-    if helpers is not None and helpers.procs and len(mesh_labels) >= 2:
+    if use_helpers and len(mesh_labels) - len(reused) >= 2:
         tc = time.time()
         jobs, pending = [], []
         for mid in range(len(shapes)):
+            if mid in reused:
+                continue
             try:
-                jobs.append([mid, _part_blob(occ, shapes[mid]), face_colours[mid], lin_rel, ang, facets,
-                             standard[mid]])
+                blob = blobs[mid] if blobs[mid] is not None else _part_blob(occ, shapes[mid])
+                blobs[mid] = None
+                jobs.append([mid, blob, face_colours[mid], lin_rel, ang, facets, standard[mid]])
             except Exception:                           # (out of memory...) this part is meshed here instead
                 pending.append(mid)
         jobs.sort(key=lambda j: -len(j[1]))            # biggest parts first: no core waits at the end
@@ -1066,7 +1164,8 @@ def _read_step(path: str, out_dir: str, quality: str, helpers: "_Helpers | None"
         pending = sorted(pending + retry + [job[0] for job in left])   # left: no helper could take these
         where[0] = ""
     else:
-        pending = list(range(len(mesh_labels)))
+        pending = [mid for mid in range(len(mesh_labels)) if mid not in reused]
+    del blobs
     for mid in pending:
         axes = _Axes()
         starts: list = []
@@ -1083,6 +1182,8 @@ def _read_step(path: str, out_dir: str, quality: str, helpers: "_Helpers | None"
             emit("warning", 95, f"Could not mesh {mesh_names[mid]}: {err}")
         meta = {"name": mesh_names[mid], "tris": 0, "palette": [], "bbox": None,
                 "axes": ax if res is not None else [], "axis_faces": af if res is not None else []}
+        if keys[mid] and res is not None:
+            meta["key"] = keys[mid]
         if res is not None:
             pos, nrm, tri, tcol, palette = res
             arrays[f"p{mid}"] = pos
@@ -1138,6 +1239,8 @@ def _read_step(path: str, out_dir: str, quality: str, helpers: "_Helpers | None"
             "seconds_mesh": round(t_mesh, 1),
             "mesh_helpers": used_helpers,
             "seconds_copy": round(t_copy, 1),
+            "seconds_hash": round(t_hash, 1),
+            "parts_reused": len(reused),
             "seconds_total": round(time.time() - t0, 1),
         },
     }
@@ -1156,13 +1259,18 @@ def main(argv=None) -> int:
     ap.add_argument("step")
     ap.add_argument("out_dir")
     ap.add_argument("--quality", default="normal", choices=sorted(QUALITY))
+    ap.add_argument("--reuse", default="", help="the cache of the revision a model update replaces (task 0324)")
     args = ap.parse_args(argv)
     try:
-        read_step(args.step, args.out_dir, args.quality)
+        read_step(args.step, args.out_dir, args.quality, reuse_dir=args.reuse or None)
     except Exception as exc:
         emit("error", 100, str(exc))
         return 1
-    return 0
+    # the cache is written and closed, the helpers are gone: end now instead of freeing OpenCascade's document object
+    # by object (about 3 s on 11,000 parts, task 0324)
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(0)
 
 
 if __name__ == "__main__":
