@@ -10,7 +10,7 @@ import pytest
 from fresing_render.core import functions as F
 from fresing_render.core import workspaces as W
 
-TASK = ("essentials", "sales", "quick", "animator", "reviewer")
+TASK = ("essentials", "sales", "quick", "animator", "reviewer", "welding", "builder", "video", "houses")  # 0321: +4
 
 # ---------------------------------------------------------------------------------------------------------------
 # core
@@ -68,9 +68,11 @@ def test_essentials_holds_a_first_picture_and_a_simple_motion():
 def test_sales_shows_outputs_and_hides_structure_and_motion_without_the_lock():
     ws = W.builtin("sales")
     hidden = W.hidden_panels(ws)
-    for gone in ("import", "structure", "place", "motion", "cylinders", "mechanisms", "cnc"):
+    for gone in ("import", "structure", "place", "cylinders", "mechanisms", "cnc"):
         assert "FRESING_PT_" + gone in hidden, gone
-    for shown in ("looks", "schemes", "shots", "scene", "turntable", "output", "web3d", "queue"):
+    # task 0321 (owner 24 Nov): Sales may move joints – 4 Motion, its Joints and Poses show
+    for shown in ("looks", "schemes", "shots", "scene", "turntable", "output", "web3d", "queue", "motion", "joints",
+                  "poses"):
         assert "FRESING_PT_" + shown not in hidden, shown
     assert not ws.lock and W.builtin("client").lock        # unlike the Client view, looks can still be changed
 

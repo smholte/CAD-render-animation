@@ -1,6 +1,6 @@
 # 0321 – Workspaces round 3: Welding, Machine builder, Video producer, Houses; Sales may move joints
 
-**Who:** worker · **Status:** running · **Branch:** `claude/cad-render-animation-0321-yl8i1m`
+**Who:** worker · **Status:** done, 0.2.242 · **Branch:** `claude/cad-render-animation-0321-yl8i1m`
 **Started by:** lead, 24 Nov 2026 (owner 11:44: "make a separate welding workspace. This will only be the rendering
 options and weld placement, weld symbols and later the 2D drawings. Optionally other functions if advised." – "I agree
 with the 3 additional workspaces you suggested" – "Sales workspace is allowed to move joints.") ·
@@ -55,10 +55,54 @@ The first-start set-up (0276), weld symbols / list (0320), measuring (0322), 2D 
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 24 Nov 2026 · branch `claude/cad-render-animation-0321-yl8i1m` · 0.2.242
 
 **What changed:**
+- **Four workspaces** (`core/workspaces.BUILTIN`, lists in `core/functions.TASK_WORKSPACES`, keys `welding`, `builder`,
+  `video`, `houses`): Welding 69 functions, Machine builder 91, Video producer 78, Houses 69 (counts with the common
+  part: panel, learning, help, settings). Each has a tooltip (its note), a star (the 0294 drop-down), and an **icon**:
+  every workspace now has one (`W.ICONS`; own workspaces `USER`; the one in use keeps the tick).
+- **Welding:** import (+ update, up axis), the tree (to pick the two parts of a weld and hide what is in the way – the one
+  addition beyond the brief, needed to place welds), materials, find, rules, rule sets, finishes, rust, paint faces,
+  **Welds**, light look, surroundings, light, camera, blur, picture, Render this view, image shapes, saved scenes.
+  Weld symbols, weld list and copies that take their welds: 0320 merged while this ran (0.2.240), so they are in
+  Welding's list. No "2D drawings – coming later" line: the app shows no such placeholders (none found), so left out.
+- **Machine builder / Video producer / Houses** as 0294 proposed (function names as they are now; Machine builder also
+  has hoses' draw / route / avoid / kinds, Video producer the weather step and people, Houses night, props, the queue's
+  picture and the 3D page's tools).
+- **Sales moves joints** (owner 24 Nov): a new function `joints.move` (the slider, CAD (0) / Min / Max). 4 Motion >
+  Joints in a workspace that shows moving but not adding (`ui_motion.can_edit_joints`) draws only the list, the picked
+  joint's slider and CAD (0) / Min / Max – no Add, −, Set-up, limits, couplings; a follower says which joint to move.
+  Sales also got Poses and Everything back to CAD position. No lock. The Lead motions drop-down (0309) was already in
+  every workspace.
+- **0276's set-up** (merged before this): four more work ticks (Welding and fabrication, Making machines move, Videos
+  of machines, Houses from House Planner) → their workspaces and hub chapters (Look, Motion, Output, Output); the ticks
+  now in two columns (13).
+- Guide: the workspace table, section `more-workspaces`, `move-joints` (Sales), the set-up's tick list, picture
+  `workspace_stars.png` (from the real-app run, with the icons). Tour stop **workspace_welding** (welds set), the
+  workspace stop's Sales check updated; PC-check line **workspace.round3** (+ workspace.essentials' Sales check);
+  real-app `ui_test_workspaces2.py` Sales check updated.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, test crane / weldment): `tests/test_workspaces_round3.py` (15, new: each
+workspace exactly its functions and panels, Sales draws sliders without add/remove/set-up and the joint moves, the
+drop-down's icons, the set-up ticks), `test_workspaces_essentials.py`, `test_functions.py`, `test_first_setup.py`,
+`test_user_guide.py`; tour stops welds + workspace_welding + workspace (Go + check); PC-check lines workspace.round3 +
+workspace.essentials OK (Sales: the boom's tip moved 2,605 mm at 20°); real-app workspaces2 19/19; a real-app
+screenshot of 4 Motion > Joints in Sales looked at (list, slider, CAD (0) / Min / Max, Poses below).
 
 **Open points / follow-up tasks:**
+- **0304** (Learning hub chapters per workspace): chapters do not exist yet – Welding, Machine builder, Video producer
+  and Houses need one each there.
+- Proposed for Welding, **not added** (owner decides): **Measure** (0322 – weld lengths, gaps), **Slice** (a weld
+  inside a box section), **X-ray** (welds behind parts), **Exploded view** (welds of a sub-assembly shown apart),
+  **Turntable** and **Render queue** (several weld pictures in one go).
+- Sales' icon is Blender's "FUND" (a heart); easy to change in `W.ICONS`.
+- **GitHub runs: 6** (+1 re-run of failed jobs). 1: `test_workspaces_independent.py` listed the workspaces (fixed).
+  2: the update server answered HTTP 500 (GitHub's side; re-run green). 3 + 5: green, but 0310 / 0235 / 0320 / 0273
+  took 0.2.238–0.2.241 meanwhile – merged and renumbered three times. 4: the new test file rebalanced the pytest groups
+  and put 0310's browser-only test (skips on GitHub) beside another skip; `tools/ci_pytest_summary.py` now counts
+  "no browser (GitHub's Linux runners)" as an expected skip, like EEVEE and the real-Blender test. 5: the welds
+  real-app test's "Cancel stops the picker" failed once on GitHub (0.6 s wait) and passed 20/20 locally and in run 6
+  – a timing flake of 0319/0320's test (Welds lane open point).
+- `main`'s own runs (0235, 0273 merges) fail only in the landing page job: "Multiple artifacts named github-pages"
+  (two Pages builds at once); the releases themselves published.

@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.242 – 25 Nov 2026 – Faster model update: unchanged parts keep their meshes (task 0324)
+## 0.2.243 – 25 Nov 2026 – Faster model update: unchanged parts keep their meshes (task 0324)
 
 - **Update to new revision… only meshes what changed.** Each part now gets a fingerprint of its exact shape, its face
   colours and the Detail. A part whose fingerprint is the same in the new revision keeps its mesh from the last import
@@ -16,6 +16,22 @@ installer of that version was built from.
   are kept as before. The PC check's Stress line "model update" now says how many parts were reused.
 - The first update of a project imported with an older version reads every part once; after that, updates are quick.
 - A fresh import is as fast as before.
+## 0.2.242 – 25 Nov 2026 – Four more workspaces: Welding, Machine builder, Video producer, Houses; Sales moves joints (task 0321)
+
+- **Welding** (new workspace): import, the parts' looks, **3 Looks > Welds** (placement, types, looks, finish, rust),
+  surroundings, light, camera, **Render a picture** and **Render this view**. Motion, animation, video and the render
+  queue are not shown. The new weld symbols and weld list are there too.
+- **Machine builder** (new workspace): import, structure and placing, joints, cylinders, mechanisms, way covers, hoses
+  and drag chains, tracks, the Set-up window, a first animation and the clash check.
+- **Video producer** (new workspace): every animation step, camera paths, labels, picture cards, music, brand kit,
+  watermark, title and captions, the render queue.
+- **Houses** (new workspace): House from House Planner, surroundings, weather and time of day, light, camera, picture,
+  turntable and the 3D page.
+- **Sales may move joints**: 4 Motion shows the joints as sliders (with CAD (0) / Min / Max), Poses and **Everything
+  back to CAD position**, so you can pose the machine for a client. Adding, removing and setting up joints stays
+  hidden; nothing is locked.
+- Every workspace has its own **icon** in the Workspace list. The first-start set-up has four more ticks under
+  **Your work** (Welding and fabrication, Making machines move, Videos of machines, Houses from House Planner).
 ## 0.2.241 – 25 Nov 2026 – The material picker: pictures, this project's materials, your own and your company's materials (task 0273)
 
 - **More materials…** (3 Looks, in the box of the picked group) opens the new **Materials** window: a picture of every

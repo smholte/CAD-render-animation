@@ -150,6 +150,9 @@ class FRESING_PT_joints(_Panel, bpy.types.Panel):
         layout = self.layout
         scene = context.scene
         s = scene.fresing
+        if not can_edit_joints(context):                 # task 0321: Sales moves joints, it does not make them
+            _draw_move_only(context, layout, s)
+            return
         from .ops_motion import selected_movers
         # -- adding a joint: what moves, then the button, then a click on the pivot
         steps(layout, context, ["Click what should move (subassembly or part)",
@@ -175,6 +178,43 @@ class FRESING_PT_joints(_Panel, bpy.types.Panel):
 
         if s.joints:
             _draw_joints(context, layout, s)
+
+
+def can_edit_joints(context) -> bool:
+    """Task 0321: does the workspace show adding and setting up joints? (Sales shows only moving them.)"""
+    from . import workspaces
+    return any(workspaces.shows(context.scene, fid) for fid in ("joints.rotate", "joints.slide", "joints.couplings"))
+
+
+def _draw_move_only(context, layout, s):
+    """Task 0321: the joints to move (Sales) – the list and the picked joint's slider, CAD (0) / Min / Max. Nothing
+    that adds, removes or sets up a joint."""
+    if not s.joints:
+        missing(layout, context, "This project has no joints yet: they are made in a workspace with joints, e.g. "
+                                 "Machine builder")
+        return
+    hint(layout, context, "Pick a joint and move it with its slider; Go to pose (Poses, below) puts the machine in a "
+                          "saved pose")
+    gap(layout)
+    layout.template_list("FRESING_UL_joints", "", s, "joints", s, "joints_index",
+                         rows=list_rows(len(s.joints), 2, 8))
+    j = s.joints[s.joints_index] if 0 <= s.joints_index < len(s.joints) else None
+    if j is None or not joints.is_valid(j):
+        return
+    gap(layout)
+    box = layout.box()
+    box.label(text=j.name, icon=joint_icon(j))
+    if j.follows:
+        wrap(box, context, f"Follows '{j.follows}': move that joint", icon="LINKED", inset=12)
+        return
+    row = box.row(align=True)
+    row.scale_y = BIG
+    _value_row(row, j, "Angle" if j.kind == "ROTATE" else "Distance")
+    row = box.row(align=True)
+    for t, label in (("ZERO", "CAD (0)"), ("MIN", "Min"), ("MAX", "Max")):
+        sub = row.row(align=True)
+        sub.enabled = t == "ZERO" or (j.use_limits and not joints.is_motor(j))
+        sub.operator("fresing.joint_value", text=label).target = t
 
 
 def _draw_joints(context, layout, s):

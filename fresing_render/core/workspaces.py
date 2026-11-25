@@ -38,6 +38,7 @@ START = "Essentials"                 # task 0294: new projects of anyone who has
 START_SINCE = "0.2.226"              # task 0294: the first version with Essentials
 
 # key -> (name, what it is for, locks the model, shows Blender's own tabs / toolbar / menus)
+# The drop-down shows each in this order; ICONS gives each its icon there (Blender icon names, task 0321).
 BUILTIN = {
     "essentials": ("Essentials", "The start: what a first good picture and a simple motion need – import, sort into "
                                  "groups and materials, surroundings and light, camera views, a joint and a pose, "
@@ -60,19 +61,37 @@ BUILTIN = {
                                  "hook to here, crane use. Also import, structure, looks, scene, animation and the "
                                  "render queue. Hides CNC, milling, cables and the sea", False, False),
     "sales": ("Sales", "Make outputs from a finished project: saved scenes, looks and paint schemes, logos, "
-                       "surroundings and weather, pictures, turntable, product video, 3D page. The model's import, "
-                       "structure and motion are not shown. Unlike the Client view the project is not locked: looks, "
-                       "scenes and outputs can be changed", False, False),
+                       "surroundings and weather, pictures, turntable, product video, 3D page; move the joints and "
+                       "poses to show the machine working. The model's import, structure and adding joints are not "
+                       "shown. Unlike the Client view the project is not locked: joints, looks, scenes and outputs "
+                       "can be changed", False, False),
     "quick": ("Quick render", "Import a STEP, sort into groups and looks, surroundings, light and camera, then one "
                               "picture or a turntable. Nothing else", False, False),
     "animator": ("Animator", "Motion and video: joints, cylinders, mechanisms, poses, animation steps, cameras and "
                              "camera paths, labels, video finishing, render queue", False, False),
     "reviewer": ("Reviewer", "Look at a finished model: saved scenes, slice, X-ray, poses and exploded views, labels, "
                              "visibility sets, play the animation, clash check", False, False),
+    "welding": ("Welding", "Welds on a model and pictures of them: import, the parts' looks, Welds (placement, "
+                           "types, looks, finish, rust), surroundings, light, camera, picture and Render this view. "
+                           "Motion, CNC, cables and video are not shown", False, False),
+    "builder": ("Machine builder", "Make a machine move: import, structure, place, joints, cylinders, mechanisms, way "
+                                   "covers, hoses and drag chains, tracks, the Set-up window, a first animation and "
+                                   "the clash check. Looks, video and outputs are not shown", False, False),
+    "video": ("Video producer", "The video of a model that already moves: animation steps, camera paths, labels, "
+                                "picture cards, music, brand kit, watermark, title and captions, render queue. "
+                                "Import, structure and making joints are not shown", False, False),
+    "houses": ("Houses", "A house from House Planner in its place: surroundings, weather and time of day, light, "
+                         "camera, picture, turntable and the 3D page. Machine motion, CNC and cables are not shown",
+               False, False),
     "full": ("Full access", "Every function, plus Blender's own workspace tabs, toolbar and menus. Also undoes the "
                             "Client view's lock", False, True),
 }
 NAMES = {key: v[0] for key, v in BUILTIN.items()}
+ICONS = {"essentials": "FILE_NEW", "all": "PRESET", "cnc": "MOD_SCREW", "offshore": "MOD_OCEAN", "product": "MESH_MONKEY",
+         "client": "LOCKED", "education": "HELP", "lifting": "EMPTY_SINGLE_ARROW", "sales": "FUND",
+         "quick": "RENDER_STILL", "animator": "RENDER_ANIMATION", "reviewer": "HIDE_OFF", "welding": "LIGHT_SUN",
+         "builder": "TOOL_SETTINGS", "video": "SEQUENCE", "houses": "HOME", "full": "UNLOCKED"}
+OWN_ICON = "USER"
 PROFILE_KEYS = ("favourites", "usage", "hidden")     # task 0181: what a profile adds to an own-workspace file
 
 

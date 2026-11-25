@@ -94,7 +94,7 @@ are not meshed again and their Blender meshes are reused; the result is the same
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web, 25 Nov 2026 · branch `task/0324-update-reuses-unchanged-parts` · 0.2.242
+**Chat / date:** Claude Code on the web, 25 Nov 2026 · branch `task/0324-update-reuses-unchanged-parts` · 0.2.243
 
 **What changed:**
 - **Mesh key per unique part** (`core/part_hash.py`, no Blender): blake2b over OpenCascade's binary copy of the part's
@@ -121,7 +121,7 @@ are not meshed again and their Blender meshes are reused; the result is the same
 - **Stage clock** on every update (`reimport._Clock`, root `fr_update_stats`), `build.LAST_TIMES`; `tools/update_timing.py`
   (bpy module, or the real app under xvfb with each step in its own timer call). Stress line `stress.update`: text
   "N of M parts reused", metrics parts reused + build new / take apart / remove old, expected 60 s, limit 240 s.
-  Guide (Update to a new revision, step 1), `import.update` `changed="0.2.242"`, CHANGELOG.
+  Guide (Update to a new revision, step 1), `import.update` `changed="0.2.243"`, CHANGELOG.
 
 **Tested and measured** (4-core web machine, Xeon 2.1 GHz; the stress topside made by `tools/make_test_stress.py`,
 11,228 placed / 1,995 unique parts, revision B: 103 placed / 96 unique parts changed; Normal; the real app under
@@ -163,7 +163,7 @@ of the touched areas passed.
 **GitHub:** branch run 45529614817 green (full mode, first try). **Stress run (stress.yml, full size) 45529613952 green:** `stress.update` model update **70.1 s** (0315 on the same runner type: 131 s), 1,899 of 1,995 unique parts reused, build new 4.9 s, take apart 2.9 s, remove old 9.8 s; a fresh Normal import there 109 s.
 
 **Owner's two revisions:** not attached in this session. Check step for the owner (counts and seconds only):
-1. Install 0.2.242 (**Update now**). Open a project of one of your models, imported **before** 0.2.242, and do
+1. Install 0.2.243 (**Update now**). Open a project of one of your models, imported **before** 0.2.243, and do
    **Update to new revision…** with the same file once (this first update reads every part, as before).
 2. Export a new revision of that model from Inventor (change one or two parts), then **Update to new revision…** again.
 3. In the side panel's **1 Import** the report says how many parts were kept. Send the lead: the total parts, and the

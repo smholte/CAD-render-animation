@@ -1,7 +1,7 @@
 """Real-app test, task 0294: workspaces round 2.
 
 A new user (nothing chosen) starts in Essentials; the Workspace drop-down opens with a star beside every workspace;
-starred ones and the workspace for new projects sit on top, above a line; Sales hides import, structure and motion;
+starred ones and the workspace for new projects sit on top, above a line; Sales hides import and structure (task 0321: it moves joints);
 "Use for new projects" makes the next new project start there; the stars and the choice are kept over a real restart
 (the app started again in the same settings folder: this file with FR_WS2_CHILD set). Everything is put back at the
 end, so the next test in this settings folder starts as before.
@@ -194,9 +194,10 @@ def s_sales():
     with override():
         bpy.ops.fresing.workspace_pick("EXEC_DEFAULT", True, name="Sales")
     sc = bpy.context.scene
-    check("Sales: import, structure and motion hidden; looks, saved scenes, Make and the 3D page shown",
-          all(ws.panel_hidden(sc, "FRESING_PT_" + p) for p in ("import", "structure", "motion"))
-          and not any(ws.panel_hidden(sc, "FRESING_PT_" + p) for p in ("looks", "shots", "web" + "3d", "output")))   # (not the module's name as a word: lane runs)
+    check("Sales: import and structure hidden; joints to move, looks, saved scenes, Make and the 3D page shown",
+          all(ws.panel_hidden(sc, "FRESING_PT_" + p) for p in ("import", "structure", "cylinders"))   # task 0321
+          and not any(ws.panel_hidden(sc, "FRESING_PT_" + p) for p in ("looks", "shots", "web" + "3d", "output",
+                                                                        "motion", "joints")))   # (not the module's name as a word: lane runs)
     check("Sales does not lock the project (unlike the Client view)", not ws.locked(sc))
     with override():
         bpy.ops.fresing.workspace_default("EXEC_DEFAULT", current=True)
