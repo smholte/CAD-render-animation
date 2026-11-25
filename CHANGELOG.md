@@ -5,6 +5,22 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.246 – 25 Nov 2026 – Build keeps your own keys and steps (task 0330)
+
+- **A key you change by hand stays.** Change a key of a built animation in Blender's Graph Editor or Dope Sheet and
+  press **Build & play** again (or render it in the queue, or press F12): your change is kept as long as the steps
+  that made it stay the same, and the warnings say so. Change the step itself and Build makes its keys anew – and
+  says that too. To go back to the steps' keys: the **X** (Stop animation), then Build & play.
+- **Keys of your own on a part are no longer lost.** A part you keyed by hand and that a **Fade** step fades kept
+  nothing after Stop – its keys were gone at the next save. Now they play along while the animation is built and are
+  back after Stop. Where a step moves the same thing as your keys, the step wins while built and the warnings name it.
+- **Make turntable video again keeps your steps.** It makes only its own turn anew; steps you added to the animation
+  "Turntable" stay, and the animation picked in 6 Animation stays picked.
+- **Lead motions on a built animation.** Moving a slider (also ▶ and Back to start) used to move the machine and then
+  snap back at the next frame. Now it takes the Build off first and says so; Build & play again to play the animation.
+- **The timeline fits.** After Build & play the timeline shows the whole animation (a 526-frame one still showed
+  0–250).
+
 ## 0.2.245 – 25 Nov 2026 – Adjust a look (task 0314)
 
 - **Adjust** (Materials window, under **Use for <group>**, when the group has the picked material): a few plain

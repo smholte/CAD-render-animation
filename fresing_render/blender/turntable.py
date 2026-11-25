@@ -25,6 +25,18 @@ def find_animation(scene):
     return next((a for a in scene.fresing.animations if a.get(TAG)), None)
 
 
+def orbit_block(a):
+    """The turntable's own Orbit step of animation ``a`` (tagged; older projects: the one the app named), or None."""
+    for b in a.blocks:
+        if b.get(TAG):
+            return b
+    for b in a.blocks:
+        if b.name == "Once round the machine" and b.kind == "CAMERA" and b.camera_mode == "ORBIT":
+            b[TAG] = True
+            return b
+    return None
+
+
 def _start_azimuth(cam, centre_xy) -> float:
     """Start the turn where the active camera looks from (front right when there is none)."""
     if cam is None or cam.type != "CAMERA":
@@ -78,8 +90,12 @@ def make(scene) -> dict:
     a.start_shot = shot.name
     a.tail = 0.0
     a.quality = s.turntable_quality
-    a.blocks.clear()
-    b = a.blocks.add()
+    # only the app's own orbit step is made again: steps the user added (or Lead motions "+", the weather's "Add at
+    # playhead") stay (bug hunt 0328 row 4)
+    b = orbit_block(a)
+    if b is None:
+        b = a.blocks.add()
+        b[TAG] = True
     b.name = "Once round the machine"
     b.kind = "CAMERA"
     b.camera_mode = "ORBIT"
@@ -87,7 +103,8 @@ def make(scene) -> dict:
     b.start = 0.0
     b.duration = duration
     b.easing = "LINEAR"
-    s.animations_index = list(s.animations).index(a)
+    if not 0 <= s.animations_index < len(s.animations):     # the animation picked in 6 Animation stays picked
+        s.animations_index = list(s.animations).index(a)
     return {"camera": cam, "animation": a, "shot": shot, "frames": frames, "seconds": frames / fps,
             "size": size}
 
