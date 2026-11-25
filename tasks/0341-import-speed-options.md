@@ -3,10 +3,10 @@
 **Who:** worker · **Status:** open · **Branch:** `task/0341-import-speed-options`
 **Started by:** lead, 25 Nov 2026. The owner picked the lead's "speed options" for the import popup on 25 Nov 12:4x.
 · **Model:** Opus · effort High
-**Area:** Import lane. These are the same files as 0340: `blender/import_settings.py`, `core/import_options.py`,
+**Area:** Import lane. These are the same files as 0340 / 0342: `blender/import_settings.py`, `core/import_options.py`,
 `importer/runner.py`, `blender/build.py`, `blender/reimport.py` (additive), their tests, guide, PC-check line and
 CHANGELOG.
-**Starts after:** 0340 is merged.
+**Starts after:** 0342 is merged (same popup files; 0340 → 0342 → 0341).
 
 ## Goal
 
@@ -30,7 +30,7 @@ with. Each shows a short hint about what you give up.
    - The parts are listed in the import report as "hidden inside" and come back with a model update with the switch
      off.
    - Time the test itself on the stress model. It must save more than it costs, or say so honestly.
-3. Both switches are stored per model and with "Use these next time without asking" (0340).
+3. Both switches are stored per model and with "Use these next time without asking" (0342).
 
 ## Done when
 
