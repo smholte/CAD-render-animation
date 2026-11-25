@@ -56,7 +56,7 @@ The 3D page's tool, 2D drawings, weld symbols (0320), the Keys tab (0295).
 
 **Chat / date:** Claude Code on the web, 24 Nov 2026 (branch `ccr-b4de08d0-he2cht`, the web session's branch).
 
-**What changed** (0.2.238):
+**What changed** (0.2.240):
 
 - **Top bar > Measure ▾** (right of Lead motions, every workspace and the Client view; `ui_measure.py`): a big
   **Measure** (result by what you click = the 3D page's `measure(a, b, 'faces')`) and the six kinds Distance (+ X / Y /
@@ -99,7 +99,11 @@ The 3D page's tool, 2D drawings, weld symbols (0320), the Keys tab (0295).
   checked (view with labels, the drop-down; a Cycles render of the tour set with Show in renders).
 - Tour set `measure` builds in 2–4 s, its check passes after save and reopen. PC check `view.measure`: OK, a mouse
   move 0.8 ms (face data cached).
-- GitHub: see the last commit of this report for the run.
+- GitHub: 4 full runs. Run 1 (45501146042) red: M was still in the key tests' and the PC check's "swallowed" lists
+  (the keys real-app test then also lost its right-click checks: M had started Measure, whose modal ate them),
+  Measure named in the task workspaces broke their "exactly these functions" lists (now in `_COMMON`, as Lead
+  motions), the Client view's allow-list bound +5. Run 2 (45509180133) red: my own new PC-check line read Alt+M for M.
+  Run 3 (45513891466) green; then 0235 took 0.2.239 on `main`: merged, renumbered, run 4 on the merge.
 
 **Open points / follow-up tasks:**
 
