@@ -1,6 +1,6 @@
 # 0368 – Faster welds at import and model update + the square groove with a root gap (0323's open points)
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0368-faster-welds-at-import`
+**Who:** worker · **Status:** running · **Branch:** `task/0368-faster-welds-at-import`
 **Started by:** lead, 25 Nov 2026 23:5x (owner allowed extra code tasks for the night; 0323's open points)
 · **Model:** Opus · effort Medium
 **Area:** Welds lane – `core/welds.py`, `core/weld_cad.py`, `blender/welds.py`, `blender/weld_cad.py`,

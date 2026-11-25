@@ -1,6 +1,6 @@
 # 0369 – 3D page: welds with their ripples and heat tint + dark warm colours as in the app
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0369-welds-colours-3d-page`
+**Who:** worker · **Status:** running · **Branch:** `task/0369-welds-colours-3d-page`
 **Started by:** lead, 25 Nov 2026 23:5x (owner allowed extra code tasks for the night; open points of 0319 and 0143)
 · **Model:** Opus · effort Medium
 **Area:** Web 3D lane – `blender/web3d.py`, `blender/web3d_env.py`, `core/web3d.py`, `core/web3d_env.py`,
