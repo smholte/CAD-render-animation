@@ -157,3 +157,17 @@ def test_a_removed_group_and_another_added_elsewhere_do_not_pair(tmp_path):
     src.write_bytes(after.glb())
     update(sc, src)
     assert sc.fresing.report_title == "Model updated: 4 parts kept, 2 new, 2 missing"
+
+
+@pytest.mark.parametrize("part_names", [True, False], ids=["named-parts", "unnamed-parts"])
+@pytest.mark.parametrize("how", ["node", "boxes"])
+def test_a_moved_group_whose_parts_all_changed_keeps_its_work(tmp_path, part_names, how):
+    """Task 0325 (bug hunt 0328 row 23): B moved 100 mm and BOTH its boxes 20 mm wider. No part of B keeps its shape,
+    so nothing pairs B's parts by shape; the group is the same node of the tree (the second unnamed group under the
+    root, between A and C, which kept their places): it pairs by that place, and its parts pair as changed parts. All
+    six parts kept, the Hide and sequence steps still on B, B still hidden, the joint still on B1."""
+    sc, hide, seq, uids = _run(tmp_path, part_names, how, ("B1", "B2"))
+    assert sc.fresing.report_title == "Model updated: 6 parts kept, 0 new, 0 missing"
+    _check(sc, hide, seq, uids, ("B1", "B2"))
+    notes = [n.text for n in sc.fresing.report_notes]
+    assert any("moved 100 mm" in n and "2 parts changed" in n for n in notes), notes

@@ -32,11 +32,12 @@ README = (
     "Fresing Render - stress test model (made up)\r\n\r\n"
     "An invented offshore substation topside of about 11,000 parts, made by the app's PC check (task 0315) to test\r\n"
     "how the app copes with a very big assembly. Nothing of a real design.\r\n\r\n"
-    "Import it like any STEP file: 1 Model > Import STEP... (Normal detail). It takes a few minutes.\r\n"
+    "Import it like any STEP file: open 1 Import in the side panel, leave Detail on Normal and click\r\n"
+    "Import STEP... (or drag the .step file onto the 3D view). It takes a minute or two.\r\n"
     "The joints of the crane, the davit and the doors are listed in the .joints.json file (millimetres).\r\n")
 NOTES = ("The stress-test model of the PC check 'Stress' (task 0315): an invented offshore substation topside, about "
          "11,000 parts. Not a release of the app: a draft only people with access to the repository see.\n\n"
-         "Download FresingStressModel.zip, unzip it and import the STEP file with 1 Model > Import STEP…. "
+         "Download FresingStressModel.zip, unzip it and import the STEP file: 1 Import > Import STEP…. "
          "Do not publish this draft.")
 
 

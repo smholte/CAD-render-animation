@@ -33,12 +33,14 @@ import numpy as np
 
 try:                                   # inside the package (tests, Blender)
     from . import step_meta
+    from . import tube_mesh
     from ..core import cad_materials
     from ..core import fasteners
     from ..core import part_hash
 except ImportError:                    # run as a script by the import job
     sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "core"))
     import step_meta                   # noqa: E402  (next to this file)
+    import tube_mesh                   # noqa: E402
     import cad_materials               # noqa: E402
     import fasteners                   # noqa: E402
     import part_hash                   # noqa: E402
@@ -60,18 +62,23 @@ QUALITY = {
 #   small_gap   mm, and small_ang: deflection and angle – about 12 / 20 / 32 segments round (measured: the gap
 #               between facet and circle is about half the deflection). Other small parts (end mills, lamps,
 #               workpieces) keep the relative deflection: they are often what a close-up shows.
+#   tube_gap    mm: a long cable or hose (a round section swept along a curve, task 0325) is meshed by tube_mesh.py –
+#               segments round so that the sag stays below this (Ø20 mm: 10 / 16 / 25), rings along only where it
+#               bends (the surface between two rings within this of the straight line). A 30 m Stress cable came to
+#               ~5,000–9,000 triangles at Normal instead of 31,000–186,000.
 FACETS = {
-    "draft": {"cap_mm": 2.0, "small_mm": 200.0, "small_gap": 0.7, "small_ang": 1.05},
-    "normal": {"cap_mm": 0.5, "small_mm": 200.0, "small_gap": 0.25, "small_ang": 0.63},
-    "fine": {"cap_mm": 0.2, "small_mm": 200.0, "small_gap": 0.1, "small_ang": 0.39},
+    "draft": {"cap_mm": 2.0, "small_mm": 200.0, "small_gap": 0.7, "small_ang": 1.05, "tube_gap": 0.6},
+    "normal": {"cap_mm": 0.5, "small_mm": 200.0, "small_gap": 0.25, "small_ang": 0.63, "tube_gap": 0.2},
+    "fine": {"cap_mm": 0.2, "small_mm": 200.0, "small_gap": 0.1, "small_ang": 0.39, "tube_gap": 0.08},
 }
 
-CACHE_VERSION = 8          # 3: axes of round faces (joint picking), instance names; 4: CAD material names;
+CACHE_VERSION = 9          # 3: axes of round faces (joint picking), instance names; 4: CAD material names;
                            # 5: triangle range of every face (f<mesh>), appearance names of face colours;
                            # 6: facets by size (FACETS): capped in mm for big parts, fewer for small ones;
                            # 7: spheres have an axis too (task 0318: domed caps, carbon on a cup);
                            # 8: a mesh key per unique part (task 0324: a model update takes unchanged parts' meshes
                            #    from the old cache, core/part_hash.py)
+                           # 9: long cables and hoses meshed by their own rule (task 0325, tube_mesh.py)
 MM_TO_M = 0.001
 
 
@@ -442,7 +449,10 @@ def _mesh_shape(occ, shape, lin_rel, ang, face_colours=None, already_meshed=Fals
     end (the triangles of a face are one block): picking a whole CAD face with a click.
     ``facets``: FACETS[quality] – deflection by the part's size (task 0074); None: relative only.
     ``standard``: a bolt, nut, washer … (``is_standard_part``): fewer segments when small."""
-    if not already_meshed:
+    pre = None                                             # task 0325: a long cable / hose, meshed by its own rule
+    if not already_meshed and facets and facets.get("tube_gap"):
+        pre = tube_mesh.plan(shape, facets["tube_gap"])
+    if not already_meshed and pre is None:
         defl, rel, a = mesh_params(lin_rel, ang, _part_size(occ, shape) if facets else 0.0, facets, standard)
         occ["BRepMesh_IncrementalMesh"](shape, defl, rel, a, True)
     positions, normals, tris, tri_col = [], [], [], []
@@ -455,6 +465,10 @@ def _mesh_shape(occ, shape, lin_rel, ang, face_colours=None, already_meshed=Fals
     REVERSED = occ["TopAbs_REVERSED"]
     faces = []                                             # (face number, face, location, triangulation)
     for face_no, face in enumerate(_faces(occ, shape)):
+        if pre is not None:
+            if face_no in pre:
+                faces.append((face_no, face, face.Location(), None))
+            continue
         loc = TopLoc_Location()
         tri = BRep_Tool.Triangulation_s(face, loc)
         if tri is None or tri.NbNodes() == 0 or tri.NbTriangles() == 0:
@@ -465,17 +479,25 @@ def _mesh_shape(occ, shape, lin_rel, ang, face_colours=None, already_meshed=Fals
             except Exception:
                 pass
         faces.append((face_no, face, loc, tri))
-    records = _bulk_triangulations(occ, [(f, t) for _n, f, _l, t in faces]) if bulk else None
+    records = _bulk_triangulations(occ, [(f, t) for _n, f, _l, t in faces]) if bulk and pre is None else None
     for k, (face_no, face, loc, tri) in enumerate(faces):
-        n_nodes = tri.NbNodes()
-        n_tris = tri.NbTriangles()
         reversed_ = face.Orientation() == REVERSED
-        if records is not None:
+        if tri is None:                                    # meshed by tube_mesh (points and normals the surface's own)
+            pts, nrm, t = pre[face_no]
+            pts = np.asarray(pts, dtype=np.float64)
+            nrm = np.array(nrm, dtype=np.float64)
+            t = np.asarray(t, dtype=np.int64)
+            n_nodes, n_tris = len(pts), len(t)
+        elif records is not None:
+            n_nodes = tri.NbNodes()
+            n_tris = tri.NbTriangles()
             rec_nodes, rec_tris, rec_nrm = records[k]
             pts = rec_nodes.astype(np.float64)
             t = rec_tris.astype(np.int64) - 1
             nrm = _record_normals(occ, face, tri, rec_nrm, n_nodes)
         else:
+            n_nodes = tri.NbNodes()
+            n_tris = tri.NbTriangles()
             # one call per node / triangle; numpy does the rest
             node = tri.Node
             pts = np.array([node(i).Coord() for i in range(1, n_nodes + 1)], dtype=np.float64)

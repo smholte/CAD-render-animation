@@ -6,8 +6,9 @@ deleted at the end; nothing of it is in the repository. Each line measures one h
 Normal, the side panel's lists and search, selecting and hovering, the Solid view and the first Live-preview picture,
 the joints and Build, a joint drag, the clash check, save and open, a backup, Undo, a model update with about 1 % of
 the parts changed, a 4K render and the web 3D export – with its time, the peak memory while it ran and a mark against
-a limit (``limit=``: about twice the first measurement on the 4-core web machine without a graphics card, task
-report 0315; the Solid view's limit is meant for a PC with one). The run is compared with the previous Stress
+a limit (``limit=``: about twice the owner's first Stress run, 25 Nov 2026, 0.2.257 – Ryzen 9 9900X, 24 cores,
+RTX 3090; task 0325. Lines he gave no number for keep their limit from the 4-core web machine of task 0315, where
+most lines are "slow" against these limits). The run is compared with the previous Stress
 run on the same PC (15 % slower = flagged: ``core.SLOWER_BY_MODE``) and written as a table next to the report
 (``core.stress_csv``).
 
@@ -241,7 +242,7 @@ def _import(ctx, quality: str):
     return scene, parts, placed
 
 
-@stress_line("stress.import_draft", "Stress model: import at Draft", 30, 120, requires=("stress.model",),
+@stress_line("stress.import_draft", "Stress model: import at Draft", 50, 100, requires=("stress.model",),
              what="Reads the stress model's STEP file at Draft detail on all cores, builds the objects and sorts them",
              shows="How long a very big model takes to come in at the lightest detail, and the memory it needs",
              not_shown="The memory of the reader's helper programs (only the app's own)")
@@ -250,7 +251,7 @@ def stress_import_draft(ctx):
     return f"{len(parts)} parts, {placed / 1e6:.1f} M triangles"
 
 
-@stress_line("stress.import_normal", "Stress model: import at Normal, then from the cache", 50, 240,
+@stress_line("stress.import_normal", "Stress model: import at Normal, then from the cache", 70, 150,
              requires=("stress.model",),
              what="Reads the stress model at Normal detail (the default), then opens it once more from the import cache",
              shows="Import time at the detail you use every day; build + sort time on its own (from the cache)",
@@ -355,7 +356,7 @@ def _camera(scene):
     return scene.camera
 
 
-@stress_line("stress.solid", "Stress model: Solid view, first picture and turning", 20, 120,
+@stress_line("stress.solid", "Stress model: Solid view, first picture and turning", 15, 60,
              requires=("stress.import_normal",),
              what="The model drawn as the Solid view draws it (Workbench) at 1920 x 1080: the first picture, then 12 "
                   "pictures while the camera turns round it",
@@ -402,7 +403,7 @@ def stress_solid(ctx):
     return f"first picture {first:.1f} s, {fps:.1f} pictures a second while turning"
 
 
-@stress_line("stress.live", "Stress model: Live preview's first picture", 15, 60, requires=("stress.import_normal",),
+@stress_line("stress.live", "Stress model: Live preview's first picture", 5, 15, requires=("stress.import_normal",),
              what="A Cycles picture at the Live preview's size and samples (960 x 540, 4 samples), on the graphics card "
                   "when there is one: what you wait for before Live preview shows the model",
              shows="The start-up of Cycles on a big model: building its scene (BVH) and the first samples",
@@ -549,7 +550,7 @@ def stress_drag(ctx):
     return f"{ms:.1f} ms per step (slowest {max(times):.0f} ms)"
 
 
-@stress_line("stress.clash", "Stress model: clash check of the animation", 45, 120, requires=("stress.build",),
+@stress_line("stress.clash", "Stress model: clash check of the animation", 40, 80, requires=("stress.build",),
              what="Check for clashes on the 10 s animation: the crane slews over the roof, the hook goes down, the "
                   "doors open",
              shows="How long the clash check takes when a few hundred moving parts pass 11,000 standing ones",
@@ -637,7 +638,7 @@ def stress_undo(ctx):
     return None
 
 
-@stress_line("stress.render", "Stress model: Render image 4K", 120, 600, requires=("stress.import_normal",),
+@stress_line("stress.render", "Stress model: Render image 4K", 20, 40, requires=("stress.import_normal",),
              what="Render image of the whole model from a three-quarter view: 3840 x 2160, Preview, on the graphics "
                   "card (without one: Draft on the processor, 480 x 270)",
              shows="Render time and whether a big model fits the graphics card's memory at 4K",
@@ -664,7 +665,7 @@ def stress_render(ctx):
     return f"{info['size'][0]} × {info['size'][1]} in {info['seconds']:.0f} s on {info['device']}"
 
 
-@stress_line("stress.web3d", "Stress model: web 3D model", 60, 180, requires=("stress.import_normal",),
+@stress_line("stress.web3d", "Stress model: web 3D model", 50, 100, requires=("stress.import_normal",),
              what="The whole model saved as a web 3D model (.glb, Texture size 1024, compressed: the panel's default) "
                   "and read back",
              shows="How long the web 3D export of a very big model takes and how big the file gets",
@@ -684,7 +685,7 @@ def stress_web3d(ctx):
     return out["text"]
 
 
-@stress_line("stress.update", "Stress model: model update with about 1 % changed", 60, 240, requires=("stress.save",),
+@stress_line("stress.update", "Stress model: model update with about 1 % changed", 70, 150, requires=("stress.save",),
              what="A second revision of the model (about 1 % of the placed parts changed: cables re-routed, a cabinet "
                   "type, a spool, valve bonnets, the boom's sheave) is made and read in with Model update",
              shows="How long a model update of a big model takes when only a few parts changed (unchanged parts keep "

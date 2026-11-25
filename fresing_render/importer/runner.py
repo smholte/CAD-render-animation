@@ -314,6 +314,8 @@ def prune_old_caches(cache_root: str) -> int:
     except OSError:
         return 0
     for name in names:
+        if ".partial" in name:                  # being written right now (perhaps by another app version)
+            continue
         d = os.path.join(cache_root, name)
         tree = os.path.join(d, "tree.json")
         if not os.path.isfile(tree):

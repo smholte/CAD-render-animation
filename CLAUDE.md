@@ -958,6 +958,24 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
   - unchanged: a project never changes its look by itself, the app runs without the pack, a project opens on a
     client's PC – these are user-friendliness rules, not backward compatibility.
   From the baseline on, every saved project must keep opening and keep its look in every later version.
+  **Before the baseline** (owner 25 Nov 22:5x) – whatever changes what a project stores: the import lane 0340 → 0342 →
+  0341 → 0287; **0345** (parts keep their identity through a model update); **0352** compatibility kit; **0353**
+  format number on outputs; 0344's groundwork; the build tasks of **0305** (animation panel, exploded views) and
+  **0286** (libraries) after the owner's picks. New features that only add data may come after the baseline.
+- **Keep saved data small (owner 25 Nov 22:5x).** A project stores the user's choices and work (model link, joints,
+  keys, looks picked, settings); everything that can be worked out again – bakes, caches, meshes made by the app,
+  liquid, cable shapes, baked lights – is rebuilt from those choices, never upgraded. New saved data gets a name in the
+  project's format list (0352) and an upgrade step when it changes; derived data gets none.
+- **The Fresing assets pack (0344; owner's picks 25 Nov 23:17; tasks 0354–0365, Assets lane).** Fresing's own looks
+  move step by step into a pack – a folder `Fresing Assets` beside the app with its own licence – and today's code
+  looks stay as the free fallback **under the same ids**: never remove or rename a code look id, and a look only the
+  pack has gets a code twin. A project takes its own **copy** of every pack item it uses (append, pictures packed
+  inside at 2k) – **never a link** to the pack. A project changes to pack looks or a newer pack version only through
+  "Use the new Fresing looks" (0359) – never through `LOOK_VERSION`, `MAT_VERSION`, `fr_prop_ver` or another
+  load-time stamp. **The app must run without the pack** (GPL fallback, a client's PC, CI); tests make the test pack
+  at test time (no pack binary in the repository). No "without assets" option for users anywhere (owner 23:12) –
+  the Settings switch (0357) is for a slow PC or testing. The pack's working files live in a private repository with
+  no CI; the finished pack is a public pre-release download (`assets-<version>`), checked by the public CI (0356).
 - UI follows the layout rules at the top of `blender/ui.py`: steps top to bottom, choices
   above their button, details of the selected list item under the list, no cut-off labels at the
   default side-panel width, rarely used settings in folds, a state in every panel header (sub-panels

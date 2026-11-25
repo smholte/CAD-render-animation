@@ -209,6 +209,8 @@ def match(old: list[dict], new: list[dict], move_tolerance: float = 0.005) -> li
                     break
     _shifted_made_parts(old, new, pairs, take, used_old, used_new, move_tolerance)
     _made_assemblies(old, new, pairs, take, used_old, used_new, move_tolerance)
+    if _groups_by_place(old, new, pairs, take, used_old, used_new):
+        _made_assemblies(old, new, pairs, take, used_old, used_new, move_tolerance)
     return pairs
 
 
@@ -266,6 +268,74 @@ def _made_assemblies(old, new, pairs, take, used_old, used_new, tol) -> None:
             progress = True
         if not progress:
             return
+
+
+def _groups_by_place(old, new, pairs, take, used_old, used_new) -> bool:
+    """A group with no name in the file whose parts ALL changed shape (task 0325, bug hunt 0328 row 23): no rule pairs
+    any of its parts (no shape is left to compare), so nothing pairs the group either. It is the same node of the
+    tree when it sits at the same place in it: the reader's own id (``fr_uid``: the path of made names, "Node 4#1",
+    from the root) is the same, its parent is the same (both under the model's root, or paired with each other) and
+    it holds as many parts, each again at the same place (same id, same kind) and of about the same size (no side
+    more than twice or half as long, give or take 50 mm). Then the group and its parts pair; the parts as changed.
+    Only when none of the group's parts paired on either side: a group with one part left as it was pairs through
+    that part (``_shifted_made_parts``, ``_made_assemblies``). Returns whether it paired anything."""
+    rec_of = {r["ob"].name: r for r in old + new if "ob" in r}
+    if not rec_of:
+        return False
+    paired = {id(o): id(n) for o, n in pairs}
+
+    def parent(r):
+        p = build.logical_parent(r["ob"])
+        return rec_of.get(p.name) if p is not None else None
+
+    def kids(recs):
+        out: dict = {}
+        for r in recs:
+            p = parent(r) if "ob" in r else None
+            if p is not None:
+                out.setdefault(id(p), []).append(r)
+        return out
+
+    def uid(r):
+        return r["ob"].get(build.PROP_UID, "")
+
+    def alike(a, b) -> bool:
+        if a.get("shape") is None or b.get("shape") is None:
+            return a.get("shape") is None and b.get("shape") is None
+        for x, y in zip(a["shape"][1:], b["shape"][1:]):                    # sizes in 0.1 mm
+            lo, hi = sorted((x, y))
+            if hi > 2 * lo + 500:
+                return False
+        return True
+
+    kids_o, kids_n = kids(old), kids(new)
+    groups_n = {uid(r): r for r in new if r["kind"] == "assembly" and r.get("made_self") and id(r) not in used_new
+                and uid(r)}
+    found = False
+    for ro in old:
+        if ro["kind"] != "assembly" or not ro.get("made_self") or id(ro) in used_old or not uid(ro):
+            continue
+        rn = groups_n.get(uid(ro))
+        if rn is None or id(rn) in used_new:
+            continue
+        po, pn = parent(ro), parent(rn)
+        if (po is None) != (pn is None) or (po is not None and paired.get(id(po)) != id(pn)):
+            continue
+        ko, kn = kids_o.get(id(ro), []), kids_n.get(id(rn), [])
+        if not ko or len(ko) != len(kn) or any(id(k) in used_old for k in ko) or any(id(k) in used_new for k in kn):
+            continue
+        by_uid = {uid(k): k for k in kn}
+        twins = [(k, by_uid.get(uid(k))) for k in ko]
+        if any(n is None or n["kind"] != o["kind"] or not alike(o, n) for o, n in twins):
+            continue
+        take(ro, rn)
+        paired[id(ro)] = id(rn)
+        for o, n in twins:
+            take(o, n)
+            if o["kind"] == "part" and o.get("shape") != n.get("shape"):
+                o["changed"] = True
+        found = True
+    return found
 
 
 def _moved_along(moved, shifts, tol) -> bool:
@@ -458,7 +528,9 @@ def _group_notes(pairs, tol) -> list[str]:
             continue
         kids = by_parent.get((o["ob"].name, n["ob"].name), [])
         same = [b["centre"] - a["centre"] for a, b in kids if a.get("shape") == b.get("shape")]
-        if not same:
+        if not same:                                       # every part changed (task 0325): the move of the side of
+            same = [_side_move(a, b) for a, b in kids if a.get("shape") and b.get("shape")]   # each box that kept
+        if not same:                                       # its place against the others
             continue
         same.sort(key=lambda d: d.length)
         moved = same[len(same) // 2]                       # the median part's move
@@ -470,6 +542,17 @@ def _group_notes(pairs, tol) -> list[str]:
             line += f"; {plural(changed, 'part')} changed"
         out.append(line + " – its work is kept")
     return out
+
+
+def _side_move(a, b):
+    """How far a part whose box changed size moved (task 0325): per axis the move of the side of its box that moved
+    least (a box made 20 mm wider on one side keeps the other side where the group's move puts it)."""
+    d = b["centre"] - a["centre"]
+    out = []
+    for k in range(3):
+        half = (b["shape"][k + 1] - a["shape"][k + 1]) / 20000.0          # half the change in size, m
+        out.append(min((d[k] - half, d[k] + half), key=abs))
+    return Vector(out)
 
 
 def _made_root(old_recs, new_root, pairs) -> list[tuple[dict, dict]]:
