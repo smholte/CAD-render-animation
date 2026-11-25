@@ -1317,7 +1317,8 @@ The tree shows the model like Windows Explorer: subassemblies with the parts ins
   end (":1", ":2"). The coloured ball is the part's material.
 - Under the list: the selected row, **Zoom to it** and, for a subassembly, its lock. **Locked in place**
   (the normal state): it moves only with the subassembly it is in. Click it to unlock: it can then be
-  moved on its own with G / R ([Moving and turning parts](#moving-parts)).
+  moved on its own with G / R ([Moving and turning parts](#moving-parts)). Or just press G / R on it: a small box by the
+  mouse offers **Unlock** ([Moving and turning parts](#moving-parts)).
 - **Hide** hides what is selected. **Show only** hides everything else; a red box "Showing only: …"
   with **Show everything again** brings the rest back. **Show all** shows everything you hid.
 
@@ -1337,9 +1338,22 @@ stray key cannot pull the model apart. Unlock what you want to move first.
    (for example **G X 500** moves it half a metre along X, **R Z 90** turns it a quarter turn).
 5. Press **Enter** (or click with the left mouse button) to keep it there. **Esc** or a right-click puts it back.
 
+**Quicker: press G or R on a locked part.** A small box opens next to the mouse: *"'BOOM.ASM' is locked in place"*
+with an **Unlock** button and an **×**. **Unlock** (or Return) unlocks it and the move starts at once – go on with
+step 4. A click outside the box, the **×** or **Esc** closes it and nothing changes. The same box opens for a
+right-click > **Move / turn…** on a locked part; its Unlock then opens the Move / turn window.
+
+After that move (not when you cancel it) a second box shows in the **top left of the 3D view**, below the view's name:
+*"'BOOM.ASM' was unlocked to move it"* with **Lock it again** (locks exactly what the first box unlocked, as it was
+after the import) and an **×**. It stays at least 5 seconds; after that any click closes it (and still does what the
+click does), **Esc** closes it at any time. Leave it and the part stays unlocked. Only parts unlocked with that box get
+it – unlocking in 2 Structure or the right-click menu does not. Ctrl+Z: Unlock and the move are two steps, Lock it
+again one.
+
 When it cannot move, the status bar at the bottom says why at once and nothing starts:
 
-- *"'…' is locked in place – right-click it > Unlock so it can move …"*: unlock it (step 1).
+- *"'…' is locked in place – click Unlock in the popup, or right-click it > Unlock so it can move …"*: click
+  **Unlock** in the box by the mouse, or unlock it as in step 1.
 - *"The animation is built: a move now would be undone at the next Build …"*: click **Stop it to move joints by
   hand** at the top of 4 Motion, move it, then **Build & play** again – the new place is kept.
 - *"Parts keep their size from the CAD model"*: **S** never scales a part.
@@ -1360,7 +1374,8 @@ first.
 panel opens in a window of its own from the right-click menu: **Move / turn…**.
 
 1. Select what you want to place: click it in the view, or click its row in 2 Structure. The name shows at the top
-   of Place. A closed lock beside it means **Locked in place**: click the lock to free it.
+   of Place. A closed lock beside it means **Locked in place**: click the lock to free it (from the right-click menu's
+   **Move / turn…**, a small box by the mouse offers **Unlock** first).
 2. Choose **World** (positions and turns in the world's X / Y / Z) or **Model axes** (how far it is from where the
    CAD file has it, along the model's own axes – 0 means on its CAD place).
 3. Type a number in **Position (mm)** or **Turn (°)**, or click **–** / **+** to step it (the **Step** row under the
