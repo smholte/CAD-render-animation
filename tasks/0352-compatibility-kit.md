@@ -318,10 +318,67 @@ All paths are under `fresing_render/blender/`. Kinds: **a** = upgrades stored da
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 25 Nov 2026 (one session; branch `task/0352-compatibility-kit`, released as
+0.2.262).
 
 **What changed:**
+- `core/compat.py` (no Blender): `FORMAT = 1`, `BASELINE_FORMAT = None`, the chain `STEPS = ()` as plain data
+  (`Step(from, to, name, "module:function", changes)`), `plan` / `run` / `chain_problems`, the newer-project message,
+  `aside_name`, `FAMILY_DATA` (all 16 families sorted: 15 store data, Help does not), `compare` / `round_value` /
+  `picture_difference` / `NOT_CHOICES` for the test projects.
+- `blender/compat.py`: the stamp `fr_format` + `fr_saved_by` on every local scene at every save (backups and the
+  queue's copy too) – plain custom properties, not property-group fields, so any version reads them; `_on_load` FIRST
+  in `load_post` (put back in front at every `load_pre`; `register()` also looks at the open file, because the app
+  template switches the app on during a load). The chain runs once per file from its lowest stamp, each step gets the
+  scenes below it; it **stops at a failing step** (one plain line, the project opens) and the scenes keep the format
+  they reached, also through a save, so a fixed version tries again. *Decision against the brief's wording "as
+  _on_load since 0055": _on_load's upgrades are independent, the chain's steps build on each other – running step n+1
+  on data that step n did not convert would damage it.* The lead may want to confirm.
+- **A project from a newer app** = look only (`compat.blocked()`): the app's Save (`fresing.save`, one call) refuses
+  with the message; Blender's own save (the "Save changes?" question, a script) cannot be cancelled from `save_pre`,
+  so any existing file it is about to write over is first kept aside as "<name> (Fresing Render 0.2.X).blend" (copy,
+  else hard link, else moved; not again for a file this app wrote a moment ago); stamps are never lowered (what an
+  older app saves of it stays "newer"); Save As makes a copy that is look-only too. Kept out: backups
+  (`backups.wait_reason`), the render queue (`queue.start`), a model update (`reimport.update_model` and, before the
+  STEP is read, `ops_import._locked`), Update now's save (`updates.save_project` skips it).
+- `tools/make_compat_project.py`: builds 8 test-tour sets (crane, copies, mill, tools, cylinder, cables, house,
+  lifting – they cover every family that stores data; a test works the coverage out again from `core/functions.py`
+  and the tour's stops) into `format_<n>/`: `<set>.blend` (compressed), `summary.json`, `<set>.png` (80 × 60 Cycles,
+  processor, 4 samples). `tests/data/compat/README.md`; nothing kept before the baseline.
+- `tools/ci_precheck.py` `check_compat`: the chain is sound; from the baseline on every format number has its whole
+  kept folder (summary with the right number, its .blend files); no kept folder above `FORMAT`.
+- PC-check line `project.newer` (Full, `MIN_LINES_FULL` 161), function entry `help.newer_project`, guide section
+  "Projects from a newer version" (Troubleshooting, anchor `newer-project`), CLAUDE.md sections 3, 6 (the rule) and
+  7 (the release step), CHANGELOG.
+- No tour stop: the function only shows with a file from a newer version (the PC check makes one).
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, Blender 5.2.3 as a Python module):
+- `tests/test_compat.py` 13, `tests/test_compat_blender.py` 10, `tests/test_compat_review.py` 21 (the independent
+  tester's), `tests/test_compat_projects.py` 6 + 1 skipped (no kept project yet): all pass. Making the test project
+  ~45–50 s, the whole projects file 58–64 s. Sizes: crane 387 KB, copies ~500, mill 463, tools ~430, cylinder 494,
+  cables 895, house 183, lifting 939 KB (all under 1 MB; 8 files ≈ 4 MB – one folder per format number).
+- The comparison is not blind: a changed joint limit, animation step, lead-motion row, mesh decal, camera lens and a
+  changed background are found (tests).
+- PC-check lines `project.newer` (0.8 s) and `project.reopen` OK locally; related suites (project names, backups,
+  queue, updates, functions, guide) pass.
+- **Independent review** (a helper agent that did not write the code, 21 tests): 15 findings – re-registering dropped
+  look-only and a save lowered the newer stamp (bug); the aside record outlived the file (bug); a failed copy aside lost
+  the file (risk); Save As from a copy back onto the original (risk); the app switched on during a load skipped the
+  check (risk); an appended newer scene; a failed step stamped as done; steps run per scene on shared data; four blind
+  spots of the summary (lead rows / load charts hidden by a bare name, mesh decals, camera settings) and exact
+  datablock counts (false alarm); the precheck too lenient. **All fixed**; its tests are kept in
+  `tests/test_compat_review.py` (two rewritten to the decided rules: once per file, stop at a failure). Left as they
+  are: a step raising SystemExit / KeyboardInterrupt is not caught (on purpose).
+- GitHub runs: see below.
 
 **Open points / follow-up tasks:**
+- **The baseline:** the lead sets `BASELINE_FORMAT` and commits `tests/data/compat/format_<n>/` (README step 2) the
+  day the baseline is released; until then the chain never runs.
+- **0350 cleanups** – the (c) rows and the saved derived data, grouped by lane, are in "Findings" above (lists i, ii).
+  Biggest saved derived data: the hose / cable shapes, milling meshes and chips, the surroundings' meshes, Build's keys.
+- **0355** (running beside): `assets_source`, `assets_version`, `fr_asset` go into the saved-data list when it merges
+  (they are choices; nothing to do in `NOT_CHOICES`).
+- **0353** (outputs) can use `core/compat` style: a number and a plain line for a newer reader.
+- The newer-project message shows in the status line and once in a small window after the load; the side panel has
+  no row for it (a later UI task may add one).
+- The chain's "stop at a failing step" differs from the brief's "as _on_load" (see above) – for the lead to confirm.
