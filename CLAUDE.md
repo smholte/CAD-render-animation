@@ -939,7 +939,21 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
   run here. Have it reviewed independently (a helper agent or review chat that did not write
   it) before a release, and add a self-test line when the owner's PC can confirm it.
 - Do not change the cache format or saved-project data silently: bump `CACHE_VERSION` in
-  `importer/step_reader.py` when the cache changes; old projects must keep opening.
+  `importer/step_reader.py` when the cache changes.
+- **Old projects – the baseline (owner 25 Nov 2026 22:4x).** There are no real user projects yet. **Full backward
+  compatibility starts at the baseline: the first version that has the Fresing assets pack's groundwork in it** (0344's
+  invisible groundwork – pack format, the asset registry with code fallback, looks copied into projects). The lead
+  writes that version number here when it is released. Until then:
+  - a project from an older version only has to **open without a crash**; where something cannot be carried over, say
+    so in one plain line ("Made with an early test version – re-import the model to get <what>"), never a traceback;
+  - do **not** add new upgrade / conversion code or new old-project tests for projects older than the baseline, and
+    don't keep an old path alive only for old projects – a brief's "old project opens / builds the same" item means
+    "opens without a crash" until the baseline;
+  - old upgrade code and old-project tests are removed **per lane, by small cleanup tasks (0350a, b …) when the lane is
+    free** – never as a side job in another task;
+  - unchanged: a project never changes its look by itself, the app runs without the pack, a project opens on a
+    client's PC – these are user-friendliness rules, not backward compatibility.
+  From the baseline on, every saved project must keep opening and keep its look in every later version.
 - UI follows the layout rules at the top of `blender/ui.py`: steps top to bottom, choices
   above their button, details of the selected list item under the list, no cut-off labels at the
   default side-panel width, rarely used settings in folds, a state in every panel header (sub-panels

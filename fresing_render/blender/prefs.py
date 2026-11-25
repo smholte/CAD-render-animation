@@ -40,6 +40,11 @@ class FRESING_AP_prefs(bpy.types.AddonPreferences):
         description="The workspace a new project starts in, and the one a project from before workspaces opens in "
                     "(with everything it uses shown). Empty: not chosen yet – new projects start in Essentials. "
                     "Pick it in the Fresing tab: Workspace > Use for new projects")
+    ask_colleague_workspace: BoolProperty(
+        name="Say when a colleague's project opens in my workspace", default=True,
+        description="A project that someone else saved in another workspace opens in your own workspace. With this "
+                    "on, a small window says so and offers 'Switch to theirs'. Off: it opens in yours without the "
+                    "window")
     workspace_stars: StringProperty(
         default="", options={"HIDDEN"},
         description="Task 0294: the workspaces you starred, in the order you starred them – they sit at the top of "
@@ -186,6 +191,7 @@ def draw_general(layout, p) -> None:
     row = col.row(align=True)
     row.label(text="Default rule set")
     row.operator_menu_enum("fresing.rule_set_default", "name", text=p.default_rule_set or "Standard", icon="FILTER")
+    col.prop(p, "ask_colleague_workspace")                  # task 0333
     row = col.row(align=True)
     row.label(text="Workspace for new projects")
     row.operator_menu_enum("fresing.workspace_default", "name", text=p.default_workspace or "Essentials (not chosen yet)",
