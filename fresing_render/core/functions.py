@@ -284,7 +284,7 @@ fn(id="scene.render_view", short="Render this view", title="Render this view: wh
    tour=("render_view",), pccheck=("scene.render_view",), since="0.2.223")
 fn(id="panel.setup_window", title="Set-up window: a CNC mill or a mechanism one step at a time", family="panel",
    panel="FRESING_PT_setup", button="fresing.setup_window", guide="setup-window", tour=("setup",),
-   since="0.2.152", workspaces=("cnc", "offshore", "product", "education"), changed="0.2.250")
+   since="0.2.152", workspaces=("cnc", "offshore", "product", "education"), changed="0.2.251")
 fn(id="usage.favourites", title="Favourites bar: your most used buttons on top", family="panel",
    panel="FRESING_PT_favourites", button="fresing.usage_go", guide="favourites", tour=("usage",),
    pccheck=("app.usage",), since="0.2.158", changed="0.2.204")      # task 0278: folds, kept over a restart
@@ -347,10 +347,11 @@ fn(id="structure.tree", short="Hide parts", title="Structure: find, select, hide
    panel="FRESING_PT_structure", button="fresing.hide_selected", text="Hide", guide="structure", since="0.1.0",
    workspaces=("cnc", "offshore", "product", "education", "lifting"))
 # task 0307: G / R move and turn; what cannot move says why at once (locked in place, a built animation)
-fn(id="structure.move", short="Move / turn", title="Move and turn a model, subassembly or part with G / R; Unlock so it "
-   "can move (right-click); a line in the status bar when it cannot move", family="import",
-   panel="FRESING_PT_structure", button="fresing.toggle_lock", guide="moving-parts", pccheck=("structure.move",),
-   since="0.2.216", changed="0.2.219", workspaces=("cnc", "offshore", "product", "education", "lifting"))
+# task 0338: G / R on a locked part – the Unlock popup by the mouse, then Lock it again in the view's top left
+fn(id="structure.move", short="Move / turn", title="Move and turn a model, subassembly or part with G / R; a locked one "
+   "opens a small Unlock popup by the mouse (then Lock it again); a line in the status bar when it cannot move",
+   family="import", panel="FRESING_PT_structure", button="fresing.toggle_lock", guide="moving-parts",
+   pccheck=("structure.move", "structure.unlock_popup"), since="0.2.216", changed="0.2.250", workspaces=("cnc", "offshore", "product", "education", "lifting"))
 # task 0292: Place (numbers, steps, snap, mouse, arrows and rings, floor, back), Remove…, a lock in every tree row
 fn(id="structure.place", short="Place", title="Place a model, subassembly or part: X / Y / Z and turns, steps, snap, "
    "move and turn with the mouse, arrows and rings, Put on the floor, Back to the CAD place", family="import",
@@ -800,7 +801,7 @@ fn(id="animation.clash", title="Clash check", family="animation", panel="FRESING
    manual_estimate=("use", 1200, "play the animation slowly and look for parts that run into each other"))
 fn(id="animation.product_video", short="Product video", title="One-click product video", family="animation", panel="FRESING_PT_animation",
    fold="fr_product_video", button="fresing.product_video", guide="product-video", tour=("productvideo",),
-   pccheck=("animation.product_video",), since="0.2.81", changed="0.2.250",
+   pccheck=("animation.product_video",), since="0.2.81", changed="0.2.251",
    manual_estimate=("use", 3600, "shots, cameras, titles and cuts in a video editor"))
 
 # ----- 7 Render queue -----
@@ -837,7 +838,7 @@ fn(id="help.welcome", short="Welcome", title="Welcome for a new user: take the L
 fn(id="help.first_setup", headline=True, short="Set up again",
    title="First-start set-up: your work, your PC, your company's set-up file and folders, the Learning hub "
          "(Fresing > Set up again…)", family="help", panel="TOPBAR_MT_fresing", button="fresing.first_setup",
-   guide="first-start", tour=("start_here",), pccheck=("app.first_setup", "app.window_place"), since="0.2.235", changed="0.2.250",
+   guide="first-start", tour=("start_here",), pccheck=("app.first_setup", "app.window_place"), since="0.2.235", changed="0.2.251",
    workspaces=("cnc", "offshore", "product", "education", "lifting"))     # not the Client view: greyed there
 fn(id="help.whats_new", headline=True, short="What's new", title="What's new after an update, with a tour of only the new and changed test models",
    family="help", panel="TOPBAR_MT_fresing", button="fresing.whats_new", guide="whats-new-start",

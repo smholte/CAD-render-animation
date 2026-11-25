@@ -34,7 +34,8 @@ turns typed or stepped, moved and turned with the mouse, Put on the floor, Back 
   the joint's axis goes with it (its frame moves; the frame's place before is kept on the joint's motion empty,
   ``FRAME_FROM``, so Back to the CAD place puts both back). When the joint moves other parts too, only the chosen
   ones move and the axis stays where it is.
-* **Locked in place** refuses Place as it refuses G (unlock it: the lock beside the name, or in the tree row).
+* **Locked in place** refuses Place as it refuses G (unlock it: the lock beside the name, or in the tree row; task
+  0338: G / R and the right-click Move / turn… open a small Unlock popup by the mouse, ``place_popups.py``).
 * **A built animation** is taken off first ("Build again"); **the Client view** refuses (it is locked).
 
 The matrix algebra keeps one rule of joints.py true: for a part a joint carries, ``cad @ rest⁻¹`` is the fixed
@@ -113,8 +114,8 @@ def why_not(context, mode: str) -> tuple:
     if mode == "RESIZE":
         return "Parts keep their size from the CAD model: S does not scale them", len(held)
     owner = lock_owner(held[0]) or held[0]
-    return (f"'{_name(owner)}' is locked in place – right-click it > Unlock so it can move (or "
-            f"{places.where('structure')} > Locked in place), then press the key again"), len(held)
+    return (f"'{_name(owner)}' is locked in place – click Unlock in the popup, or right-click it > Unlock so it can "
+            f"move (or {places.where('structure')} > Locked in place), then press the key again"), len(held)
 
 
 class FRESING_OT_move_key(bpy.types.Operator):
@@ -145,11 +146,29 @@ class FRESING_OT_move_key(bpy.types.Operator):
         return {"CANCELLED"}
 
     def invoke(self, context, event):
-        return self._check(context)
+        res = self._check(context)
+        if res == {"CANCELLED"}:
+            popup(context, self.mode)                 # task 0338: Unlock by the mouse
+        return res
 
     def execute(self, context):                      # scripts and tests: the check alone
         res = self._check(context)
         return {"FINISHED"} if res == {"PASS_THROUGH"} else res
+
+
+def popup(context, mode: str) -> bool:
+    """Task 0338: when what is selected is held only by "Locked in place" (not a built animation, not the Client
+    view, not S), open the small Unlock popup by the mouse. True when it opened."""
+    from . import animation, lock, place_popups
+    if lock.ON[0] or mode not in ("TRANSLATE", "ROTATE", "WINDOW") or animation.has_keys(context.scene):
+        return False
+    owners = place_popups.held_owners(context, mode)
+    if not owners:
+        return False
+    try:
+        return bpy.ops.fresing.unlock_popup("INVOKE_DEFAULT", owners="\n".join(owners), mode=mode) == {"RUNNING_MODAL"}
+    except RuntimeError:
+        return False
 
 
 class FRESING_OT_ctx_unlock(bpy.types.Operator):
@@ -676,7 +695,10 @@ def apply(context, D: Matrix) -> str:
     why = refused(context, objs)
     if why:
         raise RuntimeError(why)
-    return move(context.scene, objs, D)
+    note = move(context.scene, objs, D)
+    from . import place_popups
+    place_popups.after_move([o.name for o in objs])            # task 0338: Lock it again
+    return note
 
 
 def state(scene) -> str:
@@ -692,4 +714,6 @@ def state(scene) -> str:
     return "placed" if is_placed(ob) else "CAD place" if not is_root(ob) else "as imported"
 
 
-CLASSES = (FRESING_OT_move_key, FRESING_OT_ctx_unlock)
+from . import place_popups as _popups                          # noqa: E402 – task 0338
+
+CLASSES = (FRESING_OT_move_key, FRESING_OT_ctx_unlock) + _popups.CLASSES
