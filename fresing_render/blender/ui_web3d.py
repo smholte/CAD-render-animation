@@ -47,15 +47,21 @@ class FRESING_PT_web3d(_Panel, bpy.types.Panel):
         row.prop(w, "texture_size", text="Texture size", expand=True)
         col.prop(w, "hide_names", text="Hide part names")
         col.prop(w, "view_names", text="View names")
-        names = web3d.view_names(scene, numbered=w.view_names == "NUMBERED")
-        if names:                                 # task 0179: nothing goes out unseen
-            shown = ", ".join(names[:3]) + (", …" if len(names) > 3 else "")
-            wrap(col, context, f"Views on the page ({len(names)}): {shown}", icon="CAMERA_DATA")
+        draw_views(context, layout, scene, w)     # task 0336: tick which cameras become views
+        col = split_props(layout)
         col.prop(w, "measure_faces", text="Faces for measuring")
         col.prop(w, "compress", text="Smaller file")
-        sub = col.row()
-        sub.enabled = animation.has_keys(scene)
-        sub.prop(w, "animation", text="Include animation")
+        built = animation.has_keys(scene)
+        if built:
+            col.prop(w, "animation", text="Include animation")
+        else:                                     # task 0336 (0328 row 15): say why it is greyed, offer the Build
+            row = col.split(factor=0.4, align=True)
+            left = row.row()
+            left.alignment = "RIGHT"
+            left.label(text="Include animation")
+            row.operator("fresing.anim_build", text="Build & play first", icon="PLAY")
+        if built and web3d_film.camera(scene) is None:
+            wrap(col, context, "No Film button: the built animation's camera does not move.", icon="SEQUENCE")
         if web3d_film.camera(scene) is not None:  # task 0252: the page's Film button and what it shows over it
             sub = col.column(align=True)
             sub.enabled = w.animation
@@ -83,17 +89,22 @@ class FRESING_PT_web3d(_Panel, bpy.types.Panel):
             row.label(text=f"{rt.get('text', 'Working')} … {rt.get('progress', 0.0) * 100:.0f}%", icon="SORTTIME")
             row.operator("fresing.web3d_cancel", text="Cancel", icon="CANCEL")
             return
-        big(layout, "fresing.web3d_export", "Export…", "EXPORT", BIG)
-        if w.last_text and os.path.exists(w.last_path):
+        # task 0336 (0328 row 14): Open page and the folder on Export's own row – after an export they are where the
+        # eye is (in the Make window the box under it lay below the window's edge); greyed until there is a page
+        done = bool(w.last_text and os.path.exists(w.last_path))
+        page = bool(done and w.last_html and os.path.exists(w.last_html))
+        row = big_row(layout, BIG)
+        big(row, "fresing.web3d_export", "Export…", "EXPORT", BIG)   # through big(): tools/ui_test_panel.py spies on it
+        sub = row.row(align=True)
+        sub.enabled = page
+        sub.operator("fresing.open_file", text="Open page", icon="URL").path = w.last_html if page else ""
+        sub = row.row(align=True)
+        sub.enabled = done
+        sub.operator("fresing.show_in_folder", text="", icon="FILE_FOLDER").path = w.last_path if done else ""
+        if done:
             box = layout.box()
             box.label(text=os.path.basename(w.last_path), icon="FILE_3D")
             wrap(box, context, w.last_text, inset=12)
-            row = box.row(align=True)
-            if w.last_html and os.path.exists(w.last_html):
-                op = row.operator("fresing.open_file", text="Open page", icon="URL")
-                op.path = w.last_html
-            op = row.operator("fresing.show_in_folder", text="Show in folder", icon="FILE_FOLDER")
-            op.path = w.last_path
         gap(layout)
         wrap(layout, context, "Not in the web model: edge wear, the shine along brushed or turned metal, tool marks, "
                               "the cutaway of parts (the sea's cut-away is on the page), milling, chips and coolant (as at the frame shown)"
@@ -120,6 +131,43 @@ class FRESING_PT_web3d(_Panel, bpy.types.Panel):
                 wrap(layout, context, text, inset=12, icon="TIME")
 
 
+def draw_views(context, layout, scene, w):
+    """The fold "Page views" (task 0336, 0328 row 31): a tick per camera; folded, the header says how many
+    and the line under it names them (task 0179: nothing goes out unseen)."""
+    cams = web3d.all_cameras(scene)
+    if not cams:
+        return
+    on = [ob for ob in cams if web3d.on_page(ob)]
+    head, body = layout.panel("fr_web3d_views", default_closed=True)
+    head.label(text="Page views")
+    head.label(text=f"{len(on)} of {len(cams)}")
+    numbered = w.view_names == "NUMBERED"
+    if body is None:
+        names = web3d.view_names(scene, numbered=numbered)
+        if names:
+            shown = ", ".join(names[:3]) + (", …" if len(names) > 3 else "")
+            wrap(layout, context, f"On the page: {shown}", inset=12)
+        else:
+            wrap(layout, context, "No saved views on the page: open this fold to tick cameras.", inset=12)
+        return
+    col = body.column(align=True)
+    k = 0
+    for ob in cams:
+        tick = web3d.on_page(ob)
+        k += tick
+        text = ob.name + (" (the app's)" if web3d.app_camera(ob) else "")
+        if tick and numbered:
+            text = f"View {k}: {text}"
+        op = col.operator("fresing.web3d_view", text=text, emboss=False,
+                          icon="CHECKBOX_HLT" if tick else "CHECKBOX_DEHLT")
+        op.name = ob.name
+    row = body.row(align=True)
+    op = row.operator("fresing.web3d_view", text="All", icon="CHECKBOX_HLT")
+    op.every, op.on = True, True
+    op = row.operator("fresing.web3d_view", text="None", icon="CHECKBOX_DEHLT")
+    op.every, op.on = True, False
+
+
 PLAYER = (                                # task 0134: what the page offers the visitor (one short list)
     ("PREFERENCES", "Gear: surroundings on/off, quality, pictures a second, graphics card, auto-turn, sun"),
     ("PLAY", "Motion: Space plays and pauses, a time line to drag, speed ½× 1× 2×"),
@@ -127,8 +175,8 @@ PLAYER = (                                # task 0134: what the page offers the 
                  "Animation camera); a drag leaves it, Film takes you back"),
     ("OPTIONS", "Motions: one slider per lead motion (top bar > Lead motions) with ▶ and Back to start; a slider "
                 "pauses the animation, Play gives it back"),
-    ("CAMERA_DATA", "Saved views: one per camera of the project, by its name or numbered (View names); "
-                    "a phone held upright shows one ‹ name › control and a list of all"),
+    ("CAMERA_DATA", "Saved views: one per ticked camera (Page views), by its name or numbered (View names); "
+                    "a phone (upright or sideways) shows one ‹ name › control and a list of all"),
     ("FULLSCREEN_ENTER", "Fullscreen (F), Reset view (R), Screenshot (S), Copy link to this view (L), keys (?)"),
     ("HIDE_ON", "Clean look (H): every control hidden, a faint button brings them back"),
     ("ERROR", "Says so when the browser draws without the graphics card, and how to fix it"),

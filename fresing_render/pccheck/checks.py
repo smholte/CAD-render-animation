@@ -3612,12 +3612,16 @@ def house_toolbox(ctx):
            "its settings menu, keys help and link, Space pauses a page with motion, and it says it draws without the "
            "graphics card. Task 0135: the part tools on the mill's page – a click picks a part and shows its card, "
            "two clicks measure, Fade the rest works, and the file carries the faces for measuring. Task 0218: "
-           "six slices cut every part together and are deleted again")
+           "six slices cut every part together and are deleted again. Task 0336: the Turntable camera (the app's) "
+           "stays off the page's saved views, the import's own camera is on it")
 def web3d_export(ctx):
-    from ..blender import build, web3d
+    from ..blender import build, cameras, web3d
     from ..core import web3d as core
+    from ..core import web3d_env as env
     scene = ctx.fresh(MILL)
     shown = len([p for p in build.iter_parts(scene) if p.visible_get()])
+    tt = cameras.turntable_camera(scene, 30.0, 20.0)       # task 0336: an app-made camera starts unticked
+    own = [ob.name for ob in web3d.all_cameras(scene) if ob != tt]
     out = web3d.export(scene, os.path.join(ctx.work, "web3d", "Test mill web 3D.glb"), size=1024, compress=True)
     with open(out["path"], "rb") as fh:
         data = fh.read()
@@ -3632,6 +3636,9 @@ def web3d_export(ctx):
         page = fh.read()
     _check("FRTHREE" in page and 'id="fr-glb"' in page and "fr-menu" in page,
            "the page has no player or no model inside")
+    got_views = [v["name"] for v in env.page_settings(page).get("views", [])]
+    _check(tt.name not in got_views and got_views == own and own,
+           f"the page's saved views are {got_views}: wanted {own} without the Turntable camera")
     _check(info["compressed"] and "MeshoptDecoder" in page, "the file was not compressed (meshopt)")
     lib = web3d.meshopt_native()
     _check(lib is not None, "Blender's meshopt library was not found: big files are packed less tightly "
@@ -3640,7 +3647,8 @@ def web3d_export(ctx):
     _check(got == info["triangles"], f"Blender read {got} triangles back, the file has {info['triangles']}")
     ctx.metric("export", out["seconds"], "s")
     ctx.metric("file", len(data) / 1e6, "MB")
-    return f"{out['text']}; read back by Blender's glTF importer; {_player_check(out['html'], ctx)}"
+    return (f"{out['text']}; {len(got_views)} saved views (Turntable camera left out); read back by Blender's glTF "
+            f"importer; {_player_check(out['html'], ctx)}")
 
 
 @line("web3d.small", "Web 3D model: smaller file – packed motion, WebP, model packed in the page", "0.2.143",
@@ -6239,7 +6247,7 @@ def app_first_setup(ctx):
 
 
 @line("app.window_place", "App windows: the first one beside the side panel, the next ones offset; the set-up stays",
-      "0.2.253", what="Checks where the app's windows (the set-up, Settings, function and output windows, the Set-up "
+      "0.2.254", what="Checks where the app's windows (the set-up, Settings, function and output windows, the Set-up "
                       "window) open the first time – beside the side panel, each next one offset, over the view's "
                       "middle when they do not fit –, that the set-up window is closed at a load only when the opened "
                       "project brought it, that 'Your PC' says who draws the window in plain words, and that Product "
@@ -6259,7 +6267,7 @@ def app_window_place(ctx):
     _check(P.moved((0, 0, 400, 500), (10, 700, 400, 500), 60, 1100) == (50, 100, 450, 600),
            "a place is turned into the wrong outer rectangle")
     _check(hasattr(first_setup, "_window_key") and hasattr(ops_setup, "_tidy") and hasattr(ops_setup, "first_place"),
-           "the windows' fixes of 0.2.253 are missing")
+           "the windows' fixes of 0.2.254 are missing")
     words = core.window_words("draws: llvmpipe (LLVM); renders: CPU")
     _check(words and "draws:" not in words and "llvmpipe" not in words, f"'Your PC' is not in plain words: {words!r}")
     _check("Full access" in ui_setup.LOCKED_TEXT, "the Set-up window does not say why it is grey in the Client view")

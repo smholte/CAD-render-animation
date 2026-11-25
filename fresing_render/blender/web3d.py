@@ -1970,16 +1970,48 @@ class SeaRest:
         return p @ Wi[:3, :3].T + Wi[:3, 3]
 
 
-def view_names(scene, numbered: bool = False) -> list[str]:
-    """The saved views' names as the page will show them (task 0179): the cameras' own names in the page's order,
-    or "View 1", "View 2" … (the export's View names setting; Hide part names no longer touches them)."""
+# task 0336 (0328 row 31): the user ticks which cameras become the page's saved views. The tick is a custom property
+# on the camera (kept in the project, follows the camera when it is renamed); without one, the user's own cameras go
+# on the page and the ones the app makes for its own work (the video's Animation camera, the product video's, the
+# turntable's) stay off.
+VIEW_TICK = "fr_web3d_view"
+APP_CAMERAS = ("fr_anim_camera", "fr_product_video_cam", "fr_turntable")
+
+
+def app_camera(ob) -> bool:
+    """A camera the app made for its own work (Build's Animation camera, the product video's, the turntable's)."""
+    return any(ob.get(tag) for tag in APP_CAMERAS)
+
+
+def on_page(ob) -> bool:
+    """Does this camera become a saved view on the page? Its tick, else: yes for the user's cameras, no for the app's."""
+    v = ob.get(VIEW_TICK)
+    return (not app_camera(ob)) if v is None else bool(v)
+
+
+def all_cameras(scene) -> list:
+    """Every camera the export can offer as a view, in the page's order (by name)."""
     from . import cameras
-    obs = sorted(cameras.fr_cameras(scene), key=lambda o: o.name)
-    return [f"View {k + 1}" if numbered else ob.name for k, ob in enumerate(obs)]
+    return sorted(cameras.fr_cameras(scene), key=lambda o: o.name)
+
+
+def page_cameras(scene) -> list:
+    """The cameras that become the page's saved views (ticked), in the page's order."""
+    return [ob for ob in all_cameras(scene) if on_page(ob)]
+
+
+def set_on_page(ob, on: bool) -> None:
+    ob[VIEW_TICK] = bool(on)
+
+
+def view_names(scene, numbered: bool = False) -> list[str]:
+    """The saved views' names as the page will show them (task 0179): the ticked cameras' own names in the page's
+    order, or "View 1", "View 2" … (the export's View names setting; Hide part names no longer touches them)."""
+    return [f"View {k + 1}" if numbered else ob.name for k, ob in enumerate(page_cameras(scene))]
 
 
 def views(scene, numbered: bool = False) -> list[dict]:
-    """The project's saved cameras for the page (task 0134): {name, eye, target, vfov, hfov} in Blender's world
+    """The project's ticked cameras for the page (task 0134, 0336): {name, eye, target, vfov, hfov} in Blender's world
     (metres, degrees of the render's frame). The names are the cameras' own names, or "View 1", "View 2" … with
     ``numbered`` (task 0179: the View names setting). The target lies along the camera's view at its sharp distance
     (the model's middle)."""
@@ -1988,7 +2020,7 @@ def views(scene, numbered: bool = False) -> list[dict]:
     out = []
     r = scene.render
     aspect = (r.resolution_x * r.pixel_aspect_x) / max(1.0, r.resolution_y * r.pixel_aspect_y)
-    for k, ob in enumerate(sorted(cameras.fr_cameras(scene), key=lambda o: o.name)):
+    for k, ob in enumerate(page_cameras(scene)):
         cam = ob.data
         mw = ob.matrix_world
         eye = mw.translation
