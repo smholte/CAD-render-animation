@@ -189,9 +189,16 @@ def _in_settings(context) -> bool:
     return ops_setup.is_page_window(win) or ops_setup._is_output(win)
 
 
-def _hiding_poll(inherited):
+def quiet_main(context) -> bool:
+    """Task 0332 (0328 row 27): Blender's side-panel tabs Item / Tool / View / Animation are hidden in the main window's
+    3D view too while the window is quiet (every workspace but Full access) and in Object Mode – only Fresing's tab."""
+    from . import quiet
+    return bool(quiet.ON[0]) and getattr(context, "mode", "OBJECT") == "OBJECT"
+
+
+def _hiding_poll(inherited, tab: bool = False):
     def poll(cls, context):
-        if _in_settings(context):
+        if _in_settings(context) or (tab and quiet_main(context)):
             return False
         return inherited(context) if inherited is not None else True
     return poll
@@ -219,7 +226,7 @@ def _children(cls) -> list:
     return out
 
 
-def _quiet_one(cls) -> None:
+def _quiet_one(cls, tab: bool = False) -> None:
     name = cls.__name__
     if name in _QUIET:
         return
@@ -230,7 +237,7 @@ def _quiet_one(cls) -> None:
         for kid in reversed(kids):            # children first: a parent taken away leaves its children loose
             bpy.utils.unregister_class(kid)
         bpy.utils.unregister_class(cls)
-        cls.poll = classmethod(_hiding_poll(inherited))     # Blender checks it takes (cls, context) only
+        cls.poll = classmethod(_hiding_poll(inherited, tab))     # Blender checks it takes (cls, context) only
         bpy.utils.register_class(cls)
         _QUIET[name] = (cls, own, kids)
     except Exception as exc:  # noqa: BLE001 - the window still works, with Blender's panel in it
@@ -254,14 +261,14 @@ def _quiet_one(cls) -> None:
 
 def quiet_panels() -> None:
     """Give Blender's tool buttons, and the panels of its side-panel tabs, a ``poll`` that hides them in the app's own
-    windows. A ``poll`` added to a registered class is ignored, so the class is registered again with it (its draw –
+    windows – the tabs' panels also in the main window outside Full access (task 0332, ``quiet_main``). A ``poll`` added to a registered class is ignored, so the class is registered again with it (its draw –
     and quiet.py's swap of it – stays; its sub-panels are registered again after it)."""
     for name in QUIET_PANELS:
         cls = getattr(bpy.types, name, None)
         if cls is not None:
             _quiet_one(cls)
     for cls in tab_panels():
-        _quiet_one(cls)
+        _quiet_one(cls, tab=True)
 
 
 def loud_panels() -> None:
