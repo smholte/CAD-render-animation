@@ -277,3 +277,25 @@ def test_sheet_mesh():
     assert v[:, 2].max() == pytest.approx(2e-3 + liquid.LIFT, abs=1e-6)
     v, q = liquid.sheet(np.full((2, 2), 0.05e-3), bed[:2, :2], 0.01, 0.0, 0.0)
     assert len(q) == 0                                    # a film shows as the wet sheen, not as a sheet
+
+
+def test_a_part_hidden_after_the_bake_gives_a_new_bake_that_is_shown(baked):
+    """A part hidden after the liquid was worked out (the test mill's finished-part reference): Build again, the
+    liquid is worked out for the parts as they are now and drawn (an old fingerprint was kept once)."""
+    sc, _info = baked
+    sc.frame_set(250)
+    assert liquid.is_baked(sc)
+    fin = ob(sc, "FINISHED PART")
+    from fresing_render.blender import logic
+    animation.clear_keys(sc)
+    logic.set_hidden(fin, True)
+    a = sc.fresing.animations["Program"] if "Program" in sc.fresing.animations else sc.fresing.animations[0]
+    animation.bake(sc, a)
+    machining.sample(sc)
+    info = liquid.bake_now(sc, helpers=0)
+    assert info is not None and "frames" in info               # worked out again
+    sc.frame_set(251)
+    sc.frame_set(250)
+    me = bpy.data.objects[liquid.OBJ_TABLE].data
+    assert len(me.polygons) > 300
+    logic.set_hidden(fin, False)

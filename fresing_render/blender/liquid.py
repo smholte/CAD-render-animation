@@ -230,6 +230,11 @@ def _open(scene):
             rd.close()
             continue
         rt.update(reader=rd, beds=beds, reader_fp=fp, path=path)
+        if scene.get(CACHE_PROP, "") != path:
+            try:
+                scene[CACHE_PROP] = path              # (the render queue's copy finds it by this)
+            except Exception:                         # noqa: BLE001 - (no writing while a panel draws)
+                pass
         return rd, beds
     return None, None
 
@@ -408,7 +413,25 @@ class Setup:
 
 
 def gather(scene) -> Setup:
-    """The charts, their motion and the inputs of the bake from the scene as it is (after Build and the motion read)."""
+    """The charts, their motion and the inputs of the bake, read at the motion's first frame (as Build reads: the
+    same bake whatever frame is shown when it starts – found by the independent tester of task 0346)."""
+    m = machining.settings(scene)
+    f0 = int(m.get("fr_wp_f0", scene.frame_start))
+    keep = (scene.frame_current, scene.frame_subframe)
+    _STATE["guard"] += 1
+    machining._STATE["guard"] += 1
+    try:
+        if keep != (f0, 0.0):
+            scene.frame_set(f0)
+        return _gather(scene)
+    finally:
+        if keep != (f0, 0.0):
+            scene.frame_set(keep[0], subframe=keep[1])
+        machining._STATE["guard"] -= 1
+        _STATE["guard"] -= 1
+
+
+def _gather(scene) -> Setup:
     st = Setup()
     s = settings(scene)
     m = machining.settings(scene)
@@ -691,7 +714,9 @@ def steps(scene, notes: list | None = None, helpers: int | None = None):
     """The bake as a generator: yields the progress 0 … 1; the cache file is whole only at the end. ``notes`` gets
     the bake's numbers (one dict)."""
     t_start = time.perf_counter()
-    fp = fingerprint(scene)
+    rt0 = runtime(scene)
+    rt0.pop("fp_sign", None)
+    fp = _memo_fingerprint(scene)                    # (worked out afresh: parts hidden since are seen)
     st = gather(scene)
     t_gather = time.perf_counter() - t_start
     yield 0.02
@@ -768,6 +793,7 @@ def bake_now(scene, helpers: int | None = None) -> dict | None:
     An unchanged project reads its bake (no work)."""
     if not wanted(scene):
         return None
+    runtime(scene).pop("fp_sign", None)
     if _open(scene)[0] is not None:
         return runtime(scene).get("info") or {"reused": True}
     notes = []
@@ -828,6 +854,8 @@ def status(scene) -> str:
 
 def request(scene=None) -> None:
     """Start the bake in the window soon if the liquid is wanted and not worked out (after Build, a setting)."""
+    if scene is not None:
+        runtime(scene).pop("fp_sign", None)           # (a Build, a setting: the fingerprint is worked out again)
     if bpy.app.background or _STATE["pending"]:
         return
     _STATE["pending"] = True
@@ -1099,6 +1127,7 @@ def objects() -> list:
 
 def settings_changed(scene) -> None:
     """The tick, the detail or the EEVEE look changed."""
+    runtime(scene).pop("fp_sign", None)
     if not asked(scene):
         remove(scene)
         return
@@ -1144,14 +1173,16 @@ def _on_load(_dummy=None):
 
 
 @persistent
-def _on_save(_dummy=None):
-    """A project saved for the first time: its bake moves from the temp folder next to it."""
+def _on_save(filepath=None, _dummy=None):
+    """A project saved for the first time (or under a new name from the temp folder): its bake moves from the temp
+    folder next to it, before the file is written (so the saved project names the new place)."""
     try:
+        target = filepath if isinstance(filepath, str) and filepath else bpy.data.filepath
         for scene in bpy.data.scenes:
             path = scene.get(CACHE_PROP, "")
-            if not path or not os.path.isfile(path) or not bpy.data.filepath:
+            if not path or not os.path.isfile(path) or not target:
                 continue
-            want = cache_path(scene)
+            want = os.path.join(os.path.splitext(target)[0] + "_liquid", os.path.basename(cache_path(scene)))
             if os.path.normcase(os.path.abspath(path)) == os.path.normcase(os.path.abspath(want)):
                 continue
             if os.path.dirname(os.path.abspath(path)) != os.path.join(tempfile.gettempdir(), "fresing_liquid"):
@@ -1168,12 +1199,12 @@ def _on_save(_dummy=None):
 def register():
     bpy.app.handlers.frame_change_pre.append(_on_frame_pre)
     bpy.app.handlers.load_post.append(_on_load)
-    bpy.app.handlers.save_post.append(_on_save)
+    bpy.app.handlers.save_pre.append(_on_save)
 
 
 def unregister():
     for lst, fn in ((bpy.app.handlers.frame_change_pre, _on_frame_pre), (bpy.app.handlers.load_post, _on_load),
-                    (bpy.app.handlers.save_post, _on_save)):
+                    (bpy.app.handlers.save_pre, _on_save)):
         if fn in lst:
             lst.remove(fn)
     forget()
