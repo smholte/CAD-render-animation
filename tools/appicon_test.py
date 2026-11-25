@@ -94,9 +94,10 @@ def main():
             continue
         info = ai.read_shortcut(p)
         cmd = "powershell.exe " + info["arguments"]
-        check(f"refresh: {ia.UNINSTALL_LNK} in {where} runs the Installed-apps entry's command",
+        # task 0339: the entry's command + -Ask (the shortcut asks Y/N first; Settings asks itself)
+        check(f"refresh: {ia.UNINSTALL_LNK} in {where} runs the Installed-apps entry's command + -Ask",
               os.path.isfile(info["target"]) and os.path.basename(info["target"]).lower() == "powershell.exe"
-              and cmd == entry.get("UninstallString"), f"{info['target']} {info['arguments']}")
+              and cmd == (entry.get("UninstallString") or "") + ia.ASK, f"{info['target']} {info['arguments']}")
     check("refresh changed the older shortcuts", all(any(d.startswith(n + ":") for d in done) for n in old),
           "; ".join(done))
     icon = os.path.join(folder, ai.ICON_FILE)

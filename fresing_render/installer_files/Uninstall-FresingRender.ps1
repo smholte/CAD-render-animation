@@ -8,8 +8,13 @@
   the install folder and next to Fresing Render.exe (task 0329), which runs the same command. That copy lives in the folder it removes, so it
   first starts a copy of itself in %TEMP% and waits for it. The entry in Installed apps goes last, and only when the
   folder is gone.
+
+  -Ask (task 0339): first asks "Remove Fresing Render from this PC? ... (Y/N)" - only Y goes on; N, Esc, no answer
+  (no keyboard: the end of the input) or closing the window removes nothing. The shortcut "Uninstall Fresing Render" and
+  Uninstall.bat pass it. Settings > Installed apps (Windows asks there itself) and the quiet command
+  (QuietUninstallString, unattended runs) do not: without -Ask it never waits for an answer.
 #>
-param([string]$InstallDir = (Join-Path $env:LOCALAPPDATA "FresingRender"), [switch]$Pause, [switch]$FromTemp)
+param([string]$InstallDir = (Join-Path $env:LOCALAPPDATA "FresingRender"), [switch]$Pause, [switch]$FromTemp, [switch]$Ask)
 
 $InstallDir = [IO.Path]::GetFullPath($InstallDir.TrimEnd('\', '/'))
 $AppsKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\FresingRender"
@@ -59,6 +64,30 @@ if (-not (Test-Path -LiteralPath $InstallDir)) {
 if (-not (Test-Path -LiteralPath (Join-Path $InstallDir "installed.txt"))) {
     Write-Host "No Fresing Render installation found in $InstallDir (installed.txt is missing). Nothing was removed." -ForegroundColor Yellow
     Finish 1
+}
+
+# Task 0339: ask once, before anything is touched (the copy in %TEMP% below is started without -Ask)
+if ($Ask -and -not $FromTemp) {
+    Write-Host ""
+    Write-Host "Remove Fresing Render from this PC? Your projects, renders and backups are kept. (Y/N) " -NoNewline
+    $answer = ""
+    try {
+        if ([Console]::IsInputRedirected) {
+            $line = [Console]::In.ReadLine()
+            if ($line) { $answer = $line.Trim() }
+        } else {
+            while ($true) {
+                $k = [Console]::ReadKey($true)
+                if ($k.Key -eq [ConsoleKey]::Y) { $answer = "y"; break }
+                if ($k.Key -eq [ConsoleKey]::N -or $k.Key -eq [ConsoleKey]::Escape) { $answer = "n"; break }
+            }
+        }
+    } catch { $answer = "" }
+    Write-Host $answer
+    if ($answer -notmatch '^(y|yes)$') {
+        Write-Host "Nothing was removed. Fresing Render stays installed." -ForegroundColor Yellow
+        Finish 2
+    }
 }
 
 # Inside the folder it removes: run a copy from %TEMP% (a running script's folder cannot be deleted from under it)
