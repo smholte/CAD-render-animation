@@ -1,6 +1,6 @@
 # 0354 – Assets pack P1: pack format, registry and test pack (invisible)
 
-**Who:** worker · **Status:** open · **Branch:** `task/0354-assets-pack-format-registry`
+**Who:** worker · **Status:** running · **Branch:** `task/0354-assets-pack-format-registry`
 **Started by:** lead, 25 Nov 2026 23:3x (0344's P1; owner's picks 23:17) · **Model:** Opus · effort High · Claude Code
 on the web, environment "CAD-render-animation"
 **Area:** new **Assets** lane – new files only: `fresing_render/core/assets_pack.py`, `fresing_render/core/assets_registry.py`,
