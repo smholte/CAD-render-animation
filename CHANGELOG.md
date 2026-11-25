@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.239 – 24 Nov 2026 – Copies take their welds, weld symbols and a weld list (task 0320)
+## 0.2.240 – 25 Nov 2026 – Copies take their welds, weld symbols and a weld list (task 0320)
 
 - **Copy and paste takes the welds along**: copy a welded model, subassembly or some parts (right-click > Copy,
   Paste / Paste here, Ctrl+C / Ctrl+V) and every weld whose two parts are both in the copy comes with it – same seams,
@@ -20,6 +20,14 @@ installer of that version was built from.
   **Export CSV…** for Excel.
 - **Fixed**: updating one model to a new STEP revision marked the welds of every *other* model (and of copies) as
   "lost". Now only the updated model's welds are looked at.
+## 0.2.239 – 24 Nov 2026 – Real-looking models for "Painted faces" and "Logos and stickers" (task 0235)
+
+- **Painted faces** now shows a gearbox housing (rounded corners, a base flange, an oil-filler boss) with its red top
+  and blue front painted in CAD, a sheet cover with screw holes that you paint by hand, and small plates with holes –
+  in a clean studio.
+- **Logos and stickers** now works on a real-size machine door panel (1.2 x 0.8 m) and two 200 l drums with a hot-surface
+  sticker wrapped round each, in a machine hall. The sticker's and the text's sizes fit the big parts.
+- The old small test models stay for the tests; only the two learning sets use the new ones.
 ## 0.2.238 – 24 Nov 2026 – The lead motions as sliders on the web 3D page (task 0310)
 
 - **Motions on the web 3D page:** a project with lead motions (top bar > Lead motions) puts them on its exported page.

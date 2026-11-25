@@ -63,8 +63,8 @@
   },
   "decals": {
    "added": "0.2.47",
-   "changed": "",
-   "fp": "513e1b3c73889a73"
+   "changed": "0.2.239",
+   "fp": "dc1696cbf8c3075e"
   },
   "doublearm": {
    "added": "0.2.51",
@@ -73,8 +73,8 @@
   },
   "faces": {
    "added": "0.2.47",
-   "changed": "0.2.217",
-   "fp": "fec01e7a7e9895cf"
+   "changed": "0.2.239",
+   "fp": "f4941960f74755e3"
   },
   "finishes": {
    "added": "0.2.229",
@@ -268,7 +268,7 @@
   },
   "welds": {
    "added": "0.2.231",
-   "changed": "0.2.239",
+   "changed": "0.2.240",
    "fp": "6c83f8c14a23adeb"
   }
  }

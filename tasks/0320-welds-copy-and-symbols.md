@@ -56,7 +56,7 @@ Weld looks, Rust, the Welding workspace itself, 2D drawings, copying cables / dr
 ## Report (filled in by the chat that did the task)
 
 **Chat / date:** Claude Code on the web (worker), 24 Nov 2026. Branch `task/0320-welds-copy-and-symbols`. Released as
-0.2.239.
+0.2.240.
 
 **What changed:**
 - **Copies take their welds** (`blender/welds.py` `for_copy` / `copy_to`, one hook each in `copy.py` `_select`,
@@ -78,9 +78,9 @@ Weld looks, Rust, the Welding workspace itself, 2D drawings, copying cables / dr
 - **Weld list** (`fresing.weld_list`, a function window – in `form_window.WINDOWS`) and **Export CSV…**
   (`fresing.weld_list_csv`), both allowed in the Client view (`lock.ALLOWED`: reading changes nothing).
 - Panel 3 Looks > Welds: a row Weld symbols | Show in renders and **Weld list…** above the list (always drawn once a
-  weld exists). Function entries `looks.weld_copy`, `looks.weld_symbols`, `looks.weld_list` (since 0.2.239); guide
+  weld exists). Function entries `looks.weld_copy`, `looks.weld_symbols`, `looks.weld_list` (since 0.2.240); guide
   sections Copies / Weld symbols / Weld list, copy-paste section names welds, `panel_3_welds.png` new; tour set +
-  stop "welds" (symbols on, checks the texts; changed 0.2.239); PC check Full line `looks.weld_symbols`
+  stop "welds" (symbols on, checks the texts; changed 0.2.240); PC check Full line `looks.weld_symbols`
   (MIN_LINES_FULL 150); real-app test `ui_test_welds.py` +4 checks (20).
 - **Welding workspace (0321)**: 0321 runs beside this task and was not merged – **0321 adds `looks.weld_symbols` and
   `looks.weld_list`** to it.
@@ -94,7 +94,7 @@ Weld looks, Rust, the Welding workspace itself, 2D drawings, copying cables / dr
   7-weld weldment 463 ms); real-app welds 20/20 (symbols drawn, Paste + Ctrl+Z).
 - GitHub: see below.
 
-**Owner's test steps** (after Update now to 0.2.239):
+**Owner's test steps** (after Update now to 0.2.240):
 1. Help > Make test tour project, open it, stop **Welds**, **Go**: beside each of the seven welds a dark label with
    its symbol and number 1–7 – "a5" with a triangle above and below the line for the fin, a circle at the bend of the
    three round welds, "135 / 141 / 131" in the tail. Zoom in and out: the symbols keep their size.

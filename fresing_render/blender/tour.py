@@ -1007,20 +1007,22 @@ def _check_materials(scene):
     return f"{len(mats)} materials, Wear {worn[0].wear:.1f} on '{worn[0].name}'"
 
 
-@tour_set("faces", "Painted faces", "test_faces_a.step", added="0.2.47", changed="0.2.217")
+@tour_set("faces", "Painted faces", "test_faces_r.step", added="0.2.47", changed="0.2.239")
 def build_faces(b: Build):
     import bpy
 
-    from . import logic, ops_panels
+    from . import logic, ops_panels, welds
     sc, s = b.scene, b.s
-    _look("PRODUCT")
+    _studio(b)                                      # task 0235: a studio – the painted faces are the picture
     cover = _ob(sc, "COVER")
     logic.ensure_group(s, "Painted by hand (tour)")
     s.groups["Painted by hand (tour)"].material = "paint_gloss"
     s.groups["Painted by hand (tour)"].color = "RAL 3020"
     s.face_group = "Painted by hand (tour)"
     bpy.context.view_layer.objects.active = cover
-    ops_panels.paint_click(bpy.context, cover, 5)
+    top = welds.face_at(cover, (0.2, 0.15, 0.006), (0, 0, 1))      # the sheet's top face (its number is not fixed)
+    _check(top >= 0, "the cover's top face was not found")
+    ops_panels.paint_click(bpy.context, cover, top)
     _camera(b, "ISO", "Tour view")
     _shot(b, "@faces")
 
@@ -1033,20 +1035,38 @@ def _check_faces(scene):
     return "2 CAD faces, 1 by hand"
 
 
-@tour_set("decals", "Logos and stickers", "test_decals_a.step", added="0.2.47")
+@tour_set("decals", "Logos and stickers", "test_decals_r.step", added="0.2.47", changed="0.2.239")
 def build_decals(b: Build):
-    from . import decals
+    from . import decals, welds
     sc = b.scene
     _look("PRODUCT")
     panel, barrel = _ob(sc, "PANEL"), _ob(sc, "BARREL")
-    decals.add(panel, 5, (0.31, 0.15, 0.01), (0, 0, 1), "STICKER", sticker="WARN_GENERAL")
-    decals.add(panel, 5, (0.12, 0.15, 0.01), (0, 0, 1), "TEXT", text="TEST TOUR")
-    decals.add(barrel, 0, (0.06, 0.0, 0.1), (1, 0, 0), "STICKER", sticker="WARN_HOT")
-    _camera(b, "ISO", "Tour view")
+    # task 0235: real size – a 1.2 x 0.8 m door panel and a 200 l drum; faces are found by where they lie
+    top = welds.face_at(panel, (0.6, 0.4, 0.02), (0, 0, 1))
+    side = _round_face(barrel)
+    _check(top >= 0 and side >= 0, "the panel's top or the drum's round face was not found")
+    warn = decals.add(panel, top, (0.90, 0.40, 0.02), (0, 0, 1), "STICKER", sticker="WARN_GENERAL")
+    text = decals.add(panel, top, (0.30, 0.40, 0.02), (0, 0, 1), "TEXT", text="TEST TOUR")
+    hot = decals.add(barrel, side, (0.207, -0.207, 0.45), (0.7071, -0.7071, 0), "STICKER", sticker="WARN_HOT")
+    for it, w in ((warn, 0.28), (text, 0.40), (hot, 0.22)):     # sized for a panel and a drum seen across a hall
+        it.width = w
+        it.height = max(w * it.aspect, 0.01)
+    _surround(b, "FACTORY")                         # task 0235: the machine hall, so the drums and the panel stand
+    _camera(b, "ISO", "Tour view")                  # in a workshop
     _shot(b, "@decals")
 
 
-@tour_set("welds", "Welds", "test_weldment.step", added="0.2.231", changed="0.2.239")
+def _round_face(ob) -> int:
+    """The CAD face of a part that a decal wraps round (the biggest one that does), -1 if none."""
+    from . import decals, faces
+    n = len(faces.face_starts(decals.cad_mesh(ob))) - 1
+    for f in range(max(n, 0)):
+        if decals.wraps_round(ob, f):
+            return f
+    return -1
+
+
+@tour_set("welds", "Welds", "test_weldment.step", added="0.2.231", changed="0.2.240")
 def build_welds(b: Build):
     from . import welds
     sc = b.scene
@@ -4847,8 +4867,8 @@ stop("faces", LOOK, "faces", "Painted faces",
      "The housing's two faces painted in CAD keep their own colours; one face of the cover is painted red by hand, "
      "the rest of the cover keeps its colour.", where="3 Looks > Paint faces", check=_check_faces, since="0.2.47")
 stop("decals", LOOK, "decals", "Logos and stickers",
-     "A yellow warning sticker and the text TEST TOUR lie flat on the panel; a 'hot surface' sticker is wrapped "
-     "round the barrel.", where="3 Looks > Logos & stickers", check=_check_decals, since="0.2.47")
+     "A yellow warning sticker and the text TEST TOUR lie flat on a 1.2 m door panel; a 'hot surface' sticker is "
+     "wrapped round each 200 l drum, in a machine hall.", where="3 Looks > Logos & stickers", check=_check_decals, since="0.2.47")
 stop("welds", LOOK, "welds", "Welds",
      "A small invented weldment: a blue painted fillet along the fin's foot (the paint over the ripples), a grey MAG "
      "weld with spatter under the gusset, a rusty one up its side, a stainless all-round weld with straw, purple and "
@@ -4856,7 +4876,7 @@ stop("welds", LOOK, "welds", "Welds",
      "the branch meets the tube and a butt joint ground flush to the extension plate. Beside each weld its ISO 2553 "
      "symbol with its number 1–7: 'a5' and a triangle on both sides of the line for the fin, a circle at the bend for "
      "the three all-round welds, the process number (135, 141, 131) in the tail. They show in the view only.",
-     where="3 Looks > Welds (Weld symbols, Weld list…)", check=_check_welds, since="0.2.231", changed="0.2.239")
+     where="3 Looks > Welds (Weld symbols, Weld list…)", check=_check_welds, since="0.2.231", changed="0.2.240")
 stop("cutaway", LOOK, "cutaway", "Slice: the pedestal opens up",
      "A slice slides in from the front and takes away the front half of the crane's pedestal and boom: the cut faces "
      "are red with hatch lines, the steel pin shows inside the fork. The other parts are not cut. Look in rendered "

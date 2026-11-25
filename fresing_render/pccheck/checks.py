@@ -685,7 +685,7 @@ def looks_welds(ctx):
            f"render {info['seconds']} s"
 
 
-@line("looks.weld_symbols", "Welds: a copy takes its welds; ISO 2553 symbols; the weld list", "0.2.239",
+@line("looks.weld_symbols", "Welds: a copy takes its welds; ISO 2553 symbols; the weld list", "0.2.240",
       what="The test weldment welded at every joint, then copied whole: the copy has the same welds on its own parts; "
            "the symbols are off until switched on; the fin's weld reads 'a5 ◺/◸ 200 < 135' (fillet both sides, MAG); "
            "the weld list as CSV")
