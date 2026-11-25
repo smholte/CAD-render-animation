@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.254 – 25 Nov 2026 – The first-start set-up stays open; windows open in a good place (task 0331)
+## 0.2.255 – 25 Nov 2026 – The first-start set-up stays open; windows open in a good place (task 0331)
 
 - **Set up Fresing Render** on a new PC now stays open until you press **Next** to the end, **Skip set-up** or
   **Close**. Before, it could close itself a second after it opened, and came back (and went again) at every start.
@@ -23,6 +23,11 @@ installer of that version was built from.
   **Fresing Settings > Backups**.
 - PC check: a new line **app.window_place**.
 
+## 0.2.254 – 25 Nov 2026 – The whole title row opens a panel (task 0335)
+
+- **Click anywhere on a section's or sub-panel's title row** – its icon, its words or the empty part on the right,
+  also the small state text such as "3 removed" – and it opens or folds, as on Blender's own panels. Before, only the
+  arrow and the words did.
 ## 0.2.253 – 25 Nov 2026 – 3D page: Open page in sight, page views by tick, phone sideways (task 0336)
 
 - **Open page** and the folder button now sit on the **Export…** row (Make > 3D page, and 5 Scene & Render > Web 3D

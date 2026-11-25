@@ -306,6 +306,34 @@ class _Stand:
         return getattr(object.__getattribute__(self, "_real"), item)
 
 
+class _Toggling:
+    """A layout whose plain labels (an icon, a short state) are the title row's own toggle buttons (task 0335): a
+    click on them opens / folds the panel, as on Blender's own panels. Everything else passes through."""
+
+    def __init__(self, layout, name, fixed):
+        object.__setattr__(self, "_l", layout)
+        object.__setattr__(self, "_name", name)
+        object.__setattr__(self, "_fixed", fixed)
+
+    def label(self, *args, **kw):
+        lay = object.__getattribute__(self, "_l")
+        if object.__getattribute__(self, "_fixed") or args or "icon_value" in kw or kw.get("translate") is False:
+            return lay.label(*args, **kw)
+        op = lay.operator("fresing.panel_toggle", text=kw.get("text", ""), icon=kw.get("icon", "NONE"), emboss=False)
+        op.name = object.__getattribute__(self, "_name")
+        return None
+
+    def row(self, *args, **kw):
+        sub = object.__getattribute__(self, "_l").row(*args, **kw)
+        return _Toggling(sub, object.__getattribute__(self, "_name"), object.__getattribute__(self, "_fixed"))
+
+    def __getattr__(self, item):
+        return getattr(object.__getattribute__(self, "_l"), item)
+
+    def __setattr__(self, item, value):
+        setattr(object.__getattribute__(self, "_l"), item, value)
+
+
 def level_of(name: str) -> int:
     n, seen = 0, set()
     while PARENT.get(name) and name not in seen:
@@ -339,22 +367,24 @@ def draw_title(self, context, cls) -> bool:
         op.name = name
     head = getattr(cls, "draw_header", None)
     if head is not None:
-        head(_Stand(self, left), context)
+        head(_Stand(self, _Toggling(left, name, fixed)), context)
+    from . import ui
+    hook = ui.HOOKS.get("header")
+    if hook is not None:
+        hook(left, name)
     title = TITLE.get(name, getattr(cls, "bl_label", name))
+    mid = row.row(align=True)                          # the title takes the rest of the row: all of it is the toggle
     if fixed:
-        left.label(text=title)
+        mid.alignment = "LEFT"
+        mid.label(text=title)
     else:
-        op = left.operator("fresing.panel_toggle", text=title, emboss=False)
+        op = mid.operator("fresing.panel_toggle", text=title, emboss=False)
         op.name = name
     right = row.row(align=True)
     right.alignment = "RIGHT"
     preset = getattr(cls, "draw_header_preset", None)
     if preset is not None:
-        preset(_Stand(self, right), context)
-    from . import ui
-    hook = ui.HOOKS.get("header")
-    if hook is not None:
-        hook(left, name)
+        preset(_Stand(self, _Toggling(right, name, fixed)), context)
     return opened
 
 
