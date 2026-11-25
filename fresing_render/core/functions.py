@@ -351,7 +351,7 @@ fn(id="structure.tree", short="Hide parts", title="Structure: find, select, hide
 fn(id="structure.move", short="Move / turn", title="Move and turn a model, subassembly or part with G / R; a locked one "
    "opens a small Unlock popup by the mouse (then Lock it again); a line in the status bar when it cannot move",
    family="import", panel="FRESING_PT_structure", button="fresing.toggle_lock", guide="moving-parts",
-   pccheck=("structure.move", "structure.unlock_popup"), since="0.2.216", changed="0.2.248", workspaces=("cnc", "offshore", "product", "education", "lifting"))
+   pccheck=("structure.move", "structure.unlock_popup"), since="0.2.216", changed="0.2.250", workspaces=("cnc", "offshore", "product", "education", "lifting"))
 # task 0292: Place (numbers, steps, snap, mouse, arrows and rings, floor, back), Remove…, a lock in every tree row
 fn(id="structure.place", short="Place", title="Place a model, subassembly or part: X / Y / Z and turns, steps, snap, "
    "move and turn with the mouse, arrows and rings, Put on the floor, Back to the CAD place", family="import",

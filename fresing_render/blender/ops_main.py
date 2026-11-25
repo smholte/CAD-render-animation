@@ -220,8 +220,9 @@ class FRESING_OT_apply_rules(bpy.types.Operator):
 
     def execute(self, context):
         res = logic.apply_rules(context.scene)
-        self.report({"INFO"}, f"{plural(res['parts'], 'part')} in {plural(res['groups'], 'group')}, "
-                              f"{res['unmatched']} unsorted")
+        msg = f"{plural(res['parts'], 'part')} in {plural(res['groups'], 'group')}, {res['unmatched']} unsorted"
+        sort_note(context.scene, msg)
+        self.report({"INFO"}, msg)
         return {"FINISHED"}
 
 
@@ -644,6 +645,7 @@ class FRESING_OT_template_import(bpy.types.Operator, ImportHelper):
 
     bl_idname = "fresing.template_import"
     bl_label = "Load template"
+    bl_options = {"REGISTER", "UNDO"}
     filename_ext = ".json"
     filter_glob: StringProperty(default="*.json", options={"HIDDEN"})
 
@@ -663,6 +665,7 @@ class FRESING_OT_template_from_library(bpy.types.Operator):
 
     bl_idname = "fresing.template_from_library"
     bl_label = "Template from library"
+    bl_options = {"REGISTER", "UNDO"}
     bl_property = "path"
 
     def _items(self, context):
@@ -719,6 +722,7 @@ class FRESING_OT_pick_ral(bpy.types.Operator):
 
     bl_idname = "fresing.pick_ral"
     bl_label = "RAL colour"
+    bl_options = {"REGISTER", "UNDO"}
     bl_property = "code"
 
     code: EnumProperty(items=RAL_ITEMS)
@@ -752,6 +756,7 @@ class FRESING_OT_pick_hdri(bpy.types.Operator):
 
     bl_idname = "fresing.pick_hdri"
     bl_label = "360° photo from library"
+    bl_options = {"REGISTER", "UNDO"}
     bl_property = "path"
 
     def _items(self, context):
@@ -957,6 +962,31 @@ def _remove_render_handlers():
             lst.remove(h)
 
 
+def render_note(scene, text: str) -> None:
+    """The render's own message (task 0334): shown beside Render image, not under 1 Import."""
+    scene["fr_render_note"] = text
+
+
+def sort_note(scene, text: str) -> None:
+    """Sort's own message (task 0334): shown under its own button."""
+    scene["fr_sort_note"] = text
+
+
+def _fit_render_view(context) -> None:
+    """Show the whole finished picture fitted in Blender's image editor (task 0334), not its middle at 1:1."""
+    try:
+        for win in context.window_manager.windows:
+            for area in win.screen.areas:
+                if area.type == "IMAGE_EDITOR":
+                    region = next((r for r in area.regions if r.type == "WINDOW"), None)
+                    if region is None:
+                        continue
+                    with context.temp_override(window=win, area=area, region=region):
+                        bpy.ops.image.view_all(fit_view=True)
+    except Exception:                                    # a cosmetic step must never fail a render
+        pass
+
+
 class RenderStill:
     """Render image's work (task 0308: shared with Render this view, ``ops_render_view.py``): renders the active camera
     at the Picture's settings, saves it, shows it."""
@@ -1000,7 +1030,7 @@ class RenderStill:
         _remove_render_handlers()
         bpy.app.handlers.render_complete.append(_on_render_complete)
         bpy.app.handlers.render_cancel.append(_on_render_cancel)
-        s.last_message = f"Rendering on {device}..."
+        render_note(scene, f"Rendering on {device}...")
         bpy.ops.render.render("INVOKE_DEFAULT")
         wm = context.window_manager
         self._timer = wm.event_timer_add(0.5, window=context.window)
@@ -1020,7 +1050,7 @@ class RenderStill:
         s = scene.fresing
         if _RENDER_STATE.get("cancelled") or not _RENDER_STATE.get("done"):
             scene.render.film_transparent = s.background == "TRANSPARENT"
-            s.last_message = "Render cancelled"
+            render_note(scene, "Render cancelled")
             self.report({"WARNING"}, "Render cancelled")
             return {"CANCELLED"}
         img = bpy.data.images.get("Render Result")
@@ -1028,15 +1058,17 @@ class RenderStill:
             img.save_render(self._target, scene=scene)
             render.finish_still(scene, s, self._target, self._final)
         except Exception as exc:
-            s.last_message = f"Could not save the render: {exc}"
-            self.report({"ERROR"}, s.last_message)
+            render_note(scene, f"Could not save the render: {exc}")
+            self.report({"ERROR"}, scene["fr_render_note"])
             return {"CANCELLED"}
-        s.last_message = f"Saved {self._final}"
+        note = f"Saved {self._final}"
         s.last_render = self._final
         from . import locations
         if locations.copy_also(scene, self._final):          # task 0272: "Also save a copy to"
-            s.last_message += " (and a copy to " + locations.also_name() + ")"
-        self.report({"INFO"}, s.last_message)
+            note += " (and a copy to " + locations.also_name() + ")"
+        render_note(scene, note)
+        self.report({"INFO"}, note)
+        _fit_render_view(context)
         return {"FINISHED"}
 
 

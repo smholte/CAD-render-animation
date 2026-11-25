@@ -5921,7 +5921,7 @@ def structure_move(ctx):
 
 
 @line("structure.unlock_popup", "G / R on a locked subassembly: the Unlock popup unlocks it, Lock it again after the "
-      "move locks exactly that", "0.2.248",
+      "move locks exactly that", "0.2.250",
       what="On the test crane: the popup's Unlock unlocks the boom's subassembly (nothing else); a cancelled move brings "
            "no Lock it again; a confirmed one does; Lock it again locks it in place again; S and the Client view open "
            "no popup")
