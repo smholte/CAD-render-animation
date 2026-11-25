@@ -784,17 +784,28 @@ class FRESING_PT_looks(_Panel, bpy.types.Panel):
             parts_txt = plural(g.count, "part")
             faces_txt = f" and {plural(g.faces, 'painted face set')}" if g.faces else ""
             wrap(box, context, f"{g.name}  ·  {parts_txt}{faces_txt}", icon="MATERIAL", inset=12)
-            box.operator_menu_enum("fresing.group_preset", "preset", text="Ready-made material…",
-                                   icon="PRESET")
+            from . import ui_material_picker              # task 0273: this project's materials, More materials…
+            ui_material_picker.draw_short_list(box, context, g)
             col = split_props(box)
             col.prop(g, "material", text="Material")
-            if materials_lib.needs_color(g.material):
-                row = col.row(align=True)
-                row.prop(g, "color", text="Colour")
-                row.operator("fresing.pick_ral", text="", icon="VIEWZOOM")
-            draw_finish(col, g)
-            col.prop(g, "wear", text="Wear", slider=True)
-            draw_rust(col, g, context)
+            if g.material == "blender_material":          # task 0273: a material made in Blender's shader editor
+                from . import material_picker
+                e = material_picker.find(context.scene, g.mat_key)
+                hint(col, context, f"{e.name if e else 'Its Blender material'}: its own look, made in Blender "
+                                   "(no colour, wear or rust here)")
+            else:
+                if g.mat_key.startswith("own:"):
+                    from . import material_picker
+                    e = material_picker.find(context.scene, g.mat_key)
+                    if e is not None:
+                        hint(col, context, f"From: {e.name} ({e.badge})")
+                if materials_lib.needs_color(g.material):
+                    row = col.row(align=True)
+                    row.prop(g, "color", text="Colour")
+                    row.operator("fresing.pick_ral", text="", icon="VIEWZOOM")
+                draw_finish(col, g)
+                col.prop(g, "wear", text="Wear", slider=True)
+                draw_rust(col, g, context)
             row = box.row(align=True)
             row.operator("fresing.group_select", text="Select its parts", icon="RESTRICT_SELECT_OFF")
             row.operator("fresing.show_only_group", text="Show only these", icon="HIDE_OFF").group = g.name

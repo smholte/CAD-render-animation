@@ -685,6 +685,40 @@ def looks_welds(ctx):
            f"render {info['seconds']} s"
 
 
+@line("looks.weld_symbols", "Welds: a copy takes its welds; ISO 2553 symbols; the weld list", "0.2.240",
+      what="The test weldment welded at every joint, then copied whole: the copy has the same welds on its own parts; "
+           "the symbols are off until switched on; the fin's weld reads 'a5 ◺/◸ 200 < 135' (fillet both sides, MAG); "
+           "the weld list as CSV")
+def looks_weld_symbols(ctx):
+    import time
+
+    from ..blender import build, copy, weld_symbols, welds
+    from ..core import weld_symbols as core_symbols
+    scene = ctx.fresh(WELDMENT)
+    welds.set_up_test_model(scene)
+    n = welds.count(scene)
+    _check(not welds.settings(scene).symbols, "the weld symbols are on in a new project (they start off)")
+    root = build.model_roots(scene)[0]
+    t0 = time.perf_counter()
+    p = copy.paste(scene, [root])
+    ms = (time.perf_counter() - t0) * 1000.0
+    _check(welds.count(scene) == 2 * n, f"{welds.count(scene)} welds after the copy, not {2 * n}")
+    copied = [it for it in welds.items(scene) if it.part_a is not None and it.part_a.name not in
+              {o.name for o in build.iter_parts(scene) if build.model_root_of(o) is root}]
+    _check(len(copied) == n and all(len(welds.objects_of(it)) == 2 for it in copied),
+           f"{len(copied)} welds on the copy, or one without its bead")
+    fin = welds.items(scene)[0]
+    text = core_symbols.one_line(weld_symbols.symbol_of(fin, 1))
+    _check(text == "a5 ◺/◸ 200 < 135", f"the fin's weld symbol reads '{text}', not 'a5 ◺/◸ 200 < 135'")
+    welds.settings(scene).symbols = True
+    path = weld_symbols.export_csv(scene, os.path.join(ctx.work, "weld list.csv"))
+    with open(path, encoding="utf-8-sig") as f:
+        rows = f.read().strip().splitlines()
+    _check(len(rows) == 2 * n + 1, f"the weld list has {len(rows) - 1} rows, not {2 * n}")
+    ctx.metric("weld_copy_ms", round(ms), "ms")
+    return f"copy with {n} welds in {ms:.0f} ms; {p['names'][0]}; symbol '{text}'; CSV {len(rows) - 1} rows"
+
+
 @line("looks.materials", "Materials: the material sheet", "0.2.39",
       what="Every ready-made material on a block with a chamfer, a disc and a shaft, rendered with Cycles: "
            "judge metals, paint, rubber and glass in one picture")
@@ -704,6 +738,50 @@ def looks_materials(ctx):
     ctx.picture(path, "material_sheet", "Material sheet (Cycles)", model_check=False, width=1000,
                 settings=f"{info['size'][0]} x {info['size'][1]}, {info['device']}")
     return f"{len(materials_lib.MATERIALS)} materials; render {info['seconds']} s on the {info['device']}"
+
+
+@line("looks.picker", "Material picker: pictures, this project's list, an own material", "0.2.241",
+      what="The built-in materials' pictures are there; a group's look saved as an own material (in the check's own "
+           "folder, not in your library) gets its picture from a background Blender, another group uses it, it goes "
+           "on this project's list and into a template; the project still knows it once its folder is gone. "
+           "Judge the own material's picture: blue satin paint on a block, a knob and a disc")
+def looks_picker(ctx):
+    import json
+
+    import bpy
+    import shutil
+    import time
+
+    from ..blender import material_picker as MP
+    from ..blender import ops_main
+    from ..core import material_files as F
+    from ..core.template import Template
+    scene = ctx.fresh(CRANE_A)
+    s = scene.fresing
+    missing = [k for k in F.builtin_keys() if not F.builtin(k).picture]
+    _check(not missing, f"{len(missing)} built-in materials have no picture: {', '.join(missing[:4])}")
+    _check(len(s.groups) >= 2, "the crane has fewer than two groups")
+    g, g2 = s.groups[0], s.groups[1]
+    g.material, g.color, g.wear = "paint_satin", "RAL 5015", 0.2
+    root = os.path.join(ctx.work, "Materials")
+    t0 = time.time()
+    e = MP.save_from_group(bpy.context, g, "PC check blue", "made by the PC check", root)
+    _check(e.ok and g.mat_key == e.key, f"the saved material cannot be used: {e.problems}")
+    MP.wait_pictures(300)
+    pic = os.path.join(e.folder, F.PICTURE_NAME)
+    _check(os.path.isfile(pic), "the own material's picture was not made (background Blender)")
+    ctx.metric("picture", round(time.time() - t0, 1), "s")
+    _check(bpy.ops.fresing.mat_use(key=e.key, group=g2.name) == {"FINISHED"}, "Use for the group failed")
+    _check((g2.material, g2.color) == ("paint_satin", "RAL 5015"), "the other group did not get the material")
+    MP.add_to_project(scene, e)
+    t = Template.from_dict(json.loads(json.dumps(ops_main._template_from_scene(scene).to_dict())))
+    _check([m["key"] for m in t.materials] == [e.key], "the template does not keep this project's list")
+    ctx.picture(pic, "material_picture", "An own material's picture", model_check=False, width=256)
+    shutil.rmtree(e.folder)
+    MP.refresh_own(force=True, wait=True)
+    found = MP.find(scene, e.key)
+    _check(found is not None and found.source == "project", "without its folder the project lost the material")
+    return f"{len(F.builtin_keys())} built-in pictures; own material saved, pictured, used, listed, kept"
 
 
 @line("looks.marine", "Marine looks: growth at the waterline, streaks, concrete", "0.2.94",
@@ -2520,7 +2598,7 @@ def couplings_motor(ctx):
     return "motor → trolley → wheel; 12 rpm × 5 s = 1 turn"
 
 
-@line("view.measure", "Measure in the 3D view: the crane's base measures its drawn sizes", "0.2.240",
+@line("view.measure", "Measure in the 3D view: the crane's base measures its drawn sizes", "0.2.242",
       what="On the test crane's base (5000 x 3000 x 500 mm, bolt holes Ø33 4500 mm apart), clicked as a user would: "
            "face to face, hole centre to hole centre (snapped), a hole's rim, and through a slice the cut face to the "
            "back face – each within 0.01 mm of the drawing; the measurement follows the part when it moves; a mouse "

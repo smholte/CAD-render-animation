@@ -47,6 +47,9 @@ class Template:
     rule_set_base: dict | None = None     # the library version that copy was based on
     decals: list = field(default_factory=list)   # decals on parts, by part name (task 0024)
     workspace: dict | None = None         # task 0062: {"name", "data", "ticks"}; None in older templates
+    # task 0273: this project's materials (the short list): [{"key", "title", "data"}] – ``data`` = an own material's
+    # whole material.json (so a company template carries its standard materials, folder or not); [] in older templates
+    materials: list = field(default_factory=list)
 
     def to_dict(self) -> dict:
         d = {
@@ -67,6 +70,8 @@ class Template:
             d["decals"] = self.decals
         if self.workspace:
             d["workspace"] = self.workspace
+        if self.materials:
+            d["materials"] = self.materials
         return d
 
     @classmethod
@@ -88,6 +93,9 @@ class Template:
             rule_set_base=d.get("rule_set_base") if isinstance(d.get("rule_set_base"), dict) else None,
             decals=[x for x in d.get("decals", []) if isinstance(x, dict)] if isinstance(d.get("decals"), list) else [],
             workspace=d.get("workspace") if isinstance(d.get("workspace"), dict) else None,
+            materials=[{"key": str(m["key"]), "title": str(m.get("title", "")), "data": str(m.get("data", ""))}
+                       for m in d.get("materials", []) if isinstance(m, dict) and isinstance(m.get("key"), str)]
+            if isinstance(d.get("materials"), list) else [],
         )
 
     def save(self, path: str) -> None:

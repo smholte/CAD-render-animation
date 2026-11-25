@@ -10,6 +10,7 @@ from __future__ import annotations
 import fnmatch
 import re
 
+from ..core import materials_lib
 from ..core import rules as R
 from . import build, logic
 
@@ -179,51 +180,4 @@ def unsorted_parts(scene) -> list:
 # ready-made machine materials (one click for a group)
 # ---------------------------------------------------------------------------
 
-PRESETS = [
-    # id, label, library material, colour
-    ("profile", "Aluminium profile", "aluminium_profile", ""),
-    ("alu", "Aluminium, anodised", "aluminium_anodized", ""),
-    ("alu_black", "Aluminium, black anodised", "aluminium_anodized_black", ""),
-    ("alu_machined", "Aluminium, machined", "aluminium_machined", ""),
-    ("stainless", "Stainless, brushed", "stainless_brushed", ""),
-    ("steel", "Steel, machined", "steel_machined", ""),
-    ("steel_ground", "Steel, ground (ways, shafts)", "steel_ground", ""),
-    ("steel_turned", "Steel, turned", "steel_turned", ""),
-    ("chrome", "Chrome", "chrome", ""),
-    ("chrome_rod", "Hydraulic chrome rod (piston rods)", "chrome_rod", ""),
-    ("galvanized", "Galvanised", "galvanized", ""),
-    ("zinc", "Zinc plated", "zinc_plated", ""),
-    ("black_oxide", "Black oxide", "black_oxide", ""),
-    ("brass", "Brass", "brass", ""),
-    ("copper", "Copper", "copper", ""),
-    ("cast_iron", "Cast iron, as cast", "cast_iron", ""),
-    ("cast_iron_painted", "Cast iron, painted RAL 7035", "cast_iron_painted", "RAL 7035"),
-    ("rubber", "Rubber, black (seals, O-rings)", "rubber_black", ""),
-    ("pom", "POM / PE, white", "pom_white", ""),
-    ("plastic_black", "Plastic, black matte", "plastic_matte", "RAL 9005"),
-    ("cable", "Cable / hose, black", "cable_black", ""),
-    ("pc_clear", "Polycarbonate, clear (guards)", "polycarbonate_clear", ""),
-    ("wire_mesh", "Wire mesh panel, black (see-through)", "wire_mesh", "RAL 9005"),
-    ("glass_tinted", "Glass / PC, tinted grey", "glass_tinted", "RAL 7016"),
-    ("paint_7035", "Paint RAL 7035 light grey", "paint_satin", "RAL 7035"),
-    ("paint_7016", "Paint RAL 7016 anthracite", "paint_satin", "RAL 7016"),
-    ("paint_9005", "Paint RAL 9005 black", "paint_satin", "RAL 9005"),
-    ("paint_9010", "Paint RAL 9010 white", "paint_satin", "RAL 9010"),
-    ("paint_5010", "Paint RAL 5010 blue", "paint_satin", "RAL 5010"),
-    ("paint_3020", "Paint RAL 3020 red", "paint_satin", "RAL 3020"),
-    ("paint_1003", "Paint RAL 1003 yellow", "paint_satin", "RAL 1003"),
-    ("paint_6018", "Paint RAL 6018 green", "paint_satin", "RAL 6018"),
-    ("led", "Light / LED (glowing)", "emission_light", "RAL 9010"),
-    # task 0274: finishes (their own settings – pitch, metal, kind … – are under the material in the group box)
-    ("knurl", "Knurled knob, diamond (steel)", "knurl_diamond", ""),
-    ("spun", "Spun aluminium (caps, discs)", "spun", ""),
-    ("tread", "Tread plate, aluminium", "tread", ""),
-    ("perforated", "Perforated sheet, galvanised (see-through)", "perforated", ""),
-    ("shot_blasted", "Steel, shot-blasted (before paint)", "shot_blasted", ""),
-    ("hammertone", "Paint, hammertone RAL 7031 blue grey", "hammertone", "RAL 7031"),
-    ("crosshatch", "Plastic housing, moulded cross-hatch, black", "crosshatch", "RAL 9005"),
-    ("antiskid", "Deck paint, anti-skid RAL 7040 grey", "antiskid", "RAL 7040"),
-    # task 0318
-    ("carbon", "Carbon fibre, 2x2 twill, glossy", "carbon_fibre", ""),
-    ("perlage", "Perlage, stainless (engine-turned spots)", "perlage", ""),
-]
+PRESETS = materials_lib.PRESETS          # task 0273: moved to core (the material picker lists them)

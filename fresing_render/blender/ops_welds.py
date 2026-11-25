@@ -528,6 +528,86 @@ class FRESING_OT_ctx_weld(bpy.types.Operator):
         return {"CANCELLED"}
 
 
-CLASSES = (FRESING_OT_weld_add, FRESING_OT_weld_next, FRESING_OT_weld_cancel, FRESING_OT_weld_parts,
+class FRESING_OT_weld_list(bpy.types.Operator):
+    """Opens the weld list: one row per weld – its number (also on its symbol), parts, type, size, length, process
+    and finish. Export CSV… there writes it as a file for a spreadsheet"""
+
+    bl_idname = "fresing.weld_list"
+    bl_label = "Weld list"
+    bl_options = {"REGISTER"}
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene is not None and hasattr(context.scene, "fresing_welds")
+
+    def invoke(self, context, event):
+        from . import form_window
+        return form_window.open(self, context, width=860, height=420, title="Weld list", confirm=None, icon="PRESET")
+
+    def execute(self, context):
+        return {"FINISHED"}
+
+    def draw(self, context):
+        from ..core import weld_symbols as core_symbols
+        from . import weld_symbols
+        layout = self.layout
+        data = weld_symbols.all_data(context.scene)
+        if not data:
+            layout.label(text="No welds yet: add them in 3 Looks > Welds", icon="INFO")
+            return
+        rows = core_symbols.table(data)
+        widths = (0.4, 2.2, 1.6, 1.6, 1.9, 0.6, 0.9, 1.0, 1.1, 2.2)      # the Metal column is left to the CSV
+        keep = (0, 1, 2, 3, 4, 5, 6, 7, 8, 10)
+        col = layout.column(align=True)
+        for k, r in enumerate(rows):
+            line = col.row(align=True)
+            for w, i in zip(widths, keep):
+                cell = line.row(align=True)
+                cell.ui_units_x = w * 4
+                cell.label(text=r[i], icon="NONE")
+            if k == 0:
+                col.separator()
+        layout.separator()
+        row = layout.row(align=True)
+        row.operator("fresing.weld_list_csv", text="Export CSV…", icon="EXPORT")
+        s = welds.settings(context.scene)
+        row.prop(s, "symbols", text="Weld symbols in the view", icon="FONT_DATA")
+
+
+class FRESING_OT_weld_list_csv(bpy.types.Operator):
+    """Writes the weld list as a CSV file (opens in Excel or any spreadsheet): number, parts, type, size, length,
+    process, finish, metal and the symbol. Pick where it goes"""
+
+    bl_idname = "fresing.weld_list_csv"
+    bl_label = "Export the weld list"
+    bl_options = {"REGISTER"}
+
+    filepath: bpy.props.StringProperty(subtype="FILE_PATH", options={"SKIP_SAVE"})
+    filter_glob: bpy.props.StringProperty(default="*.csv", options={"HIDDEN"})
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene is not None and len(context.scene.fresing_welds.items) > 0
+
+    def invoke(self, context, event):
+        from . import weld_symbols
+        if not self.filepath:
+            self.filepath = weld_symbols.default_csv_path(context.scene)
+        context.window_manager.fileselect_add(self)
+        return {"RUNNING_MODAL"}
+
+    def execute(self, context):
+        from . import weld_symbols
+        path = self.filepath or weld_symbols.default_csv_path(context.scene)
+        try:
+            path = weld_symbols.export_csv(context.scene, bpy.path.abspath(path))
+        except OSError as exc:
+            self.report({"ERROR"}, f"The weld list could not be written: {exc}")
+            return {"CANCELLED"}
+        self.report({"INFO"}, f"Weld list written: {path}")
+        return {"FINISHED"}
+
+
+CLASSES = (FRESING_OT_weld_list, FRESING_OT_weld_list_csv, FRESING_OT_weld_add, FRESING_OT_weld_next, FRESING_OT_weld_cancel, FRESING_OT_weld_parts,
            FRESING_OT_weld_remove, FRESING_OT_weld_refind, FRESING_OT_weld_ticks, FRESING_OT_weld_move_as_one,
            FRESING_OT_ctx_weld)

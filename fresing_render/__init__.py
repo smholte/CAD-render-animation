@@ -6,7 +6,7 @@ The package is split so the logic can be tested without Blender:
     blender/   everything that talks to Blender (bpy)
 """
 
-__version__ = "0.2.240"
+__version__ = "0.2.242"
 
 _modules = []
 
@@ -57,6 +57,7 @@ def _classes():
     from .blender import ops_copy                   # task 0293: Copy / Paste with joints and mechanisms
     from .blender import ops_lead_motions, ui_lead_motions   # task 0309: lead motions (top bar, editor, step)
     from .blender import ops_measure, ui_measure    # task 0322: Measure in the 3D view (top bar, keys M / Alt+M)
+    from .blender import ops_material_picker, ui_material_picker   # task 0273: the Materials window, the short list
     # 3 Looks > Logos & stickers (task 0024) right after Paint faces: sub-panels show in registration order
     looks = list(ui.CLASSES)
     at = looks.index(ui.FRESING_PT_structure) + 1
@@ -90,7 +91,9 @@ def _classes():
             + project_name.CLASSES
             + ui_left.CLASSES + ui_left.TOP + ui_left.HUB + ops_make.CLASSES + ops_render_view.CLASSES + ops_settings.CLASSES + ui_settings.CLASSES
             + ops_locations.CLASSES + form_window.CLASSES + first_setup.CLASSES + ops_welds.CLASSES + ui_welds.CLASSES
-            + ops_lead_motions.CLASSES + ui_lead_motions.CLASSES + ops_measure.CLASSES + ui_measure.CLASSES)
+            + ops_lead_motions.CLASSES + ui_lead_motions.CLASSES
+            + ops_material_picker.CLASSES + ui_material_picker.CLASSES
+            + ops_measure.CLASSES + ui_measure.CLASSES)
 
 
 def _all_classes():
@@ -205,6 +208,8 @@ def register():
     ops_usage.register()                     # task 0181: counting, the session, My usage in the Help menu
     from .blender import ops_settings
     ops_settings.register()                  # task 0271: the presence marks in the keymap (only real input counts)
+    from .blender import ui_material_picker
+    ui_material_picker.register()            # task 0273: the Materials window's choices on the window manager
     from .blender import form_window
     form_window.register()                   # task 0282: Esc / Return in a function window, close them at a load
     from .blender import first_setup
@@ -360,6 +365,8 @@ def unregister():
     first_setup.unregister()                 # task 0276
     from .blender import ops_settings
     ops_settings.unregister()
+    from .blender import ui_material_picker
+    ui_material_picker.unregister()          # task 0273
     from .blender import ops_usage
     ops_usage.unregister()
     from .blender import about

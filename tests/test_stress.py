@@ -190,9 +190,16 @@ def test_the_memory_watch_sees_a_peak_in_between():
     from fresing_render.pccheck import stress
     if not stress.current_memory_mb():
         pytest.skip("no memory reading on this system")
+    import mmap
+    import time
+    size = 200 * 2 ** 20
     with stress.MemoryWatch(every=0.02) as w:
-        blob = b"\x01" * (200 * 2 ** 20)                          # 200 MB for a moment (touched: resident)
-        import time
+        # 200 MB of fresh pages for a moment, every page touched (resident). Task 0322: not a Python bytes object – its
+        # allocator may hand out memory this process already holds after earlier tests, so the peak never showed
+        # (failed twice on GitHub once another test file moved the order of this job)
+        blob = mmap.mmap(-1, size)
+        for i in range(0, size, mmap.PAGESIZE):
+            blob[i] = 1
         time.sleep(0.2)
-        del blob
+        blob.close()
     assert w.peak >= stress.current_memory_mb() + 100

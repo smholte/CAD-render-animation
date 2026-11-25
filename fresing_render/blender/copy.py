@@ -13,7 +13,8 @@ what was left out.
   the copy (``joints.to_specs`` -> ``joints.rebuild_from_specs`` with every part ID mapped to its copy's);
 * cylinders whose barrel, rod and both pins' parts are in the copy; mechanisms whose links and base are in it;
 * way covers whose axis and section joints came along; hoses and drag chains whose part and both ends are in the copy
-  (read again from the copied part, as a model update does); labels on its parts; logos and stickers.
+  (read again from the copied part, as a model update does); labels on its parts; logos and stickers; welds whose
+  two parts are both in the copy (task 0320; a weld with one part outside is left out and said).
 
 **The rule for what reaches outside the copy** (said in the Place window after a paste): it is *left out* – the copy
 moves by itself. A joint that also moves parts outside the copy, a cylinder or hose with a pin or end outside, and a
@@ -237,6 +238,9 @@ def _select(scene, objs_in, names, out: dict) -> None:
                         + ("drawn in the app – not copied" if it.drawn else "an end is outside the copy – not copied"))
     out["_flex"] = flex
     out["_labels"] = [i for i, c in enumerate(s.callouts) if c.part is not None and c.part.name in names]
+    from . import welds                     # task 0320: welds whose two parts are both in the copy
+    out["_welds"], weld_left = welds.for_copy(scene, names)
+    left += weld_left
     uids = {_uid(o) for o in objs_in if _uid(o)}
     for coll, word in ((s.cables, "Cable"), (s.spools, "Drum"), (s.tracks, "Track")):
         for it in coll:
@@ -251,7 +255,7 @@ def plan(scene, objs) -> dict:
     """What a paste of ``objs`` makes: per copy its name, parts and set-up, and the lines of what is left out."""
     tree = logic.Tree(scene)
     out = {"copies": [], "left": [], "parts": 0, "joints": 0, "cylinders": 0, "mechanisms": 0, "way_covers": 0,
-           "hoses": 0, "labels": 0}
+           "hoses": 0, "labels": 0, "welds": 0}
     for g in groups(scene, objs):
         objs_in = _objects(scene, g, tree)
         names = {o.name for o in objs_in}
@@ -266,7 +270,7 @@ def plan(scene, objs) -> dict:
         out["left"] += one["left"]
         out["parts"] += one["parts"]
         for k, key in (("joints", "_joints"), ("cylinders", "_cylinders"), ("mechanisms", "_mechanisms"),
-                       ("way_covers", "_covers"), ("hoses", "_flex"), ("labels", "_labels")):
+                       ("way_covers", "_covers"), ("hoses", "_flex"), ("labels", "_labels"), ("welds", "_welds")):
             out[k] += len(one[key])
     return out
 
@@ -275,7 +279,7 @@ def summary(p: dict) -> list:
     """The lines a paste says: what came along, what was left out (the rule) and that it moves by itself."""
     bits = [plural(p.get("parts", 0), "part")]
     for key, word in (("joints", "joint"), ("cylinders", "cylinder"), ("mechanisms", "mechanism"),
-                      ("way_covers", "way cover"), ("hoses", "hose"), ("labels", "label")):
+                      ("way_covers", "way cover"), ("hoses", "hose"), ("labels", "label"), ("welds", "weld")):
         n = int(p.get(key, 0) or 0)
         if n:
             bits.append(plural(n, word))
@@ -468,7 +472,7 @@ def _snapshot(scene, p) -> dict:
     return {"objects": set(bpy.data.objects.keys()), "collections": set(bpy.data.collections.keys()),
             "joints": [j.name for j in s.joints], "cylinders": [c.name for c in s.cylinders],
             "mechanisms": [m.name for m in s.mechanisms], "flex": len(s.flex), "callouts": len(s.callouts),
-            "waycovers": len(s.waycovers),
+            "waycovers": len(s.waycovers), "welds": [it.key for it in scene.fresing_welds.items],
             "groups": {c["root"]: bpy.data.objects[c["root"]].get(GROUP) for c in p["copies"]}}
 
 
@@ -489,6 +493,9 @@ def _roll_back(scene, before: dict) -> None:
     for coll, n in ((s.callouts, before["callouts"]), (s.waycovers, before["waycovers"])):
         for i in reversed(range(n, len(coll))):
             coll.remove(i)
+    from . import welds
+    for key in [it.key for it in welds.items(scene) if it.key not in before.get("welds", ())]:
+        welds.remove(scene, welds.find_item(scene, key))
     new = [o for o in bpy.data.objects if o.name not in before["objects"]]
     if new:
         bpy.data.batch_remove(new)
@@ -573,6 +580,8 @@ def _paste(scene, p, at) -> dict:
             notes += _flex(scene, one, copies, uids, by_uid)
             _labels(scene, one, copies)
             _decals(copies)
+            from . import welds             # task 0320: the welds on the copied parts
+            one["weld_keys"] = welds.copy_to(scene, one.get("_welds", []), copies)
             one["copy_root"] = top.name
             one["name"] = name
             p["roots"].append(top.name)
