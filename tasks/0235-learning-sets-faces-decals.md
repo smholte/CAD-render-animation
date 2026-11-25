@@ -1,6 +1,6 @@
 # 0235 – Learning sets "Painted faces" and "Logos and stickers": real-looking test models
 
-**Who:** worker · **Status:** open · **Branch:** `task/0235-learning-sets-faces-decals`
+**Who:** worker · **Status:** done (0.2.239) · **Branch:** `task/0235-learning-sets-faces-decals`
 **Started by:** lead, 20 Nov 2026 (study 0224 package C; owner's answers 20 Nov: the tour is the learning environment,
 each set its own fitting environment) · **Model:** Sonnet · effort Medium
 **Area:** `tools/make_test_faces.py`, `tools/make_test_decals.py` (+ `tests/data/test_faces_a.step`,
@@ -73,4 +73,4 @@ in `tasks/img/0235/` (`*-before.jpg`, `*-after.jpg`).
 
 **Open points / follow-up tasks:** the line-up picture beside a 1.75 m person was not made. The decals stop and the PC
 check line `looks.decals` / the real-app `ui_test_decals.py` still use the small a model (their numbers depend on it);
-moving them is a follow-up. GitHub run count: see below.
+moving them is a follow-up. GitHub runs: 3 – the first failed on `tests/test_start.py` (it expected the decals set never to change; fixed), the second hit a version clash with task 0310 (renumbered 0.2.238 → 0.2.239), the third green and fast-forwarded to `main` (9feb8ad6).
