@@ -395,6 +395,9 @@ def _draw() -> None:
         if area is None:
             return
         ptr = area.as_pointer()
+        if (AGAIN["on"] and not _obs(AGAIN["owners"])) or (UNLOCK["on"] and not _obs(UNLOCK["owners"])):
+            bpy.app.timers.register(lambda: close() and None, first_interval=0.0)   # another project: gone
+            return
         if AGAIN["on"] and AGAIN["area"] in (0, ptr):
             ar, reg, c = area, bpy.context.region, None
             if reg is not None:
