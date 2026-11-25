@@ -1,6 +1,6 @@
 # 0330 – Animation keeps the user's keys (0328 F1)
 
-**Who:** worker · **Status:** running · **Branch:** `task/0330-animation-keeps-user-keys`
+**Who:** worker · **Status:** done (0.2.247) · **Branch:** `task/0330-animation-keeps-user-keys`
 **Started by:** lead, 25 Nov 2026 (from 0328's report, owner's focus: user friendliness) · **Model:** Opus · effort Medium
 **Area:** Motion lane – `blender/animation.py`, `blender/queue.py` (the warning before a queued Build), `blender/turntable.py`, `blender/lead_motions.py` (logic only, not its panel), their tests, guide, CHANGELOG.
 **Not:** `ui_lead_motions.py` (0333), `ui_motion.py` (0333), the Keys / top bar (0295).
@@ -24,11 +24,11 @@ Fix 0328's rows **2, 3, 4, 8, 35** (`tasks/0328-bug-and-friction-hunt-8.md`, tab
 
 ## Done when
 
-- [ ] Each row's repeat case now gives "what should happen" (a test per row; real-app check where it was seen there)
-- [ ] Tests added/updated; full suite passes; GitHub run green
-- [ ] (UI) screenshots checked with tools/ui_screens.py
-- [ ] Guide, PC-check line, tour / function-list version fields as CLAUDE.md section 2 asks
-- [ ] Report below filled in, merged, released
+- [x] Each row's repeat case now gives "what should happen" (a test per row; real-app check where it was seen there)
+- [x] Tests added/updated; full suite passes; GitHub run green
+- [x] (UI) screenshots checked with tools/ui_screens.py
+- [x] Guide, PC-check line, tour / function-list version fields as CLAUDE.md section 2 asks
+- [x] Report below filled in, merged, released
 
 ---
 
@@ -72,7 +72,7 @@ Fix 0328's rows **2, 3, 4, 8, 35** (`tasks/0328-bug-and-friction-hunt-8.md`, tab
   unrelated check in the same run had failed); the check now waits 2 s.
 - PC-check line `animation.user_keys` (bpy module): OK, 1 s.
 - GitHub runs: 1st red – the crane lesson (and the PC check's app.lessons, Linux and Windows) lost its Build when its
-  lead motion's rows were added; fixed as above. 2nd: see below.
+  lead motion's rows were added; fixed as above. 2nd: precheck – 0.2.246 taken by 0329, renumbered to 0.2.247. 3rd: green (run 45598850149, 33 min).
 
 **Open points / follow-up tasks:**
 - Other code that takes a Build off (a joint's own slider, `joints.set_table`, turntable, a lead slider) still drops
