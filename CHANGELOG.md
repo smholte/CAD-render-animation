@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.246 – 25 Nov 2026 – 3D page: Open page in sight, page views by tick, phone sideways (task 0336)
+## 0.2.247 – 25 Nov 2026 – 3D page: Open page in sight, page views by tick, phone sideways (task 0336)
 
 - **Open page** and the folder button now sit on the **Export…** row (Make > 3D page, and 5 Scene & Render > Web 3D
   model). After an export they are right where you clicked – in the small Make window the result used to be below the
@@ -18,6 +18,17 @@ installer of that version was built from.
 - **On a phone held sideways** the page's saved views are one ‹ name › control, as upright, and the settings menu ends
   above the views and the play bar (it scrolls) – it covered the time line, the speed and Film.
 - **Smaller file**: its tooltip and the guide no longer name the packing method.
+## 0.2.246 – 25 Nov 2026 – "Uninstall Fresing Render" where the app is (task 0329)
+
+- **Uninstall Fresing Render** is now a shortcut in the install folder (`%LOCALAPPDATA%\FresingRender`) and next to
+  **Fresing Render.exe** – so you can remove the app even when the downloaded installer folder is long deleted. A
+  double-click does exactly what Uninstall in Settings > Apps > Installed apps does: its window shows what was removed;
+  your projects, renders and backups are kept.
+- A PC installed earlier gets both shortcuts at its next start; Update now keeps them right.
+- Install.bat's last lines say where uninstall is.
+- Uninstall run a second time after the folder is gone says so plainly (and clears a leftover entry in Installed apps);
+  after a removal that was stopped halfway (a file in use), Uninstall works again after a restart.
+- The self-test has a new line: "Windows: Uninstall shortcut in the install folder".
 
 ## 0.2.245 – 25 Nov 2026 – Adjust a look (task 0314)
 

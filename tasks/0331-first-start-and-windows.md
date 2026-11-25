@@ -1,6 +1,6 @@
 # 0331 – First start stays open; windows open in a good place (0328 F2)
 
-**Who:** worker · **Status:** open · **Branch:** `task/0331-first-start-and-windows`
+**Who:** worker · **Status:** running · **Branch:** `task/0331-first-start-and-windows`
 **Started by:** lead, 25 Nov 2026 (from 0328's report, owner's focus: user friendliness) · **Model:** Opus · effort Medium
 **Area:** Start & learn lane – `blender/first_setup.py`, `core/first_setup.py`, `blender/welcome.py` (only for row 1), `blender/ops_setup.py`, `blender/ops_make.py`, `blender/form_window.py`, the product video panel, `blender/ops_backups.py` (words only), their tests, guide, CHANGELOG.
 **Not:** `lock.py`, `ops_settings.py`, `ui_settings.py`, `ui_topbar.py` (0295 runs there), `quiet.py` (0332), `ui_web3d.py` (0336).

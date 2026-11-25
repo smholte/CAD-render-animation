@@ -280,6 +280,35 @@ def main(report_path: str | None = None) -> bool:
 
     check("Windows: in Installed apps", _installed_apps)
 
+    def _uninstall_shortcut():
+        """Windows (task 0329): "Uninstall Fresing Render" in the install folder (and next to Fresing Render.exe) runs
+        the uninstaller that is there - the Installed-apps entry's command."""
+        if sys.platform != "win32":
+            return "skipped (Windows only)"
+        from . import appicon, winexe
+        from .core import installed_apps
+        exe = bpy.app.binary_path
+        folder = appicon.install_dir(exe) if exe and winexe.is_blender_program(exe) else ""
+        if not folder:
+            return "skipped (not started from the installed Fresing Render)"
+        spec = installed_apps.shortcut_spec(folder)
+        paths = installed_apps.uninstall_shortcuts(folder, os.path.dirname(os.path.abspath(exe)))
+        for path in paths:
+            if not os.path.isfile(path):
+                raise RuntimeError(f"{installed_apps.UNINSTALL_LNK} is missing in {os.path.dirname(path)}: "
+                                   "start Fresing Render once (it makes it), or run Install.bat again")
+            info = appicon.read_shortcut(path)
+            if not os.path.isfile(info.get("target", "")):
+                raise RuntimeError(f"{path} starts a program that is not there: {info.get('target')}")
+            if installed_apps.shortcut_needs(info, spec):
+                raise RuntimeError(f"{path} does not run the uninstaller of this install: {info.get('arguments')}")
+        script = installed_apps.uninstaller_path(folder)
+        if not os.path.isfile(script):
+            raise RuntimeError(f"the uninstaller the shortcut runs is missing: {script}")
+        return f"in {folder}" + (" and next to Fresing Render.exe" if len(paths) > 1 else "")
+
+    check("Windows: Uninstall shortcut in the install folder", _uninstall_shortcut)
+
     def _gpu():
         info = render.setup_gpu()
         if info == "CPU" and _no_gpu_expected():       # not for "CPU (Cycles add-on not loaded)"

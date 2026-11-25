@@ -46,8 +46,11 @@ Updates
 
 Remove
 ------
-Windows Settings > Apps > Installed apps > Fresing Render > ... > Uninstall (close Fresing Render first).
-Or double-click Uninstall.bat in the installer folder. Both do the same.
+Close Fresing Render first, then one of these three (all do the same):
+- Windows Settings > Apps > Installed apps > Fresing Render > ... > Uninstall.
+- Double-click "Uninstall Fresing Render" in the install folder (%LOCALAPPDATA%\FresingRender), or the
+  same shortcut next to "Fresing Render.exe" in its Blender folder.
+- Double-click Uninstall.bat in the installer folder (if you still have it).
 Projects (.blend files) and renders are not touched.
 If you installed into another folder with -InstallDir, give the same folder:
     Uninstall.bat -InstallDir "D:\Apps\FresingRender"
