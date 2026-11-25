@@ -1,17 +1,17 @@
-# 0335 – Whole title row opens a panel; second G unlocks (0328 F6 + row 29)
+# 0335 – Whole title row opens a panel (0328 F6)
 
 **Who:** worker · **Status:** open · **Branch:** `task/0335-panel-title-rows-and-move-key`
 **Started by:** lead, 25 Nov 2026 (from 0328's report, owner's focus: user friendliness) · **Model:** Sonnet · effort Medium
-**Area:** Side panel + Place (two small fixes, separate files) – `blender/panels.py` (`draw_title`), `blender/place.py` (the move key), their tests, guide, CHANGELOG.
-**Not:** any panel's own content (other tasks own those files).
+**Area:** Side panel – `blender/panels.py` (`draw_title`), its tests, guide, CHANGELOG.
+**Not:** `place.py` / `ops_place.py` (0338), any panel's own content (other tasks own those files).
 
 ## Goal
 
-Clicking anywhere on a section or sub-panel title row opens / closes it, as in Blender's own panels; pressing G on a model that import locked says "Press G again to unlock and move" and a second G does it.
+Clicking anywhere on a section or sub-panel title row opens / closes it, as in Blender's own panels.
 
 ## What to do
 
-Fix 0328's rows **17, 29** (`tasks/0328-bug-and-friction-hunt-8.md`, table "Rows"; grouping "Grouping into fix tasks"). `panels.py` is used by every panel: screenshot every section before and after (`tools/ui_screens.py`).
+Fix 0328's row **17** (row 29 moved to 0338: unlock / lock-again popups, owner 25 Nov) (`tasks/0328-bug-and-friction-hunt-8.md`, table "Rows"; grouping "Grouping into fix tasks"). `panels.py` is used by every panel: screenshot every section before and after (`tools/ui_screens.py`).
 
 ## Watch
 
