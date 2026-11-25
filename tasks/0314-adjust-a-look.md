@@ -38,6 +38,32 @@ And the owner knows which looks cost render time.
 4. Guide (Looks: Adjust a look), function entry `looks.adjust` (`since=`), a tour stop, a Full PC-check line
    `looks.adjust` (a slider change gives the node value the spec says).
 
+## Design (worker, 25 Nov)
+
+- **Five new group settings** (`FRMaterialGroup.adj_shine` −1…1, `adj_metal` −1…1, `adj_dirt` 0…1, `adj_relief` 0…2
+  (1 = as made), `adj_coat` 0…1); Colour, Wear, Rust and a finish's Pattern size / Direction are the group's existing
+  fields. `core/look_adjust.py` (no Blender): the sliders (names, ranges, defaults, tooltips), which ones mean something
+  for a look (`applies`), clamping, the key text (`key`), the formulas in plain Python (tests).
+- **One shared node group "FR adjust"** (`blender/look_adjust.py`) with plainly named inputs: Colour / Metallic /
+  Roughness / Normal / Geometry normal / Coat in, **Shine, Metal ↔ paint, Dirt, Relief, Clear coat** as the sliders;
+  out Colour / Metallic / Roughness / Normal / Coat. `materials.build_nodes(adjust=)` puts one node "FR adjust" between
+  the look and the Principled BSDF only when a value is not its default (or the group was opened in the shader editor):
+  untouched looks stay exactly as they are (same nodes, same render time). `mat["fr_adjust"]` = the key; `is_current`
+  compares it.
+- **Live**: a slider's update sets the node's input when the node is there (no rebuild); otherwise one rebuild.
+- **Own materials**: `changes.adjust` = {shine, metal, dirt, relief, coat} (only values that are not the default);
+  format 1.1 (an addition; 1.0 apps note it as unknown and leave it out). Picking an entry gives the group the entry's
+  adjust values (defaults for built-ins). **Reset** = the picked entry's own values again (colour of a colour-taking
+  entry stays the group's).
+- **Picker**: under Use for … an "Adjust" box when the group uses the picked entry; the large picture is rendered
+  again in the background Blender (the picture runner) 0.8 s after the last change.
+- **Open in the shader editor** (`fresing.look_nodes`, Full access only): keeps the node, selects a part of the group
+  and opens a window with the Shader Editor.
+- **Cost**: `tools/look_costs.py` renders every library material on the picture swatch (Cycles, CPU, fixed samples),
+  writes `fresing_render/data/look_costs.json` (time / plain satin paint); `core/look_adjust.slower()` → the "slower"
+  badge (≥ 1.5 x) in the grid and the details.
+- No subagents (medium effort); an independent tester only if time allows.
+
 ## Done when
 
 - [ ] Adjust sliders per look, live, Reset, Save as my material (tests: the saved file holds the changed keys)
