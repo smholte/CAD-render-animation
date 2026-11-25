@@ -75,7 +75,9 @@ def _on_change():
 
 @persistent
 def _on_depsgraph(scene, _depsgraph=None):
-    if _depsgraph is not None:
+    if not logic.tree_kept():
+        pass                                 # nothing to drop: the updates are not looked at (a joint drag, task 0326)
+    elif _depsgraph is not None:
         try:
             if _depsgraph.id_type_updated("OBJECT") and any(
                     u.is_updated_transform or u.is_updated_geometry or u.is_updated_shading

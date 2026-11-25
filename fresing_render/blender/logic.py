@@ -287,6 +287,11 @@ def drop_tree_cache() -> None:
     _TREE["tree"] = None
 
 
+def tree_kept() -> bool:
+    """A Tree is kept now (``drop_tree_cache`` would drop something)."""
+    return _TREE["tree"] is not None
+
+
 def cached_tree(scene=None) -> Tree:
     """A Tree reused while the model is unchanged (a click's selection handler, task 0210). The key is the scene, its
     object count and a counter that handlers.py raises at every object transform / geometry update and every

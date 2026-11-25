@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.262 – 26 Nov 2026 – Shorter top-bar menus, only the Fresing tab in the side panel (task 0367)
+## 0.2.263 – 26 Nov 2026 – Shorter top-bar menus, only the Fresing tab in the side panel (task 0367)
 
 - **File** now holds what the app uses: New project, Open…, Open Recent, Revert, Recover, Save, Save As…, Save Copy…,
   **Import STEP…**, **Import mesh model…**, **Import House Planner scene…** and Quit. Blender's Link, Append, Import /
@@ -20,6 +20,15 @@ installer of that version was built from.
 - **Fresing Settings > Keys**: "Blender's own key settings" is greyed in the Client view, with the reason in its tooltip.
 - **Fresing > Show all of Blender** (or Workspace > Full access) brings all of Blender's menus and tabs back, as before.
 
+## 0.2.262 – 26 Nov 2026 – Joints move much faster on big models (task 0326)
+
+- **Moving a joint on a big model is about 4–5 times faster.** On the 11,000-part stress model one step of the crane's
+  slew took 75 ms on a 4-core test machine; now 16 ms. Every way a joint is moved from the app gets it: poses, the
+  lead motions' slider, saved scenes, the PC check. The app told Blender "everything about this part changed" at each
+  step, and Blender then went over every object in the model again; now it says only "it moved".
+- What is left (about 15 ms there) is Blender's own work for any change in a model that big – playing the animation
+  costs the same per frame.
+- PC check: the Stress line **Stress model: dragging a joint** shows the new time.
 ## 0.2.261 – 25 Nov 2026 – The clash check needs much less memory on big models (task 0327)
 
 - **6 Animation > Clash check** on a big model now needs about a quarter of the extra memory it needed: on the stress
