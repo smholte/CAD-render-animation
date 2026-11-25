@@ -171,6 +171,8 @@ def place_key(win) -> str:
             return "form:" + str(screen.get(FORM_MARK))
         if screen.get(FIRST_SETUP_MARK):
             return "first_setup"                        # task 0276: the first-start set-up
+        if screen.get(ops_setup.MATERIALS_MARK):
+            return "materials"                          # task 0273: the Materials window
         return str(screen.get(OUTPUT_MARK) or "")
     except (AttributeError, ReferenceError):
         return ""

@@ -55,7 +55,7 @@ The first-start set-up (0276), weld symbols / list (0320), measuring (0322), 2D 
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web, 24 Nov 2026 · branch `claude/cad-render-animation-0321-yl8i1m` · 0.2.241
+**Chat / date:** Claude Code on the web, 24 Nov 2026 · branch `claude/cad-render-animation-0321-yl8i1m` · 0.2.242
 
 **What changed:**
 - **Four workspaces** (`core/workspaces.BUILTIN`, lists in `core/functions.TASK_WORKSPACES`, keys `welding`, `builder`,

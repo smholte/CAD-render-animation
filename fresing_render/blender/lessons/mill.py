@@ -197,11 +197,11 @@ MILL = lesson(Lesson(
              done=lambda sc: _machining().settings(sc).workpiece is not None),
         Step("looks.materials", "Raw steel",
              "The block's group gets Raw steel (mill scale) in 3 Looks: the cut faces will look freshly machined.",
-             more="Ready-made material… lists the looks. The walls and floor of the slot get the machined look by "
-                  "themselves.",
+             more="More materials… (above Material) shows every look as a picture. The walls and floor of the slot get "
+                  "the machined look by themselves.",
              parts=(STOCK,), do=_raw,
              done=lambda sc: _stock_group(sc) is not None and _stock_group(sc).material == "steel_raw",
-             point={"panel": "FRESING_PT_looks", "button": "fresing.group_preset"}),
+             point={"panel": "FRESING_PT_looks", "button": "fresing.materials"}),
         Step("milling.chips", "Chips",
              "Chips: Few. Chips fly off the bit while it cuts and land on the table and the block.",
              more="Few is quick; Realistic makes as many chips as the material removed would.",

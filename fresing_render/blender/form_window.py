@@ -55,6 +55,7 @@ WINDOWS = (
     "fresing.pc_check",
     "fresing.place_window", "fresing.remove",       # task 0292: Move / turn…, Remove…
     "fresing.lead_edit", "fresing.lead_keep_open",  # task 0309: Edit lead motions…, the sliders that stay open
+    "fresing.mat_save", "fresing.mat_from_blender",  # task 0273: Save as my material…, From a Blender material…
     "fresing.weld_list",                            # task 0320: the weld list
 )
 # … and the ones that stay small popups: a yes / no question or a short message that needs one click (a click

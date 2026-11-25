@@ -266,7 +266,7 @@ fn(id="panel.task_workspaces", title="Workspaces for one job: Sales, Quick rende
    pccheck=("workspace.essentials",), since="0.2.226")
 fn(id="panel.more_workspaces", title="Workspaces for one job, round 3: Welding, Machine builder, Video producer, Houses",
    family="panel", panel="FRESING_PT_workspace", button="fresing.workspace_pick", guide="more-workspaces",
-   tour=("workspace_welding",), pccheck=("workspace.round3",), since="0.2.241")
+   tour=("workspace_welding",), pccheck=("workspace.round3",), since="0.2.242")
 fn(id="panel.workspace_stars", title="Favourite workspaces: a star puts them on top of the list", family="panel",
    panel="FRESING_PT_workspace", button="fresing.workspace_star", guide="workspace-stars",
    pccheck=("workspace.essentials",), since="0.2.226")
@@ -370,14 +370,14 @@ fn(id="structure.visibility", title="Visibility sets", family="import", panel="F
    workspaces=("cnc", "offshore", "product", "education", "lifting"))
 
 # ----- 3 Looks -----
-fn(id="looks.materials", short="Materials", title="Material groups and ready-made materials", family="looks", panel="FRESING_PT_looks",
-   button="fresing.group_preset", guide="looks", tour=("materials",), pccheck=("looks.materials",), lesson="mill:6", since="0.2.8",
-   changed="0.2.237", manual_estimate=("part", 5, "pick the part and give it its material"))
+fn(id="looks.materials", short="Materials", title="Material groups and their materials", family="looks", panel="FRESING_PT_looks",
+   button="fresing.materials", guide="looks", tour=("materials",), pccheck=("looks.materials",), lesson="mill:6", since="0.2.8",
+   changed="0.2.241", manual_estimate=("part", 5, "pick the part and give it its material"))
 fn(id="looks.marine", title="Marine looks: growth, streaks, concrete", family="looks", panel="FRESING_PT_looks",
-   button="fresing.group_preset", guide="looks", tour=("marine",), pccheck=("looks.marine",), since="0.2.94",
+   button="fresing.materials", guide="looks", tour=("marine",), pccheck=("looks.marine",), since="0.2.94",
    changed="0.2.237")
 fn(id="looks.finishes", title="Finishes: knurls, spun, plates, blasted, grains, perlage", family="looks",
-   panel="FRESING_PT_looks", button="fresing.group_preset", guide="finishes", tour=("finishes",),
+   panel="FRESING_PT_looks", button="fresing.materials", guide="finishes", tour=("finishes",),
    pccheck=("looks.finishes",), since="0.2.229", changed="0.2.237")
 # task 0318: carbon fibre that follows every CAD face, the group's Rust slider, better existing looks
 fn(id="looks.carbon", title="Carbon fibre that follows curved parts and folds (no seam)", family="looks",
@@ -386,6 +386,14 @@ fn(id="looks.carbon", title="Carbon fibre that follows curved parts and folds (n
 fn(id="looks.rust", title="Rust: a slider per group, only where steel rusts", family="looks",
    panel="FRESING_PT_looks", prop="rust", guide="rust", tour=("finishes",), pccheck=("looks.rust",),
    since="0.2.237")
+# task 0273: the material picker (a window of pictures), this project's materials, own / department / company materials
+fn(id="looks.picker", short="Material picker",
+   title="Material picker: pictures, filters, this project's list, your own and your company's materials",
+   family="looks", panel="FRESING_PT_looks", button="fresing.materials", guide="material-picker",
+   tour=("material_picker",), pccheck=("looks.picker",), since="0.2.241")
+fn(id="looks.own_materials", title="Your own materials: Save as my material, From a Blender material", family="looks",
+   panel="FRESING_PT_looks", button="fresing.mat_save", guide="own-materials", pccheck=("looks.picker",),
+   since="0.2.241")
 fn(id="looks.rule_sets", title="Rule sets", family="looks", panel="FRESING_PT_looks",
    button="fresing.rule_set_switch", guide="rule-sets", pccheck=("rules.switch",), since="0.2.13")
 fn(id="looks.faces", title="Paint faces", family="looks", panel="FRESING_PT_faces", button="fresing.paint_faces",
@@ -433,7 +441,7 @@ fn(id="joints.couplings", short="Couplings", title="Couplings and motors", famil
    changed="0.2.224")
 fn(id="joints.move", title="Move a joint: its slider, CAD (0) / Min / Max – also where adding joints is hidden (Sales)",
    family="motion", panel="FRESING_PT_joints", button="fresing.joint_value", text="CAD (0)", guide="move-joints",
-   pccheck=("workspace.round3",), since="0.2.241")
+   pccheck=("workspace.round3",), since="0.2.242")
 fn(id="poses.pose", title="Poses", family="motion", panel="FRESING_PT_poses", button="fresing.pose_save",
    guide="poses", tour=("update",), pccheck=("states.poses",), since="0.2.12")
 fn(id="poses.explode", title="Exploded view", family="motion", panel="FRESING_PT_poses", button="fresing.explode",

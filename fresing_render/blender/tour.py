@@ -518,7 +518,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.241")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.242")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -970,7 +970,7 @@ def _check_shapes(scene):
 
 # ----- the other test models -----
 
-@tour_set("looks", "Materials", "test_crane_a.step", added="0.2.47", changed="0.2.203")
+@tour_set("looks", "Materials", "test_crane_a.step", added="0.2.47", changed="0.2.241")
 def build_materials(b: Build):
     from . import logic
     sc, s = b.scene, b.s
@@ -996,6 +996,31 @@ def build_materials(b: Build):
     pts = np.array([(x, y, z) for x in (mn[0], mx[0]) for y in (mn[1], mx[1]) for z in (mn[2], mx[2])])
     _camera(b, "ISO", "Tour view", lens=60.0, points=pts)
     _shot(b, "@materials")
+    # task 0273: this project's materials – four on the short list (3 Looks, above Material)
+    from ..core import material_files
+    from . import material_picker
+    for key in PICKER_LIST:
+        material_picker.add_to_project(sc, material_files.builtin(key))
+    s.groups_index = next((i for i, g in enumerate(s.groups) if g.name.startswith("Welded frames")), 0)
+    _shot(b, "@material_picker")
+
+
+PICKER_LIST = ("builtin:chrome", "preset:paint_5010", "builtin:knurl_diamond", "builtin:rubber_black")
+
+
+def _check_picker(scene):
+    """Task 0273: the short list and the Materials window's list (its draw, with a stand-in layout)."""
+    import bpy
+
+    from ..core import material_files
+    from . import material_picker, ui_material_picker, ui_settings
+    listed = [e for e, on, _u in material_picker.short_list(scene) if on]
+    _check([e.key for e in listed] == list(PICKER_LIST), f"this project's list is {[e.key for e in listed]}")
+    _check(all(e.picture for e in listed), "a material on the list has no picture")
+    every = ui_material_picker.visible(bpy.context)
+    _check(len(every) >= len(material_files.builtin_keys()), f"the window lists {len(every)} materials")
+    ui_material_picker.draw_window(ui_settings._Any(), bpy.context)
+    return f"{len(listed)} on this project's list, {len(every)} materials in the window"
 
 
 def _check_materials(scene):
@@ -1066,7 +1091,7 @@ def _round_face(ob) -> int:
     return -1
 
 
-@tour_set("welds", "Welds", "test_weldment.step", added="0.2.231", changed="0.2.241")
+@tour_set("welds", "Welds", "test_weldment.step", added="0.2.231", changed="0.2.242")
 def build_welds(b: Build):
     from . import welds
     sc = b.scene
@@ -4898,7 +4923,13 @@ stop("materials", LOOK, "looks", "Ready-made materials and Wear",
      "and trolley (both with Wear: in a rendered picture their sharp edges look worn and corners a little dirty), "
      "ground steel pins, a black anodised cylinder barrel with a chrome rod, rubber wheels, blue anodised cover, "
      "zinc flake bolts. The camera is close on the worn base and trolley, where Wear shows.",
-     where="3 Looks: the material groups, Ready-made material…, Wear", check=_check_materials, since="0.2.47", changed="0.2.199")
+     where="3 Looks: the material groups, More materials…, Wear", check=_check_materials, since="0.2.47", changed="0.2.199")
+stop("material_picker", LOOK, "looks", "Material picker, project list",
+     "3 Looks, pick a group: above Material, 'This project's materials' shows four small pictures – chrome, blue "
+     "paint RAL 5010, a diamond knurl, black rubber; a click on one gives the group that material. More materials… "
+     "opens the Materials window: a picture of every material, filters Source / Material / Colour / Look on the left, "
+     "the picked one large on the right with Use for <group>, Add to this project and Save as my material….",
+     where="3 Looks > a group > This project's materials, More materials…", check=_check_picker, since="0.2.241")
 stop("faces", LOOK, "faces", "Painted faces",
      "The housing's two faces painted in CAD keep their own colours; one face of the cover is painted red by hand, "
      "the rest of the cover keeps its colour.", where="3 Looks > Paint faces", check=_check_faces, since="0.2.47")
@@ -4919,7 +4950,7 @@ stop("workspace_welding", LOOK, "welds", "The workspace Welding",
      "camera, picture). 4 Motion, 6 Animation, the render queue and the CNC machine are gone; the welds are all still "
      "there, with their symbols. Open the Workspace list: Welding, Machine builder, Video producer and Houses are new, each with its own "
      "icon and a star. Pick All functions to have everything back.",
-     where="The Workspace row on the left panel", since="0.2.241", shot="Welds", setup=_welding_open,
+     where="The Workspace row on the left panel", since="0.2.242", shot="Welds", setup=_welding_open,
      check=_check_workspace_welding, auto=lambda ctx, scene, st: "")
 stop("cutaway", LOOK, "cutaway", "Slice: the pedestal opens up",
      "A slice slides in from the front and takes away the front half of the crane's pedestal and boom: the cut faces "
@@ -5900,7 +5931,7 @@ stop("workspace", OUT, HUB_SET, "Functions in this project",
      "away). "
      f"Sections 1 to {len(places.SECTIONS)} start folded: click a title to open it, Ctrl+click keeps only that one open, the tabs "
      "All · 1 … 8 under Make show one section at a time.",
-     where="The Workspace row on the left panel", since="0.2.152", changed="0.2.241", shot="Tour view",
+     where="The Workspace row on the left panel", since="0.2.152", changed="0.2.242", shot="Tour view",
      check=_check_workspace, setup=_workspace_open, auto=lambda ctx, scene, st: "")
 stop("make", OUT, HUB_SET, "Make: each output in a window",
      "At the top of the Fresing panel is Make: one row of six large icons – Picture, Product video, Turntable, 3D page, "
