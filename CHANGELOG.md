@@ -5,6 +5,13 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.248 – 25 Nov 2026 – Removing a crane or a load's model (task 0337)
+
+- **Remove… on a placed crane takes all of it.** The hoist rope, drum, sheaves, joints, poses and its entry in
+  8 Lifting plan went on showing; now they go with the crane, and the Remove window says it is a lifting crane.
+- **A load with no parts left says so.** Remove the load's model and the load showed a stale centre of gravity and a
+  green "within limits". Now a red line says "has no parts left" and the load is not used.
+
 ## 0.2.247 – 25 Nov 2026 – Build keeps your own keys and steps (task 0330)
 
 - **A key you change by hand stays.** Change a key of a built animation in Blender's Graph Editor or Dope Sheet and
