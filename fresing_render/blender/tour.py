@@ -4828,8 +4828,7 @@ def _lift_path(scene) -> None:
     pr = lifting_path.propose(scene, point=PATH_DOWN)
     _check(pr.ok, f"Propose the lift: {pr.reason}")
     out = lifting_path.check(scene)
-    worst = max(lifting_path.rows(scene), key=lambda r: r.key)
-    lifting_path.go_to(scene, worst.id)
+    scene.frame_set(scene.frame_start)        # a still stop shows the first frame (Go there: its check)
     L.data_box = True
     _update()
     return out
@@ -5055,8 +5054,10 @@ def _check_lifting_path(scene):
     _check(ids[:4] == ["C1", "C10", "SETUP", "C5"] and "C3" in ids and "C4" in ids,
            f"the checks along the path are {ids}")
     worst = max(lifting_path.rows(scene), key=lambda x: x.key)
-    _check(abs(scene.frame_current + scene.frame_subframe - worst.t) < 0.02,
-           f"the frame shown is not the worst moment ({worst.t:.1f})")
+    lifting_path.go_to(scene, worst.id)
+    there = scene.frame_current + scene.frame_subframe
+    scene.frame_set(scene.frame_start)
+    _check(abs(there - worst.t) < 0.02, f"Go there went to frame {there:.1f}, not the worst moment ({worst.t:.1f})")
     lab = lifting_path.data_box_label(scene)
     _check(lab is not None, "no lift data box")
     rows = callouts.label_text(scene, lab).split("\n")
@@ -5446,8 +5447,8 @@ stop("lifting_path", MOTION, "lifting", "Lifting: lift path and checks",
      "steps (hoist 2 m clear, slew, luff / telescope, lower) as an animation 'Lift Pump skid' and checked it along the "
      "whole path. The table lists every check with its worst use, colour and frame – crane use, line pull, set-up "
      "(beams out, jacks down), outriggers on their 1.44 m mats against 200 kPa, sling legs and shackles; backward "
-     "stability grey (the chart's counterweight). The timeline stands at the worst moment (Go there); the lift data "
-     "box beside the hook block shows the load, the radius, the crane use and the worst status so far; a use bar "
+     "stability grey (the chart's counterweight). The magnifier of a row (Go there) puts the timeline on its worst "
+     "moment; the lift data box beside the hook block shows the load, the radius, the crane use and the worst status so far; a use bar "
      "sits beside the hook in the 3D view.",
      where="8 Lifting plan > Lift path & checks", since="0.2.260", check=_check_lifting_path, setup=_lift_path)
 stop("crane_setup", MOTION, "crane_setup", "Set up a crane: KB-20 rigged",
