@@ -88,6 +88,7 @@ ALLOWED = {
 ALLOWED_PREFIXES = ("fresing.update_", "fresing.workspace_", "fresing.family_", "fresing.panel_", "fresing.next_",
                     "fresing.make_", "fresing.usage_", "fresing.learn_",
                     "fresing.settings", "fresing.presence",     # task 0271: Fresing Settings, the presence mark
+                    "fresing.keys", "fresing.key_change", "fresing.key_reset", "fresing.key_sheet",   # task 0295: Keys
                     "fresing.form_",                            # task 0282 (below)
                     "fresing.measure")                          # task 0322: measuring changes nothing of the model
 #                                                                 task 0282: a function window's OK / Close (OK runs

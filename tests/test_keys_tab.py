@@ -137,7 +137,7 @@ def test_the_key_sheet_and_the_ways_in(keys, tmp_path):
     assert "keys" in ui_settings.KEYS
     assert "keys" in ui_settings.draw_all(bpy.context)
     assert "fresing.keys" in ui_topbar.entries()
-    assert keys._draw_help in bpy.types.TOPBAR_MT_help._dyn_ui_initialize()
+    assert keys._draw_keys_help in bpy.types.TOPBAR_MT_help._dyn_ui_initialize()
     assert bpy.ops.fresing.keys_blender() == {"FINISHED"}
     assert bpy.context.preferences.active_section == "KEYMAP"
 

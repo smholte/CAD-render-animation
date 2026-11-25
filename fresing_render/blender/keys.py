@@ -452,20 +452,20 @@ def draw(layout, context) -> None:
     ui.hint(layout, context, "Blender's own key settings change Blender's keys (used in Full access), not Fresing's.")
 
 
-def _draw_help(self, context):
+def _draw_keys_help(self, context):
     self.layout.operator(FRESING_OT_keys.bl_idname, text="Keys…", icon="KEYINGSET")
 
 
 def register() -> None:
-    bpy.types.TOPBAR_MT_help.remove(_draw_help)
-    bpy.types.TOPBAR_MT_help.append(_draw_help)
+    bpy.types.TOPBAR_MT_help.remove(_draw_keys_help)
+    bpy.types.TOPBAR_MT_help.append(_draw_keys_help)
     bpy.types.WindowManager.fresing_keys_search = StringProperty(
         name="Search keys", default="", options={"TEXTEDIT_UPDATE"},
         description="Shows only the keys whose words or key hold what you type (e.g. render, F12, hide)")
 
 
 def unregister() -> None:
-    bpy.types.TOPBAR_MT_help.remove(_draw_help)
+    bpy.types.TOPBAR_MT_help.remove(_draw_keys_help)
     try:
         del bpy.types.WindowManager.fresing_keys_search
     except AttributeError:
