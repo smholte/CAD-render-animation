@@ -620,7 +620,9 @@ fresing_render/            the Blender extension (Python package)
                            timer after `editors.settled`), the top bar's right part without Scene / View Layer, the splash
                            with Fresing's lines, File > New / Ctrl+N = New project; switched by `lock.blender_ui`; only
                            Blender's own entry of a class's `draw._draw_funcs` is swapped (`swap`), so appended items stay;
-                           Fresing > Show all of Blender / Back to the Fresing window (`fresing.blender_all`, scene["fr_ws_before_all"])
+                           Fresing > Show all of Blender / Back to the Fresing window (`fresing.blender_all`, scene["fr_ws_before_all"]); task 0332: Edit / F4 menus without Rename and Preferences, a render's image-editor header in the app's words, no
+                           redo panel, the main window back on the app's Blender workspace (`LOUD_WS`, "Layout") when it
+                           turns quiet; ops_settings.quiet_main hides Blender's side-panel tabs in the main view
     context_menu.py        task 0253: the right-click menu in the 3D view outside Full access – ``fresing.view_menu`` (right
                            mouse / Menu key, lock.APP_KEYS) picks the part under the mouse (``HIT``), selects it as a left
                            click would and opens Blender's object menu with its own draw swapped (``quiet.swap``) for
@@ -1584,6 +1586,10 @@ the release → Delete); the next run on `main` publishes it again.
   joint's size. Any scene update there costs ~15 ms by itself (a lone empty moved costs the same): Blender's floor for
   that many objects. On a per-move path tag only what changed (`joints.tag_moved`); followers, mechanisms, cables and
   hoses follow just the same.
+- Setting a 3D view's `show_region_hud` (the "Adjust Last Operation" box) back to True from a timer crashed Blender 5.2.3
+  (segfault, also in a plain Blender with --factory-startup; task 0332); False worked. Its update needs the area in the
+  context: set it inside `context.temp_override(window=, screen=, area=, region=)` (`quiet._set_hud`). A finished
+  render's "Frame / Time / Mem" text is the image editor's `overlay.show_text_info`, not its header.
 - `ci_status.py --wait` judges a commit by its OWN change: for a commit that changes only `TASKS.md` / `tasks/` (a
   report, or a merge of the lead's task files) it prints "No test run for this commit" – even when GitHub DID start a
   run for the push because the push brought code (task 0289: the fast-forward of report + merge to `main` ran in docs

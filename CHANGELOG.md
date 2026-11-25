@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.258 – 25 Nov 2026 – Joints move much faster on big models (task 0326)
+## 0.2.259 – 25 Nov 2026 – Joints move much faster on big models (task 0326)
 
 - **Moving a joint on a big model is about 4–5 times faster.** On the 11,000-part stress model one step of the crane's
   slew took 75 ms on a 4-core test machine; now 16 ms. Every way a joint is moved from the app gets it: poses, the
@@ -14,6 +14,19 @@ installer of that version was built from.
 - What is left (about 15 ms there) is Blender's own work for any change in a model that big – playing the animation
   costs the same per frame.
 - PC check: the Stress line **Stress model: dragging a joint** shows the new time.
+## 0.2.258 – 25 Nov 2026 – A quieter window, a Client view that really locks (task 0332)
+
+- **Back to the Fresing window** always brings the app's layout back: if you had picked one of Blender's own tabs
+  (Animation, Shading …) in Full access, the window now returns to the app's layout instead of staying in Blender's.
+- **Client view:** **F2** (rename), **Ctrl+F2** (Batch Rename) and **Ctrl+,** (Blender's Preferences) now do nothing and
+  say the project is locked. Outside Full access the **Edit** menu has no Rename, Batch Rename or Preferences any more –
+  it has **Fresing Settings…** instead.
+- **After a render** (Render image or **F12**) the picture's window says **Saved: <file name>** with **Open**,
+  **Show in folder** and **Close**, instead of Blender's slots, view layer and passes; Blender's *Frame / Time / Mem*
+  line over the finished picture is gone.
+- **Side panel:** outside Full access only the **Fresing** tab shows – Blender's Tool, View and Animation tabs are hidden.
+- **No "Adjust Last Operation" box** at the bottom left of the 3D view outside Full access (it appeared after picking a
+  workspace or Build & play and only offered the same choice again).
 
 ## 0.2.257 – 25 Nov 2026 – The first-start set-up stays open; windows open in a good place (task 0331)
 

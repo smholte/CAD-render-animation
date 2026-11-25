@@ -307,9 +307,25 @@ def s_show_panel():
 
 
 @step
+def s_other_tab_select():
+    """Task 0332: outside Full access Blender's tabs Tool / View / Animation are hidden; only Item (Blender's own C
+    panel) still shows, while an object is active – make one active so that tab is there."""
+    sc = bpy.context.scene
+    ob = sc.objects.get("FR layout test empty")
+    if ob is None:
+        ob = bpy.data.objects.new("FR layout test empty", None)
+        sc.collection.objects.link(ob)
+    bpy.context.view_layer.objects.active = ob
+    ob.select_set(True)
+    _w, area, _sp = view()
+    area.tag_redraw()
+    return 0.5
+
+
+@step
 def s_other_tab():
     _w, area, sp = view()
-    ui_region(area).active_panel_category = "View"
+    ui_region(area).active_panel_category = "Item"
     from importlib import import_module
     h = import_module(pkg() + ".blender.ui_header")
     check("another tab open: the header button shows", not h.panel_visible(area))
@@ -317,6 +333,9 @@ def s_other_tab():
         bpy.ops.fresing.show_panel("EXEC_DEFAULT")
     check("... and brings the Fresing tab back", h.panel_visible(area))
     shot("11_back")
+    ob = bpy.context.scene.objects.get("FR layout test empty")
+    if ob is not None:
+        bpy.data.objects.remove(ob)
     return 0.3
 
 
