@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.251 – 25 Nov 2026 – 3D page: Open page in sight, page views by tick, phone sideways (task 0336)
+## 0.2.252 – 25 Nov 2026 – 3D page: Open page in sight, page views by tick, phone sideways (task 0336)
 
 - **Open page** and the folder button now sit on the **Export…** row (Make > 3D page, and 5 Scene & Render > Web 3D
   model). After an export they are right where you clicked – in the small Make window the result used to be below the
@@ -18,6 +18,27 @@ installer of that version was built from.
 - **On a phone held sideways** the page's saved views are one ‹ name › control, as upright, and the settings menu ends
   above the views and the play bar (it scrolls) – it covered the time line, the speed and Film.
 - **Smaller file**: its tooltip and the guide no longer name the packing method.
+## 0.2.251 – 25 Nov 2026 – Welds from the CAD file (task 0323)
+
+- **A STEP file with solid welds brings them along.** At the import every weld bead in the file becomes a weld in
+  3 Looks > Welds – with the app's looks on it (ripples, heat tint beside it, paint, rust) and its size in the weld
+  list and the weld symbols – without picking any faces. The import's message says how many.
+- **Inventor**: all solid welds of a weldment come as one part ("Welds"): the app splits it into one weld per bead and
+  leaves the part itself out. **Creo**: each solid weld is a body of its own. **Other CAD**: a part named "Weld …"
+  (also Lasnaad, Schweißnaht, Soudure …) is taken by its name; a long thin bead in the corner between two parts with
+  another name is taken **by its shape** – said as "found by their shape – check them". Bars, keys, gaskets, screws
+  and strips that look a bit like a bead are left alone; at an import that search takes at most 10 s. **Cosmetic welds** (Inventor) and SolidWorks' weld beads are only drawn on the
+  screen: they are not in a STEP file.
+- **Measured from the bead**: the two parts it joins, fillet or groove (butt), the throat **a** and the legs (unequal
+  legs said: "legs 10 × 6 mm"), the cap width of a groove, the length, **all round**, and pieces on one line as one
+  **intermittent** weld (n × l (e)). Metal from the bead's CAD material ("Welded Steel Mild"), else from the parts;
+  painted when a part it joins is painted, as for every weld.
+- The bead keeps **its CAD shape** with the app's looks; **Use the app's bead instead** lays the app's bead on the same
+  seam. **From the CAD file** (a fold above the list) switches all of them at once: CAD shape / App's bead, Painted /
+  Bare, and **Back to the CAD part**. **Find in CAD file** looks again (an older project).
+- A **model update** keeps your changes on a weld whose bead came back in the same place, takes its new size and
+  length, lists a weld whose bead is gone ("Weld lost in the new model") and adds a new bead as a new weld.
+- New PC-check line **looks.weld_cad**; new test tour stop **Welds from the CAD file** in the Welds set.
 ## 0.2.250 – 25 Nov 2026 – Unlock right where you press G (task 0338)
 
 - **G or R on a locked part** no longer sends you to 2 Structure: a small box opens next to the mouse with the

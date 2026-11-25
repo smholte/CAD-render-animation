@@ -34,6 +34,7 @@ MILL_CABINET = os.path.join(DATA, "test_mill_cabinet.step")
 TOOLPATH = os.path.join(DATA, "test_toolpath.step")
 DECALS = os.path.join(DATA, "test_decals_a.step")
 WELDMENT = os.path.join(DATA, "test_weldment.step")
+WELDMENT_CAD = os.path.join(DATA, "test_weldment_cad_inventor.step")   # task 0323: solid weld beads in the file
 LUFFER = os.path.join(DATA, "test_cylinder_a.step")
 LINKAGES = os.path.join(DATA, "test_linkage_a.step")
 GANTRY = os.path.join(DATA, "test_gantry.step")
@@ -717,6 +718,40 @@ def looks_weld_symbols(ctx):
     _check(len(rows) == 2 * n + 1, f"the weld list has {len(rows) - 1} rows, not {2 * n}")
     ctx.metric("weld_copy_ms", round(ms), "ms")
     return f"copy with {n} welds in {ms:.0f} ms; {p['names'][0]}; symbol '{text}'; CSV {len(rows) - 1} rows"
+
+
+@line("looks.weld_cad", "Welds from the CAD file: the beads of an Inventor-like STEP become welds", "0.2.251",
+      what="An invented weldment exported as Inventor does (all solid welds one part 'Welds'): at the import it gives "
+           "6 welds – a5 200 mm, a4 4 × 30 (20), a4 all round the tube and round the box post, a4 with legs 10 × 6, "
+           "a V groove with a 15.5 mm cap – painted like the blue plate, the welds part left out. Judge the picture: "
+           "the CAD beads with ripples and paint, heat-tint strips beside them")
+def looks_weld_cad(ctx):
+    import time
+
+    from ..blender import build, weld_cad, welds
+    t0 = time.perf_counter()
+    scene = ctx.fresh(WELDMENT_CAD)
+    ms = (time.perf_counter() - t0) * 1000.0
+    rows = sorted((r[1], r[2], round(r[3]), r[4], (r[5] or (0,))[0]) for r in weld_cad.table(scene))
+    want = sorted([("FILLET", 5.0, 200, False, 0), ("FILLET", 4.0, 120, False, 4), ("FILLET", 4.0, 189, True, 0),
+                   ("FILLET", 4.0, 240, True, 0), ("FILLET", 4.0, 80, False, 0), ("BUTT", 15.5, 300, False, 0)])
+    _check(len(rows) == len(want), f"{len(rows)} welds from the CAD file, not {len(want)}: {rows}")
+    for got, exp in zip(rows, want):
+        _check(got[0] == exp[0] and abs(got[1] - exp[1]) <= 0.5 and abs(got[2] - exp[2]) <= 1 and got[3:] == exp[3:],
+               f"a weld from the CAD file reads {got}, not {exp}")
+    _check("6 welds from the CAD file" in scene.fresing.last_message, f"the import says '{scene.fresing.last_message}'")
+    src = [o for o in build.iter_parts(scene) if o.get(weld_cad.SOURCE)]
+    _check(len(src) == 1 and src[0].get(build.PROP_EXCLUDED), "the welds part is not left out after the import")
+    for it in welds.items(scene):
+        _check(len(welds.objects_of(it)) == 2 and it.finish == "PAINTED", f"weld '{it.name}' has no bead or is bare")
+    stiff = next(it for it in welds.items(scene) if "STIFFENER" in it.name)
+    _check(stiff.cad_note == "legs 10 × 6 mm", f"the unequal-leg weld says '{stiff.cad_note}'")
+    ctx.metric("weld_cad_import_ms", round(ms), "ms")
+    ctx.metric("weld_cad_find_ms", round(weld_cad.LAST.get("seconds", 0.0) * 1000), "ms")
+    _small_output(scene.fresing)
+    info = _cpu_still(ctx, scene, "weld_cad", "Welds from the CAD file (processor, draft)")
+    return f"6 welds from the CAD file, found in {weld_cad.LAST.get('seconds', 0.0) * 1000:.0f} ms (import {ms:.0f} ms); " \
+           f"render {info['seconds']} s"
 
 
 @line("looks.materials", "Materials: the material sheet", "0.2.39",

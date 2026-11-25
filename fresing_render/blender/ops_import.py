@@ -43,6 +43,8 @@ def finish_import(context, cache_dir: str, up_axis: str = "Z") -> bpy.types.Obje
         except (OSError, ValueError) as exc:
             print("Fresing Render: default template not loaded:", exc)
     logic.apply_rules(scene)
+    from . import weld_cad
+    weld_cad.after_import(scene, root)             # task 0323: solid weld beads in the file become welds
     logic.rebuild_tree(scene)
     logic.update_bounds(scene)
     scene.unit_settings.system = "METRIC"
@@ -359,6 +361,11 @@ class FRESING_OT_import_step(bpy.types.Operator, ImportHelper):
         if notice:
             s.last_message += f". {notice}"
             self.report({"WARNING"}, notice)
+        from . import weld_cad
+        found = weld_cad.take_notice()             # task 0323: "6 welds from the CAD file …"
+        if found:
+            s.last_message += f". {found}"
+            self.report({"INFO"}, found)
         return {"FINISHED"}
 
     def _cleanup(self, context):

@@ -60,6 +60,7 @@ GROUPS: dict[str, tuple[str, str, str]] = {
     "Covers & panels": ("paint_satin", "RAL 7035", "paint_satin"),
     "Sheet metal parts": ("powder_coat", "RAL 7035", "powder_coat"),
     "Welded frames & structures": ("paint_satin", "RAL 7035", "paint_satin"),
+    "Weld beads": ("steel_raw", "", ""),
     "Wear strips": ("pom_white", "", "plastic_matte"),
     # pneumatics and hydraulics
     "Pneumatic cylinders & grippers": ("aluminium_anodized", "", ""),
@@ -290,6 +291,11 @@ TYPES = [
       codes=[R + r"(?:HE[ABM]|IPE|IPN|INP|UNP|UPN|UPE|HD|UAP)\s?-?\d{2,4}" + E,       # HEA200, IPE 160
              R + r"(?:RHS|SHS|CHS)\s?\d{2,3}\s?[X*]\s?\d", R + r"L\s?\d{2,3}\s?[X*]\s?\d{2,3}\s?[X*]\s?\d{1,2}" + E,
              R + r"YSBP\d{3}-"]),                                                                 # Misumi welded stands
+    # task 0323: solid weld beads in a STEP (Inventor's welds body, Creo's weld bodies). Found as welds at the import,
+    # they become welds (3 Looks > Welds) and the part is left out; one that is not found keeps this group
+    T("weld_bead", "Weld beads", "component",
+      "WELDS|WELD BEAD|WELD BEADS|WELDBEAD|FILLET WELD|GROOVE WELD|BUTT WELD|WELD SEAM|LASNAAD|LASNADEN|*LASNAAD|"
+      "SCHWEISSNAHT|SCHWEISSNAEHTE|SCHWEISSNAHTE|*SCHWEISSNAHT|SOUDURE|SOUDURES|CORDON DE SOUDURE"),
     T("wear_strip", "Wear strips", "component",
       "WEAR STRIP|WEARSTRIP|SLIJTSTRIP|SLIJTLIJST|GLEITLEISTE|GLEITPROFIL|WEAR PLATE|SLIJTPLAAT|"
       "VERSCHLEISSPLATTE|CHAIN GUIDE|KETTINGGELEIDER|KETTENFUEHRUNG|KETTENFUHRUNG|SLIDE STRIP|GLIJSTRIP|"
