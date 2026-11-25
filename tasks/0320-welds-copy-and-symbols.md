@@ -92,7 +92,11 @@ Weld looks, Rust, the Welding workspace itself, 2D drawings, copying cables / dr
   single piece; all four done), plus `test_welds*.py`, `test_copy*.py`, `test_form_window.py`: 249 passed;
   functions / places / guide 41 passed; tour stop welds (Go + check) passed; PC check line OK (4.8 s; copy of the
   7-weld weldment 463 ms); real-app welds 20/20 (symbols drawn, Paste + Ctrl+Z).
-- GitHub: see below.
+- **GitHub: 4 full runs.** 1st: two caps crossed (a favourite label longer than 18 characters → short names; the Client
+  view's allow-list count +2). 2nd green, but 0310 released 0.2.238 meanwhile → merge main, renumber; 3rd green, but
+  0235 released 0.2.239 → merge main, renumber; 4th green (27.5 min) → fast-forward of `main`, released as 0.2.240.
+- Locally `tests/test_workspaces_independent.py::test_zz_switching_the_extension_off_leaves_blender_as_it_was` fails on
+  this web machine on plain `main` too (passes on GitHub): not this task's.
 
 **Owner's test steps** (after Update now to 0.2.240):
 1. Help > Make test tour project, open it, stop **Welds**, **Go**: beside each of the seven welds a dark label with
