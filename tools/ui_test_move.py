@@ -3,8 +3,12 @@
 On the test crane in the workspace All functions, the boom clicked in the view (its subassembly BOOM.ASM selected):
 
 * G, X, 1 0 0, Enter on the fresh import: the crane is locked in place – Blender's move does not start, nothing
-  moves, the status bar names the subassembly and "Unlock so it can move" (before task 0307 the numbers showed in the
+  moves, the status bar names the subassembly and "Unlock in the popup" (before task 0307 the numbers showed in the
   header and the part was back on Enter, without a word);
+* task 0338: G opens the Unlock popup by the mouse – Esc, a click outside and × close it with nothing changed; Unlock
+  starts Blender's move at once (X 1 0 0 Enter moves it); then Lock it again shows in the top left below the view's
+  text: a click within 5 s leaves it (and still deselects), a click after 5 s closes it; a second time Lock it again
+  locks the boom again; at UI scale 2 the popup is twice as big and inside the view;
 * a right-click on the boom: the menu shows "Unlock so it can move"; its entry unlocks BOOM.ASM;
 * G, X, 1 0 0, Enter: the boom moves 100 mm along X and stays (1 s later, after a frame change);
 * G, a mouse move, a left click: it moves and stays; R, Z, 3 0, Enter: it turns 30° and stays;
@@ -215,26 +219,240 @@ def s_locked_g():
 @step
 def s_locked_typed():
     S["modal"] = modal()
+    _typed()                                       # the popup holds the keys: nothing moves, no Blender move
+    return 0.3
+
+
+@step
+def s_locked_said():
+    pl, pp = mod("blender.place"), mod("blender.place_popups")
+    check("Locked in place: G does not start Blender's move (no numbers that come to nothing)",
+          "TRANSFORM_OT_translate" not in S["modal"] + modal(), str(S["modal"]))
+    check("Locked in place: G opens the Unlock popup by the mouse (task 0338)",
+          "FRESING_OT_unlock_popup" in S["modal"] and pp.UNLOCK["on"] and _near_mouse(), str(S["modal"]))
+    check("Locked in place: nothing moved", place() == S["before"], f"{place()} was {S['before']}")
+    check("Locked in place: the status bar names the subassembly and the popup's Unlock",
+          "'BOOM.ASM' is locked in place" in pl.LAST[0] and "Unlock in the popup" in pl.LAST[0]
+          and pl.STOPPED[0] == S["stopped"] + 1, pl.LAST[0])
+    tap("ESC")
+    return 0.4
+
+
+def _near_mouse():
+    pp = mod("blender.place_popups")
+    _ar, reg, c = pp.geometry("unlock")
+    if c is None:
+        return False
+    x, y, w, h = c["box"]
+    mx, my = S["xy"][0] - reg.x, S["xy"][1] - reg.y
+    return 0 <= x - mx <= 60 and y - 10 <= my <= y + h + 10 and x + w <= reg.width and y + h <= reg.height
+
+
+def _still_locked():
+    return all(asm().lock_location) and all(asm().lock_rotation) and place() == S["before"]
+
+
+@step
+def s_pop_esc():
+    pp = mod("blender.place_popups")
+    check("Esc closes the Unlock popup and nothing changes", not pp.UNLOCK["on"] and _still_locked()
+          and "FRESING_OT_unlock_popup" not in modal(), str(modal()))
+    tap("G")
+    return 0.4
+
+
+@step
+def s_pop_outside():
+    _win, _area, region = view()
+    S["outside"] = (region.x + 40, region.y + 40)
+    move(S["outside"])
+    tap("LEFTMOUSE", S["outside"])
+    return 0.4
+
+
+@step
+def s_pop_outside_closed():
+    pp = mod("blender.place_popups")
+    check("A click outside closes it; nothing changes (the boom stays selected and locked)",
+          not pp.UNLOCK["on"] and _still_locked() and asm().select_get(), str(modal()))
+    move(S["xy"])
+    tap("G")
+    return 0.4
+
+
+@step
+def s_pop_x():
+    xy = mod("blender.place_popups").point("unlock", "x")
+    move(xy)
+    tap("LEFTMOUSE", xy)
+    return 0.4
+
+
+@step
+def s_pop_x_closed():
+    check("× closes it; nothing changes", not mod("blender.place_popups").UNLOCK["on"] and _still_locked())
+    move(S["xy"])
+    tap("G")
+    return 0.4
+
+
+def _unlock_and_move():
+    xy = mod("blender.place_popups").point("unlock", "button")
+    S["unlock_at"] = xy
+    move(xy)
+    tap("LEFTMOUSE", xy)
+    S["xy"] = xy
+
+
+@step
+def s_pop_unlock():
+    _unlock_and_move()
+    return 0.4
+
+
+@step
+def s_pop_moving():
+    check("Unlock unlocks it and Blender's move starts at once", not any(asm().lock_location)
+          and "TRANSFORM_OT_translate" in modal(), str(modal()))
     _typed()
     return 0.3
 
 
 @step
-def s_locked_enter():
+def s_pop_enter():
     tap("RET")
+    return 1.0
+
+
+@step
+def s_again_shown():
+    pp = mod("blender.place_popups")
+    now, was = place(), S["before"]
+    check("… and X, 100, Enter moves it 100 mm", abs(now[0] - was[0] - 0.1) < 1e-4, f"{now} was {was}")
+    ar, reg, c = pp.geometry("again")
+    ok = c is not None and "FRESING_OT_lock_again" in modal()
+    if ok:
+        left, top = pp.top_clear(ar, reg)
+        x, y, w, h = c["box"]
+        ok = x >= left and y + h <= top and x < 40 * pp._scale() + left and y > reg.height / 2
+    check("After the move: Lock it again in the top left, below the view's own text", ok,
+          str(c["box"] if c else modal()))
+    S["again_t"] = time.time()
+    _win, _area, region = view()
+    S["empty"] = (region.x + region.width - 60, region.y + 60)
+    move(S["empty"])
+    tap("LEFTMOUSE", S["empty"])                  # within 5 s: it stays, the click still does its job
+    return 0.5
+
+
+@step
+def s_again_stays():
+    pp = mod("blender.place_popups")
+    check("A click within 5 s leaves it up, and still does its own job (the click on empty space deselects)",
+          pp.AGAIN["on"] and not asm().select_get(), f"{time.time() - S['again_t']:.1f} s")
+    return max(0.2, pp.STAY + 0.3 - (time.time() - S["again_t"]))
+
+
+@step
+def s_again_click():
+    tap("LEFTMOUSE", S["empty"])
+    return 0.4
+
+
+@step
+def s_again_closed():
+    pp = mod("blender.place_popups")
+    check("After 5 s a click anywhere closes it; it stays unlocked",
+          not pp.AGAIN["on"] and "FRESING_OT_lock_again" not in modal() and not any(asm().lock_location))
+    mod("blender.ops_place").set_lock(asm(), True)
+    asm().matrix_basis = S["basis"]
+    bpy.context.view_layer.update()
+    click()
+    return 0.6
+
+
+@step
+def s_lock_g():
+    _g_x_100()
+    return 0.4
+
+
+@step
+def s_lock_unlock():
+    _unlock_and_move()
+    return 0.4
+
+
+@step
+def s_lock_typed():
+    _typed()
+    return 0.3
+
+
+@step
+def s_lock_enter():
+    tap("RET")
+    return 1.0
+
+
+@step
+def s_lock_button():
+    xy = mod("blender.place_popups").point("again", "button")
+    check("A second time: Lock it again shows", xy is not None)
+    if xy:
+        move(xy)
+        tap("LEFTMOUSE", xy)
+    return 0.4
+
+
+@step
+def s_locked_again():
+    pp = mod("blender.place_popups")
+    check("Lock it again locks exactly what was unlocked, and closes",
+          all(asm().lock_location) and all(asm().lock_rotation) and not pp.AGAIN["on"]
+          and all(o.lock_location[0] for o in bpy.context.scene.objects
+                  if o.get("fr_kind") == "assembly" and o != asm()), str(tuple(asm().lock_location)))
+    asm().matrix_basis = S["basis"]
+    bpy.context.view_layer.update()
+    S["scale"] = bpy.context.preferences.view.ui_scale
+    bpy.context.preferences.view.ui_scale = 2.0     # a 2560 px screen's scale
     return 0.8
 
 
 @step
-def s_locked_said():
-    pl = mod("blender.place")
-    check("Locked in place: G does not start Blender's move (no numbers that come to nothing)",
-          "TRANSFORM_OT_translate" not in S["modal"], str(S["modal"]))
-    check("Locked in place: nothing moved", place() == S["before"], f"{place()} was {S['before']}")
-    check("Locked in place: the status bar names the subassembly and how to unlock it",
-          "'BOOM.ASM' is locked in place" in pl.LAST[0] and "Unlock so it can move" in pl.LAST[0]
-          and pl.STOPPED[0] == S["stopped"] + 1, pl.LAST[0])
-    return 0.2
+def s_big_g():
+    click()
+    return 0.6
+
+
+@step
+def s_big_g2():
+    _g_x_100()
+    return 0.5
+
+
+@step
+def s_big_check():
+    pp = mod("blender.place_popups")
+    _ar, reg, c = pp.geometry("unlock")
+    ok = c is not None and c["scale"] >= 1.9
+    if ok:
+        x, y, w, h = c["box"]
+        ok = 0 <= x and x + w <= reg.width and 0 <= y and y + h <= reg.height
+    check("At UI scale 2 the popup is twice as big and inside the view", ok, str(c["box"] if c else "none"))
+    S["xy"] = S["xy"]
+    xy = pp.point("unlock", "x")
+    if xy:
+        move(xy)
+        tap("LEFTMOUSE", xy)
+    return 0.4
+
+
+@step
+def s_big_done():
+    check("… and its × closes it", not mod("blender.place_popups").UNLOCK["on"] and _still_locked())
+    bpy.context.preferences.view.ui_scale = S["scale"]
+    return 0.8
 
 
 # --- 2. the right-click menu's Unlock so it can move --------------------------------------------------------------------
