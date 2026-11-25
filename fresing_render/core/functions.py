@@ -265,7 +265,7 @@ fn(id="panel.task_workspaces", title="Workspaces for one job: Sales, Quick rende
    pccheck=("workspace.essentials",), since="0.2.226")
 fn(id="panel.more_workspaces", title="Workspaces for one job, round 3: Welding, Machine builder, Video producer, Houses",
    family="panel", panel="FRESING_PT_workspace", button="fresing.workspace_pick", guide="more-workspaces",
-   tour=("workspace_welding",), pccheck=("workspace.round3",), since="0.2.238")
+   tour=("workspace_welding",), pccheck=("workspace.round3",), since="0.2.240")
 fn(id="panel.workspace_stars", title="Favourite workspaces: a star puts them on top of the list", family="panel",
    panel="FRESING_PT_workspace", button="fresing.workspace_star", guide="workspace-stars",
    pccheck=("workspace.essentials",), since="0.2.226")
@@ -424,7 +424,7 @@ fn(id="joints.couplings", short="Couplings", title="Couplings and motors", famil
    changed="0.2.224")
 fn(id="joints.move", title="Move a joint: its slider, CAD (0) / Min / Max – also where adding joints is hidden (Sales)",
    family="motion", panel="FRESING_PT_joints", button="fresing.joint_value", text="CAD (0)", guide="move-joints",
-   pccheck=("workspace.round3",), since="0.2.238")
+   pccheck=("workspace.round3",), since="0.2.240")
 fn(id="poses.pose", title="Poses", family="motion", panel="FRESING_PT_poses", button="fresing.pose_save",
    guide="poses", tour=("update",), pccheck=("states.poses",), since="0.2.12")
 fn(id="poses.explode", title="Exploded view", family="motion", panel="FRESING_PT_poses", button="fresing.explode",
@@ -705,6 +705,9 @@ fn(id="web.phone", short="Web 3D, phone", title="Web 3D page on a phone: one vie
 fn(id="web.film", short="Web 3D Film", title="Web 3D page: Film – the motion seen through the video's camera, with captions, labels and cards",
    family="web", panel="FRESING_PT_web3d", prop="film_captions", guide="web3d-film", tour=("web3d",),
    pccheck=("web3d.film",), since="0.2.194")
+fn(id="web.lead_motions", short="Web 3D Motions", title="Web 3D page: the lead motions as sliders (Motions)",
+   family="web", panel="FRESING_PT_web3d", prop="lead_sliders", guide="web3d-motions", tour=("web3d",),
+   pccheck=("web3d.lead_motions",), since="0.2.238")
 fn(id="web.tools", title="Web 3D page: part info, measure, slice (several, by a face or X/Y/Z), fade the rest",
    family="web", panel="FRESING_PT_web3d", prop="measure_faces", guide="web3d-tools", tour=("web3d",),
    pccheck=("web3d.export",), since="0.2.131", changed="0.2.175")

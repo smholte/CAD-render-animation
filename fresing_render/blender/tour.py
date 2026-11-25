@@ -518,7 +518,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.238")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.240")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -1007,20 +1007,22 @@ def _check_materials(scene):
     return f"{len(mats)} materials, Wear {worn[0].wear:.1f} on '{worn[0].name}'"
 
 
-@tour_set("faces", "Painted faces", "test_faces_a.step", added="0.2.47", changed="0.2.217")
+@tour_set("faces", "Painted faces", "test_faces_r.step", added="0.2.47", changed="0.2.239")
 def build_faces(b: Build):
     import bpy
 
-    from . import logic, ops_panels
+    from . import logic, ops_panels, welds
     sc, s = b.scene, b.s
-    _look("PRODUCT")
+    _studio(b)                                      # task 0235: a studio – the painted faces are the picture
     cover = _ob(sc, "COVER")
     logic.ensure_group(s, "Painted by hand (tour)")
     s.groups["Painted by hand (tour)"].material = "paint_gloss"
     s.groups["Painted by hand (tour)"].color = "RAL 3020"
     s.face_group = "Painted by hand (tour)"
     bpy.context.view_layer.objects.active = cover
-    ops_panels.paint_click(bpy.context, cover, 5)
+    top = welds.face_at(cover, (0.2, 0.15, 0.006), (0, 0, 1))      # the sheet's top face (its number is not fixed)
+    _check(top >= 0, "the cover's top face was not found")
+    ops_panels.paint_click(bpy.context, cover, top)
     _camera(b, "ISO", "Tour view")
     _shot(b, "@faces")
 
@@ -1033,20 +1035,38 @@ def _check_faces(scene):
     return "2 CAD faces, 1 by hand"
 
 
-@tour_set("decals", "Logos and stickers", "test_decals_a.step", added="0.2.47")
+@tour_set("decals", "Logos and stickers", "test_decals_r.step", added="0.2.47", changed="0.2.239")
 def build_decals(b: Build):
-    from . import decals
+    from . import decals, welds
     sc = b.scene
     _look("PRODUCT")
     panel, barrel = _ob(sc, "PANEL"), _ob(sc, "BARREL")
-    decals.add(panel, 5, (0.31, 0.15, 0.01), (0, 0, 1), "STICKER", sticker="WARN_GENERAL")
-    decals.add(panel, 5, (0.12, 0.15, 0.01), (0, 0, 1), "TEXT", text="TEST TOUR")
-    decals.add(barrel, 0, (0.06, 0.0, 0.1), (1, 0, 0), "STICKER", sticker="WARN_HOT")
-    _camera(b, "ISO", "Tour view")
+    # task 0235: real size – a 1.2 x 0.8 m door panel and a 200 l drum; faces are found by where they lie
+    top = welds.face_at(panel, (0.6, 0.4, 0.02), (0, 0, 1))
+    side = _round_face(barrel)
+    _check(top >= 0 and side >= 0, "the panel's top or the drum's round face was not found")
+    warn = decals.add(panel, top, (0.90, 0.40, 0.02), (0, 0, 1), "STICKER", sticker="WARN_GENERAL")
+    text = decals.add(panel, top, (0.30, 0.40, 0.02), (0, 0, 1), "TEXT", text="TEST TOUR")
+    hot = decals.add(barrel, side, (0.207, -0.207, 0.45), (0.7071, -0.7071, 0), "STICKER", sticker="WARN_HOT")
+    for it, w in ((warn, 0.28), (text, 0.40), (hot, 0.22)):     # sized for a panel and a drum seen across a hall
+        it.width = w
+        it.height = max(w * it.aspect, 0.01)
+    _surround(b, "FACTORY")                         # task 0235: the machine hall, so the drums and the panel stand
+    _camera(b, "ISO", "Tour view")                  # in a workshop
     _shot(b, "@decals")
 
 
-@tour_set("welds", "Welds", "test_weldment.step", added="0.2.231", changed="0.2.238")
+def _round_face(ob) -> int:
+    """The CAD face of a part that a decal wraps round (the biggest one that does), -1 if none."""
+    from . import decals, faces
+    n = len(faces.face_starts(decals.cad_mesh(ob))) - 1
+    for f in range(max(n, 0)):
+        if decals.wraps_round(ob, f):
+            return f
+    return -1
+
+
+@tour_set("welds", "Welds", "test_weldment.step", added="0.2.231", changed="0.2.240")
 def build_welds(b: Build):
     from . import welds
     sc = b.scene
@@ -4875,8 +4895,8 @@ stop("faces", LOOK, "faces", "Painted faces",
      "The housing's two faces painted in CAD keep their own colours; one face of the cover is painted red by hand, "
      "the rest of the cover keeps its colour.", where="3 Looks > Paint faces", check=_check_faces, since="0.2.47")
 stop("decals", LOOK, "decals", "Logos and stickers",
-     "A yellow warning sticker and the text TEST TOUR lie flat on the panel; a 'hot surface' sticker is wrapped "
-     "round the barrel.", where="3 Looks > Logos & stickers", check=_check_decals, since="0.2.47")
+     "A yellow warning sticker and the text TEST TOUR lie flat on a 1.2 m door panel; a 'hot surface' sticker is "
+     "wrapped round each 200 l drum, in a machine hall.", where="3 Looks > Logos & stickers", check=_check_decals, since="0.2.47")
 stop("welds", LOOK, "welds", "Welds",
      "A small invented weldment: a blue painted fillet along the fin's foot (the paint over the ripples), a grey MAG "
      "weld with spatter under the gusset, a rusty one up its side, a stainless all-round weld with straw, purple and "
@@ -4889,7 +4909,7 @@ stop("workspace_welding", LOOK, "welds", "The workspace Welding",
      "camera, picture). 4 Motion, 6 Animation, the render queue and the CNC machine are gone; the welds are all still "
      "there. Open the Workspace list: Welding, Machine builder, Video producer and Houses are new, each with its own "
      "icon and a star. Pick All functions to have everything back.",
-     where="The Workspace row on the left panel", since="0.2.238", shot="Welds", setup=_welding_open,
+     where="The Workspace row on the left panel", since="0.2.240", shot="Welds", setup=_welding_open,
      check=_check_workspace_welding, auto=lambda ctx, scene, st: "")
 stop("cutaway", LOOK, "cutaway", "Slice: the pedestal opens up",
      "A slice slides in from the front and takes away the front half of the crane's pedestal and boom: the cut faces "
@@ -5580,6 +5600,11 @@ def _check_web3d(scene):
         st = env.page_settings(fh.read())
     _check(st.get("plain") and isinstance(st.get("views"), list), "the page has no player settings or no views")
     _check(film and len(st.get("films") or []) == 1, "the page has no Film (the camera animation is built)")
+    lead = st.get("lead") or {}                         # task 0310: the crane's lead motions as sliders
+    want = [lm.name for lm in scene.fresing.lead_motions]
+    _check([m["name"] for m in lead.get("motions", [])] == want,
+           f"the page's Motions are {[m['name'] for m in lead.get('motions', [])]}, not {want}")
+    _check(len(lead.get("joints", [])) == 2, "the page has no clip for the boom and the trolley")
     from ..core import web3d_faces as wf                # task 0135: the faces for measuring (the boom pin Ø100)
     faces = wf.read(data)
     _check(faces and out.get("face_bytes", 0) > 0, "the file has no faces for measuring")
@@ -5589,6 +5614,7 @@ def _check_web3d(scene):
            open(out["html"], encoding="utf-8").read(), "the page has no part tools")
     return (f"{out['text']}; the page: {os.path.basename(out['html'])} (Open page in the panel); "
             f"{len(st['views'])} saved views; Film {out.get('film_keys', 0)} of {out.get('film_frames', 0)} frames; "
+            f"Motions: {len(lead['motions'])} sliders; "
             f"faces for measuring in {len(faces)} meshes, "
             f"{sum(len(e) for e in edges.values())} edges")
 
@@ -5679,9 +5705,12 @@ stop("web3d", OUT, HUB_SET, "Web 3D model",
      "rest (click a part: the rest goes see-through). The animation 'Camera rides and flies' is built, so the page "
      "plays it with a Film button (a film camera) at the end of the play bar: pressed, the page shows the motion through "
      "the video's camera – it rides on the boom, then flies round the crane watching the trolley; drag to leave the "
-     "Film (the motion plays on, the button gets an orange ring), press it again to glide back.",
+     "Film (the motion plays on, the button gets an orange ring), press it again to glide back. Bottom left, above the "
+     "views: Motions (3) opens a slider per lead motion – 'Boom up and out', 'Boom up', 'Trolley out' – with ▶ and Back "
+     "to start: drag 'Boom up and out' and the boom goes up, then the trolley runs out; then drag 'Boom up' – the boom "
+     "follows and the trolley stays out. A slider pauses the animation; Play gives it back.",
      where="5 Scene & Render > Web 3D model", since="0.2.77", shot="Tour view", animation=CAMERA_ANIM,
-     check=_check_web3d, changed="0.2.203")
+     check=_check_web3d, changed="0.2.238")
 
 stop("web3d_env", OUT, "vessel", "Web 3D model with surroundings",
      "This stop saves the crane on the vessel deck as a web 3D model with its surroundings next to the tour. Press "
@@ -5861,7 +5890,7 @@ stop("workspace", OUT, HUB_SET, "Functions in this project",
      "away). "
      f"Sections 1 to {len(places.SECTIONS)} start folded: click a title to open it, Ctrl+click keeps only that one open, the tabs "
      "All · 1 … 8 under Make show one section at a time.",
-     where="The Workspace row on the left panel", since="0.2.152", changed="0.2.238", shot="Tour view",
+     where="The Workspace row on the left panel", since="0.2.152", changed="0.2.240", shot="Tour view",
      check=_check_workspace, setup=_workspace_open, auto=lambda ctx, scene, st: "")
 stop("make", OUT, HUB_SET, "Make: each output in a window",
      "At the top of the Fresing panel is Make: one row of six large icons – Picture, Product video, Turntable, 3D page, "

@@ -203,7 +203,7 @@ over a name in the list to read what it is for. Need one more function? Tick its
 project**, or pick another workspace.
 
 <a id="more-workspaces"></a>
-**Welding, Machine builder, Video producer and Houses** (new in 0.2.238) are four more workspaces for one job, each
+**Welding, Machine builder, Video producer and Houses** (new in 0.2.240) are four more workspaces for one job, each
 with its own icon in the list:
 
 | Workspace | Shows | Does not show |
@@ -4503,6 +4503,8 @@ title and these controls:
   (also on a phone), speed **½×, 1×, 2×**, the arrow keys jump two seconds.
 - **Film** (a page whose animation has a built Animation camera): the motion seen through the video's camera – see
   [Film](#web3d-film).
+- **Motions** (a project with [lead motions](#lead-motions)): one slider per function of the machine – see
+  [Motions](#web3d-motions).
 - **Saved views**: one per camera of the project, named as **View names** says (keys **1 … 9**); the view flies
   there. On a PC, a tablet and a phone held sideways they are **one row of buttons** that never wraps: when they do
   not fit, the row scrolls sideways (its edges fade) and **All views** at its end opens the list of all of them. On a
@@ -4548,6 +4550,38 @@ Three tick boxes under **Include animation** (only when the project has an Anima
 
 Not on the page: the depth of field (blur) and motion blur, the music, the watermark, picture cards, and the brand
 kit's own font (the page uses its own). The turntable's and the product video's cameras are not Films (yet).
+
+<a id="web3d-motions"></a>
+#### Motions: the lead motions as sliders
+
+<img src="img/web3d_motions.png" alt="The crane's page with the Motions panel open: Boom up and out, Boom up, Trolley out" width="540">
+
+A project with [lead motions](#lead-motions) (top bar > Lead motions) gets them on the page: **Lead motions as
+sliders** in the panel is on by default and lists them. The page then has a **Motions** button above the saved views
+(with how many there are); it opens a panel – on a PC beside the stack at the bottom, so the model stays free to turn;
+on a phone a sheet from the bottom – with one row per lead motion:
+
+- its **name** (its description underneath, when it has one), the **slider** between its two end labels (a lead
+  motion of one joint shows the joint's own values, "0°" … "35°" or "0 mm" … "1500 mm", else "0 %" … "100 %"), and
+  **▶**: plays it to 100 % over its seconds; at 100 % ▶ plays it back to 0 %; ▶ while it plays stops it.
+- **Back to start** puts every slider at 0 %.
+- The sliders start where the machine stands in the file (the frame shown when it was exported).
+
+**As in the app:** the slider gives each joint the value the app's slider gives it (windows, stages, easing). Several
+sliders mix as in the app: a part on a part follows both (the trolley rides on the boom), and a joint that two lead
+motions move takes the value of the one moved last – the other one says **moved by …**. ("Boom up and out" at 100 %,
+then "Boom up" to 50 %: the boom goes down to 17.5°, the trolley stays out.)
+
+**With the animation:** moving a slider **pauses** the animation; the parts it moved stand as in the file and the
+sliders move them. **Play** (Space), the time line or the Film give the parts back to the animation and the sliders
+go back to where they started. **Copy link** (L) keeps the sliders' positions (`lead=`).
+
+What the file holds: each joint the lead motions use once – the parts it moves, from its lowest to its highest value
+(within 0.1 mm), named Joint 1, Joint 2 … when **Hide part names** is on. Not on the sliders: **hoses, cables, wire
+ropes, the rope on a drum and track links** stay where the page starts (they follow the animation only). Measured (web
+machine, 4 cores): the test crane (3 lead motions, 2 joints) – the page +7 KB (0.5 %); a big invented machine of
+3,000 parts with 3 lead motions moving 816 of them – the page +0.33 MB (2.4 %), the export 26 s instead of 14 s. Both
+pages open as fast as without the sliders. **Lead motions as sliders** off: nothing of them is in the file.
 
 <a id="web3d-phone"></a>
 <img src="img/web3d_phone.jpg" alt="The page on a phone held upright: the saved views as one control, and the list of all views" width="540">

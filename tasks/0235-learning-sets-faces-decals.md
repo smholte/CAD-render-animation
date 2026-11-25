@@ -1,6 +1,6 @@
 # 0235 – Learning sets "Painted faces" and "Logos and stickers": real-looking test models
 
-**Who:** worker · **Status:** open · **Branch:** `task/0235-learning-sets-faces-decals`
+**Who:** worker · **Status:** done (0.2.239) · **Branch:** `task/0235-learning-sets-faces-decals`
 **Started by:** lead, 20 Nov 2026 (study 0224 package C; owner's answers 20 Nov: the tour is the learning environment,
 each set its own fitting environment) · **Model:** Sonnet · effort Medium
 **Area:** `tools/make_test_faces.py`, `tools/make_test_decals.py` (+ `tests/data/test_faces_a.step`,
@@ -49,10 +49,28 @@ Other sets and models; app code.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, Sonnet, 24 Nov 2026
 
-**What changed:**
+**What changed:** both makers got a revision **"r"** (`python tools/make_test_faces.py out.step r`, same for decals;
+shared helpers in `tools/_real_shapes.py`). Revisions a / b stay byte for byte: ~40 tests, the PC check and the real-app
+scripts read their sizes and face numbers, so the learning sets use new files `test_faces_r.step` /
+`test_decals_r.step` (in `tests/data/` and `fresing_render/data/`). Part names kept.
+- Faces r: housing 300 x 200 x 100 with rounded corners, base flange and oil-filler boss (red top, blue front, picked
+  by plane, not by number); brackets with two holes (orange end); cover 400 x 300 x 6 with rounded corners and 8
+  holes; chamfered block; green box as before.
+- Decals r (real size): door panel 1200 x 800 x 20 with 10 holes; two 200 l drums Ø585 x 880 (ISO 15750-3) with rounded
+  ends and a bung; junction box 250 x 180 x 120.
+- Sets (`tour.py`, only `faces` and `decals`): Painted faces in the studio (`_studio`); the cover's top face is found
+  with `welds.face_at`. Logos and stickers in a FACTORY hall; faces found by where they lie (`_round_face` for the drum);
+  stickers sized 0.22–0.40 m; the hot sticker faces the camera. Stop text of `decals` changed; checks unchanged.
+  `changed="0.2.238"`, record re-run. New `tests/test_real_faces_decals.py` (4 tests); `test_pccheck` copy list has both.
+- Version 0.2.238, CHANGELOG written.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (name the machine and the model): web machine, 4 cores. Both sets build (3.0 s / 3.9 s), Go +
+check of both stops pass ("2 CAD faces, 1 by hand", "4 decals" = 3 decals, one on both drum copies), 0 clashes
+(`test_tour_clash.py -k "faces or decals"`), precheck green, new maker tests 4/4. Pictures (24-sample Cycles, 400 px)
+in `tasks/img/0235/` (`*-before.jpg`, `*-after.jpg`).
 
-**Open points / follow-up tasks:**
+**Open points / follow-up tasks:** the line-up picture beside a 1.75 m person was not made. The decals stop and the PC
+check line `looks.decals` / the real-app `ui_test_decals.py` still use the small a model (their numbers depend on it);
+moving them is a follow-up. GitHub runs: 3 – the first failed on `tests/test_start.py` (it expected the decals set never to change; fixed), the second hit a version clash with task 0310 (renumbered 0.2.238 → 0.2.239), the third green and fast-forwarded to `main` (9feb8ad6).
