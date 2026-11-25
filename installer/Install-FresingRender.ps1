@@ -497,13 +497,13 @@ try {
         foreach ($k in "NoModify", "NoRepair") { New-ItemProperty -LiteralPath $AppsKey -Name $k -Value 1 -PropertyType DWord -Force | Out-Null }
         New-ItemProperty -LiteralPath $AppsKey -Name "EstimatedSize" -Value $sizeKb -PropertyType DWord -Force | Out-Null
         Write-Host "   Installed apps: Fresing Render $ver ($sizeKb KB)"
-        # task 0329: the same command as a shortcut where the app is - the install folder and the folder of
+        # task 0329: the same command (+ -Ask, task 0339) as a shortcut where the app is - the install folder and the folder of
         # "Fresing Render.exe" (the app also makes them at its start: appicon.ensure_uninstall_shortcuts)
         $PsExe = Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\powershell.exe"
         foreach ($dir in @($InstallDir, $BlenderDir)) {
             $lnk = $Shell.CreateShortcut((Join-Path $dir "Uninstall Fresing Render.lnk"))
             $lnk.TargetPath = $PsExe
-            $lnk.Arguments = "$uninstallArgs -Pause"
+            $lnk.Arguments = "$uninstallArgs -Pause -Ask"   # task 0339: asks Y/N first (Settings does not)
             $lnk.WorkingDirectory = Split-Path -Parent $PsExe
             $lnk.IconLocation = $IconLoc
             $lnk.Description = "Removes Fresing Render from this PC. Your projects, renders and backups are kept"

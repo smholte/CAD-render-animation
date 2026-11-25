@@ -1039,7 +1039,9 @@ is left alone. (Install.bat does the same.)
 **Remove Fresing Render:** Windows **Settings > Apps > Installed apps > Fresing Render > ⋯ > Uninstall**. A window shows
 what is removed and says that your projects, renders and backups stay; close Fresing Render first. The entry shows the
 installed version and size, and **Update now** keeps it right. (An older install gets the entry at its next start.)
-Two more ways, both the same:
+Two more ways, both the same – these two first ask **"Remove Fresing Render from this PC? Your projects, renders and
+backups are kept. (Y/N)"**: press **Y** to remove it; **N**, Esc or closing the window removes nothing (a double-click
+by mistake next to Fresing Render.exe is harmless):
 
 - double-click **Uninstall Fresing Render** in the install folder (`%LOCALAPPDATA%\FresingRender`) or next to
   **Fresing Render.exe** in its Blender folder – there when the installer folder is long deleted (an older install

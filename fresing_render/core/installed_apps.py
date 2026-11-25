@@ -25,6 +25,8 @@ VERSION_VALUES = ("DisplayVersion", "EstimatedSize")
 # task 0329: a shortcut that runs the same command, in the install folder and next to "Fresing Render.exe"
 UNINSTALL_LNK = "Uninstall Fresing Render.lnk"
 UNINSTALL_TEXT = "Removes Fresing Render from this PC. Your projects, renders and backups are kept"
+# task 0339: the shortcut asks Y/N first (Settings asks itself; the quiet command never waits for an answer)
+ASK = " -Ask"
 
 
 def uninstaller_path(folder: str) -> str:
@@ -60,11 +62,24 @@ def uninstall_shortcuts(folder: str, blender_dir: str = "") -> list[str]:
 
 
 def shortcut_spec(folder: str, env: dict | None = None) -> dict:
-    """What the uninstall shortcut holds: the Installed-apps entry's ``UninstallString`` as program + arguments. Its
-    working folder is PowerShell's own (never inside the folder it removes)."""
+    """What the uninstall shortcut holds: the Installed-apps entry's ``UninstallString`` as program + arguments, plus
+    ``-Ask`` (task 0339: a mis-click next to "Fresing Render.exe" asks Y/N first). Its working folder is PowerShell's
+    own (never inside the folder it removes)."""
     exe = powershell_exe(env)
-    return {"target": exe, "arguments": uninstall_arguments(folder), "workdir": os.path.dirname(exe),
+    ask = ASK if asks(folder) else ""
+    return {"target": exe, "arguments": uninstall_arguments(folder) + ask, "workdir": os.path.dirname(exe),
             "description": UNINSTALL_TEXT}
+
+
+def asks(folder: str) -> bool:
+    """Whether the install's uninstaller knows ``-Ask`` (task 0339). An older copy left in Tools (its refresh failed:
+    locked, read-only) would stop with "A parameter cannot be found" - then the shortcut runs it without the question
+    until the copy is new. No readable copy: True (the copy made next is the shipped one)."""
+    try:
+        with open(uninstaller_path(folder), encoding="utf-8", errors="replace") as f:
+            return "[switch]$Ask" in f.read()
+    except OSError:
+        return True
 
 
 def shortcut_needs(info: dict | None, spec: dict, icon: str = "") -> bool:

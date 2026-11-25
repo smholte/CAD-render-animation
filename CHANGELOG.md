@@ -5,11 +5,20 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.252 – 25 Nov 2026 – The whole title row opens a panel (task 0335)
+## 0.2.253 – 25 Nov 2026 – The whole title row opens a panel (task 0335)
 
 - **Click anywhere on a section's or sub-panel's title row** – its icon, its words or the empty part on the right,
   also the small state text such as "3 removed" – and it opens or folds, as on Blender's own panels. Before, only the
   arrow and the words did.
+## 0.2.252 – 25 Nov 2026 – Uninstall shortcut asks first; landing page publishes again (task 0339)
+
+- **"Uninstall Fresing Render" asks first.** The shortcut in the install folder and next to Fresing Render.exe, and
+  Uninstall.bat, now ask "Remove Fresing Render from this PC? Your projects, renders and backups are kept. (Y/N)".
+  Press **Y** to remove it; **N**, Esc or closing the window changes nothing – a mis-click is harmless. Uninstall in
+  Windows Settings > Apps > Installed apps asks its own question and goes on as before. Your shortcuts get the
+  question at the app's next start.
+- **The landing page shows every release again.** Its publish step failed on and off since 25 Nov (GitHub listed the
+  page's files a moment too late); it now waits for them and tries once more.
 
 ## 0.2.251 – 25 Nov 2026 – Welds from the CAD file (task 0323)
 

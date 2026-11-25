@@ -6,6 +6,12 @@ name: Landing page
 #   - a push to main that changes the page itself (site/, tools/build_site.py): built from the newest release
 #   - by hand: Actions > Landing page > Run workflow
 # Needs Settings > Pages > Source: GitHub Actions (once).
+#
+# Task 0339: since 25 Nov 2026 deploy-pages often did not see the artifact uploaded a second before ("No artifacts named
+# github-pages" - GitHub's list of a run's artifacts lags), and a re-run then saw two ("Multiple artifacts ... count is
+# 2": the first attempt's stays in the run). Now: one artifact name per attempt, a wait until the run lists it, and
+# the deploy tried again after a pause when it still did not see it. One deploy at a time (job concurrency "pages":
+# the release run's call and a push run of this workflow queue, never cancel each other).
 
 on:
   push:
@@ -16,21 +22,25 @@ on:
 
 permissions:
   contents: read
+  actions: read        # task 0339: the wait step lists the run's artifacts
   pages: write
   id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: false
 
 jobs:
   deploy:
     name: Build and publish the landing page
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
+    # at job level: also holds when tests.yml calls this workflow (a called workflow's own top-level group does not
+    # queue it against a push run of this workflow)
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    env:
+      PAGES_ARTIFACT: github-pages-${{ github.run_attempt }}
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deploy1.outputs.page_url || steps.deploy2.outputs.page_url }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -49,15 +59,43 @@ jobs:
           python -m pip install "$(grep -E '^markdown==' tools/requirements-dev.txt)" "$(grep -E '^numpy==' tools/requirements-dev.txt)"
           python tools/build_site.py --out dist/site | tee -a "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/upload-pages-artifact@v4
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: dist/site
+          name: ${{ env.PAGES_ARTIFACT }}
+
+      - name: Wait until the run lists the artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          for i in $(seq 1 30); do
+            n=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts?name=$PAGES_ARTIFACT" --jq '.total_count' || echo 0)
+            [ "$n" = "1" ] && { echo "listed after $(( (i - 1) * 3 )) s"; exit 0; }
+            sleep 3
+          done
+          echo "::warning::$PAGES_ARTIFACT not listed after 90 s (count '$n'); trying the deploy anyway"
 
       - name: Publish
-        id: deployment
-        uses: actions/deploy-pages@v4
+        id: deploy1
+        continue-on-error: true
+        uses: actions/deploy-pages@v5
+        with:
+          artifact_name: ${{ env.PAGES_ARTIFACT }}
+
+      - name: Pause before the second try
+        if: ${{ steps.deploy1.outcome == 'failure' }}
+        run: sleep 45
+
+      - name: Publish (second try)
+        id: deploy2
+        if: ${{ steps.deploy1.outcome == 'failure' }}
+        uses: actions/deploy-pages@v5
+        with:
+          artifact_name: ${{ env.PAGES_ARTIFACT }}
 
       - name: Address
         env:
-          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
-        run: echo "### Landing page - $PAGE_URL" >> "$GITHUB_STEP_SUMMARY"
+          PAGE_URL: ${{ steps.deploy1.outputs.page_url || steps.deploy2.outputs.page_url }}
+          TRIES: ${{ steps.deploy1.outcome == 'success' && '1' || '2' }}
+        run: echo "### Landing page - $PAGE_URL (published on try $TRIES)" >> "$GITHUB_STEP_SUMMARY"
