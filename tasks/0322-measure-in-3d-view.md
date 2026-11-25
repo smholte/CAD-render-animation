@@ -107,7 +107,9 @@ The 3D page's tool, 2D drawings, weld symbols (0320), the Keys tab (0295).
   (also after a re-run of the job): `test_stress.py`'s memory-watch test – its 200 MB peak was a Python bytes object,
   which reused memory the process already held after the tests my new file moved before it in that job; the test now
   maps 200 MB of fresh pages (task 0315's file, a test-only fix). Meanwhile 0320 took 0.2.240 and 0273 0.2.241: merged,
-  renumbered to 0.2.242, run 5.
+  renumbered to 0.2.242. Run 5 (45527809997) red: 0310's new browser test (skipped on GitHub by design) was not in
+  `tools/ci_groups.py` `SKIPS_ON_GITHUB` and the shifted split put it in one job with 0298's xfail (2 skips, 1
+  allowed): added to the list. Run 6 on that.
 
 **Open points / follow-up tasks:**
 
