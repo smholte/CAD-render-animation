@@ -5,12 +5,19 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.248 – 25 Nov 2026 – Removing a crane or a load's model (task 0337)
+## 0.2.249 – 25 Nov 2026 – Removing a crane or a load's model (task 0337)
 
 - **Remove… on a placed crane takes all of it.** The hoist rope, drum, sheaves, joints, poses and its entry in
   8 Lifting plan went on showing; now they go with the crane, and the Remove window says it is a lifting crane.
 - **A load with no parts left says so.** Remove the load's model and the load showed a stale centre of gravity and a
   green "within limits". Now a red line says "has no parts left" and the load is not used.
+## 0.2.248 – 25 Nov 2026 – One undo step per action, messages beside their own button (task 0334)
+- Ctrl+Z now undoes one thing at a time after picking a RAL colour, loading a template (also from the library) and
+  picking a 360° photo – before, one Ctrl+Z took the colour pick back together with the step before it.
+- "Saved …png" and "Rendering on CPU…" now show under the **Render image** button, and "20 parts in 9 groups" under
+  **Sort parts into groups** – no longer under 1 Import.
+- After a render the image window shows the whole picture, fitted.
+- A small model says "4,200 triangles" instead of "0.0 M triangles".
 
 ## 0.2.247 – 25 Nov 2026 – Build keeps your own keys and steps (task 0330)
 
