@@ -1,6 +1,6 @@
 # 0295 – Keys: a Keys tab in Fresing Settings – every key of the app, change Fresing's own, a printable key sheet
 
-**Who:** worker · **Status:** waits for 0322 (both change `lock.py`'s keys; 0292, 0282, 0291 done) · **Branch:** `task/0295-keys`
+**Who:** worker · **Status:** running (25 Nov; 0322 done, 0.2.244) · **Branch:** `claude/elegant-ritchie-mkcgli`
 **Started by:** lead, 23 Nov 2026 (owner's list, 23 Nov 19:39: "Is there a keybinds menu? Where you can edit and see what
 they are, and a Fresing render specific one?" – today: no; Blender's own Preferences > Keymap only, in Full access)
 · **Model:** Opus · effort Medium
