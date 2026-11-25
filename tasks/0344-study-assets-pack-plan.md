@@ -176,6 +176,10 @@ beside `Tools\`, `licenses\` and `blender-5.2.3-windows-x64\`:
   set-up's folder (1.4), `<I>\Fresing Assets` found from Blender's own path (`appicon.install_dir`, needs
   `installed.txt`). The last two work in **background Blenders** too (queue, tour / demo builds, PC check), which never
   read the settings file (`settings_store.usable`, checked);
+- how it gets there (★ page choice 3): the installer downloads the pinned `FresingAssets-<v>.zip` during the install,
+  like Blender (sha256 checked; a PC without internet: the zip next to `Install.bat`, as for Blender; `-NoAssets` skips
+  it), unpacks it into a staging folder and moves it in place (the installer's own `_unpack` pattern); a repair keeps a
+  pack of the same version. PCs updated with Update now never run the installer – they get the pack through 1.3;
 - uninstall: inside `<I>`, so the existing `Remove-Item <I> -Recurse` takes it; Documents stay; projects keep their
   copies. Settings > Apps shows the bigger size (EstimatedSize walks `<I>`).
 
@@ -300,15 +304,16 @@ file alone in another folder, the pack hidden. Picture: `tasks/0344_page/img/pro
 | Way | bring 5 items | project | client without the pack | "update looks" 1.0 → 1.1 | updated, on a client |
 | --- | --- | --- | --- | --- | --- |
 | ★ **append + pictures packed** | 41 ms | 12.7 MB | **complete**, same picture as with the pack | 57 ms; look changed (roughness 0.36 → 0.42), the group's colour kept | **complete** |
-| append, pictures stay in the pack | 41 ms | 0.1 MB | 5 pictures missing – pink | (packs them) | complete |
+| append, pictures stay in the pack | 41 ms | 0.1 MB | 5 pictures missing – pink | 50 ms (the update packs them) | complete |
 | link | 46 ms | 0.09 MB | 5 libraries missing – **black** | 28 ms (relocate + reload) | not tried (already black) |
 | link + Blender 5 "pack linked data" | 34 ms | 0.1 MB | datablocks there, **8 pictures missing** – pink | 30 ms | – |
 | … with the pictures packed inside the pack's files | 93 ms | 25.2 MB (shared pictures twice) | complete | **fails** to pack again: "Cannot pack absolute file" | **black** (5 libraries missing) |
 
 Also: opening the appended project 54 ms (12.7 MB) vs 11 ms; saving 37 ms vs 7–19 ms. `reuse_local_id=True` stops a
 second append of the **same file** making ".001" copies, but not two copies of one material from two pack files (the
-environment brings its floor material, the pallet its picture) – the app keeps one per id + version and one picture per
-file (the proof's `_dedupe_materials`; its pictures still came twice: a point for P2). `fr_asset` (id, pack, version,
+environment brings its own floor material) – the app keeps one per id + version (the proof's `_dedupe_materials`).
+Blender also makes a new picture datablock with every appended material that uses it; the dropped copies have no users
+and are not saved, but P2 should map each picture file to one datablock at once (no packing work twice). `fr_asset` (id, pack, version,
 contract) survived append, save, open and update every time – that is what "update looks" finds.
 
 **Decision ★ append + pack the pictures.** It is the only way that is complete everywhere: a client's PC, plain
@@ -406,7 +411,9 @@ colour + roughness + normal pictures; made-up pictures, so file sizes are upper 
 | 2k | 66 MB, 1.9 s | 43 MB, 2.3 s | 66 MB, 1.7 s | 22.6 MB | 12.6 MB packed |
 | 4k | 210 MB, 2.3 s | 43 MB, 2.4 s | 210 MB, 2.3 s – `generate_texture_cache` makes **no** `.tx` for packed pictures | 89.3 MB | 49.9 MB packed |
 
-A `.tx` file is 1.8–7.6 x its source (a 2k JPEG 0.49 MB → 3.7 MB). Cycles' memory for pictures grows with the
+With `.tx` files Cycles loads only the detail the picture needs, so the 43 MB holds for this 960 x 540 close-up; a
+larger render loads finer levels (up to the "as files" number). A `.tx` file is 1.8–7.6 x its source (a 2k JPEG
+0.49 MB → 3.7 MB). Cycles' memory for pictures grows with the
 **distinct** pictures, not with the parts (the stress model's 11,228 parts share their group materials).
 
 **Budget (proposal, each set measured against it on its pick page):**
@@ -417,11 +424,12 @@ A `.tx` file is 1.8–7.6 x its source (a 2k JPEG 0.49 MB → 3.7 MB). Cycles' m
   files + `.tx` (made once into the user's texture-cache folder) instead of the packed 2k – 4k detail at the memory of
   2k; without the pack Final uses the packed 2k. Only if 2k looks soft on the owner's Final renders.
 - **The pack in the installer:** pack 1.0 ≤ **300 MB** (2k pictures; 4k only for the HDRIs) – the install then
-  downloads ~700 MB with Blender instead of ~480 MB; a per-set budget in `pack.json`, checked by the pack's CI.
+  downloads ~780 MB with Blender (~400 MB) instead of ~480 MB; a per-set budget in `pack.json`, checked by the pack's CI.
 - **Memory:** 10 textured looks at 2k ≈ +0.7 GB in Cycles (estimate from the table, linear in distinct sets). On the
-  stress model the CPU render line peaked at 6.8 GB (0315); graphics memory to measure with `stress.assets` on the
-  owner's RTX 3090 (24 GB) and the tester's RX 6700 XT (12 GB). EEVEE / Material Preview have no texture cache: all
-  pictures at full size.
+  stress model the CPU render line peaked at 6.8 GB (0315); the demo ("Vessel in a wind park") uses the same group
+  materials, sea and surroundings, so it adds the same per distinct look. Graphics memory and render time with real
+  pictures: measured by `stress.assets` and `heavy.assets` on the owner's RTX 3090 (24 GB) and the tester's RX 6700 XT
+  (12 GB) before a set with pictures ships. EEVEE / Material Preview have no texture cache: all pictures at full size.
 - **Time:** bringing the 5 small items took 34–46 ms (≈ 8 ms each + reading pictures); a 40-group import with a world
   and an environment ≈ +0.5 s (estimate). Opening: +~40 ms per 12 MB of packed pictures here.
 - **Render time:** every pack look is timed against its code twin (0314's look-cost way: Cycles CPU, the swatch);
@@ -525,6 +533,8 @@ the background; Cycles on the processor):
   on by default, `use_auto_generate_texture_cache` off, `render.generate_texture_cache`, `.tx` in `blender_tx\` beside the
   picture, `blender --command maketx`); Cycles' viewport / render texture limits.
 - `registry_proto.py --selftest`: 19 / 19.
+- No independent review of this study (findings only, nothing goes to `main`); the facts the decisions rest on were
+  checked by hand in the code (listed under "What changed"). The build tasks with Windows code (P4) need one.
 - Not measured: anything on a graphics card or on Windows; real photos and HDRIs (the made-up pictures are noisier –
   sizes are upper values); a real network download of a pack; EEVEE memory.
 
@@ -534,5 +544,7 @@ the background; Cycles on the processor):
 - The coolant sheen point above (found by reading, not run) – for the lead.
 - COMPANY-USE's network table line numbers are out of date (`check_now` is at `updates.py:125`, not 119; the PC check's
   `updates.check` at `checks.py:7033`, not 4261 – a helper's finding); a docs fix for the lead, unrelated to the pack.
+- The repository names (`fresing-assets-src` private, `fresing-assets` public download-only), the folder name
+  `Fresing Assets` and the zip name are proposals; the owner creates the repositories when P5 starts.
 - The lead may want to tell the 0286 owner-picks follow-ups that "Fresing standard (CC0, public)" is replaced by this
   pack; 0286's Poly Haven / ambientCG / Blendkit layers stay as they were.

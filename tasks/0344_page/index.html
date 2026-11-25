@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Assets pack plan</title>
+<style>
+:root{--bg:#f6f6f4;--card:#fff;--ink:#1d1d1b;--grey:#666;--line:#d8d8d4;--accent:#1f5fa8;--rec:#e8f1e3;--recline:#5a8f45;--warn:#fff4dc;--box:#eef3fa;--boxline:#9bb7dc;--ok:#2e7d32;--bad:#b3261e}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#18191b;--card:#222428;--ink:#e8e8e6;--grey:#a4a4a0;--line:#3a3c40;--accent:#7fb0ea;--rec:#24331f;--recline:#7fb565;--warn:#3a321d;--box:#1f2a38;--boxline:#3f5f88;--ok:#7fc683;--bad:#f28b82}}
+:root[data-theme="dark"]{--bg:#18191b;--card:#222428;--ink:#e8e8e6;--grey:#a4a4a0;--line:#3a3c40;--accent:#7fb0ea;--rec:#24331f;--recline:#7fb565;--warn:#3a321d;--box:#1f2a38;--boxline:#3f5f88;--ok:#7fc683;--bad:#f28b82}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,sans-serif}
+main{max-width:900px;margin:0 auto;padding:16px}h1{font-size:1.6em;margin:.4em 0}h2{margin:1.6em 0 .4em;font-size:1.25em}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin:12px 0}
+.grey{color:var(--grey)}.warn{background:var(--warn)}
+fieldset{border:1px solid var(--line);border-radius:8px;margin:14px 0;padding:10px 14px;background:var(--card);min-width:0}
+legend{font-weight:600;padding:0 6px}label{display:block;padding:6px 8px;border-radius:6px;margin:3px 0;cursor:pointer}
+label.rec{background:var(--rec);border-left:4px solid var(--recline)}label small{display:block;color:var(--grey)}
+fieldset p{margin:.2em 0 .5em}
+table{border-collapse:collapse;width:100%;font-size:.92em}td,th{border-bottom:1px solid var(--line);padding:5px 6px;text-align:left;vertical-align:top}
+.scroll{overflow-x:auto}img{max-width:100%;height:auto;border:1px solid var(--line);border-radius:6px}
+#out{font-family:ui-monospace,monospace;background:var(--card);border:1px solid var(--line);padding:10px;border-radius:6px;white-space:pre-wrap;word-break:break-word}
+button{font:inherit;padding:8px 16px;border-radius:6px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer}
+/* the diagram: three boxes in a row, stacked on a phone */
+.flow{display:grid;grid-template-columns:1fr 34px 1.35fr 34px 1fr;gap:6px;align-items:stretch;margin:12px 0}
+.node{background:var(--box);border:1px solid var(--boxline);border-radius:8px;padding:10px 12px}
+.node h3{margin:0 0 6px;font-size:1em}.node ul,.node ol{margin:0;padding-left:1.2em}.node li{margin:2px 0}
+.arrow{display:flex;align-items:center;justify-content:center;font-size:1.6em;color:var(--accent)}
+.arrow::before{content:"\2192"}
+.step{display:block;margin:4px 0;padding:5px 8px;border-radius:6px;background:var(--card);border:1px solid var(--line)}
+.step b{color:var(--accent)}
+.foot{grid-column:1/-1;text-align:center;font-size:.95em}
+@media (max-width:700px){.flow{grid-template-columns:1fr}.arrow{height:26px}.arrow::before{content:"\2193"}}
+.ok{color:var(--ok);font-weight:600}.bad{color:var(--bad);font-weight:600}
+</style></head><body><main>
+<h1>The Fresing assets pack – the plan</h1>
+<p class="grey">Task 0344 · findings only · 25 Nov 2026. ★ = recommended (always the first choice). Every choice has a short explanation under it. Measured on the 4-core test machine (no graphics card) with Blender 5.2.3.</p>
+
+<div class="card">
+<b>In short</b>
+<ul>
+<li><b>Nothing breaks:</b> without the pack the app is exactly today's app. Every Fresing look keeps its name; when the pack has a better version of it, the app uses that; otherwise it uses today's built-in look.</li>
+<li><b>Projects carry a copy</b> of every pack look they use, pictures included. Tested: such a project opens complete on a PC without the pack – also on a client's PC and after the looks were updated. A link to the pack went black.</li>
+<li><b>Old projects never change by themselves.</b> A button "Use the new Fresing looks" shows before / after and changes only after your OK.</li>
+<li><b>Size:</b> pictures inside projects at normal size (2k). The pack: up to about 300 MB at first, downloaded by the installer like Blender, updated apart from the app.</li>
+<li><b>Making the looks:</b> workers build them in a private repository; you get a pick page per set with today's look next to 2–3 new ones; nothing ships without your OK, and your choices are written down per set.</li>
+<li><b>Order:</b> first the invisible groundwork (6 tasks), then the connection points, then one set at a time – paints first. Licence, first-start question, nudge line and shop last, when you say so.</li>
+</ul>
+</div>
+
+<div class="card warn">
+<b>Already decided by you (picks on 0343, 25 Nov 20:34)</b> – this plan builds on them: rebuild all Fresing assets as new files Fresing owns · in the installer for everyone, one question at the first start · one price per user with updates of pack 1.x · no selling until the app is much further · licence file + nudge line, no lock and no online check · workers build, you pick and approve every set, with a short record of your choices per set.
+</div>
+
+<h2>How it works</h2>
+<div class="flow" role="group" aria-label="Diagram: the pack, the app's list and your project">
+  <div class="node">
+    <h3>Fresing assets pack</h3>
+    <span class="grey">A folder next to the app on your PC, with its own licence and version (1.0, 1.1 …)</span>
+    <ul>
+      <li>materials and finishes</li>
+      <li>studio light and 360° photos</li>
+      <li>environments, props, people</li>
+      <li>learning and showcase projects</li>
+    </ul>
+  </div>
+  <div class="arrow" aria-hidden="true"></div>
+  <div class="node">
+    <h3>One list in the app</h3>
+    <span class="grey">Every part of the app asks by name, e.g. "paint, satin" or "light: product studio":</span>
+    <span class="step"><b>1</b> Already in this project? → use that copy.</span>
+    <span class="step"><b>2</b> In the pack, and switched on? → copy it into the project, pictures inside.</span>
+    <span class="step"><b>3</b> Otherwise → today's built-in look with the same name.</span>
+  </div>
+  <div class="arrow" aria-hidden="true"></div>
+  <div class="node">
+    <h3>Your project (.blend)</h3>
+    <span class="grey">Holds its own copies, so it opens complete:</span>
+    <ul>
+      <li>on a client's PC</li>
+      <li>from a backup</li>
+      <li>in the render queue</li>
+      <li>after a pack update – or without the pack</li>
+    </ul>
+  </div>
+  <div class="foot grey">No pack on the PC, or the switch off → step 3 every time: the app works exactly as today.</div>
+</div>
+
+<h2>The test: one project on a PC without the pack</h2>
+<p>A made-up scene with five pack items (a paint, a concrete floor with pictures, a studio light, a small workshop, a pallet). The project file alone was opened on a "client's PC" where the pack is missing.</p>
+<p><img src="img/proof_without_pack.jpg" alt="Six renders: 1 with the pack; 2 copy with pictures inside, no pack, looks the same; 3 copy with pictures left in the pack, pink; 4 link to the pack, black; 5 link plus Blender's pack, pink; 6 the same after updating the looks, black" width="978" height="420"></p>
+<ul>
+<li><span class="ok">2 ★ Copy + pictures inside</span> – looks exactly like 1. Also right after "update looks".</li>
+<li><span class="bad">3 Copy, pictures left in the pack</span> – pink: the pictures are missing.</li>
+<li><span class="bad">4 Link to the pack</span> – black: the linked parts are gone.</li>
+<li><span class="bad">5 and 6 Blender's new "link + pack"</span> – pink, and after an update of the looks black again.</li>
+</ul>
+
+<h2>Pictures and memory</h2>
+<p>Render memory for one look with three pictures (colour, shine, relief), measured in Cycles:</p>
+<div class="scroll"><table>
+<tr><th>Picture size</th><th>inside the project</th><th>read from the pack folder with Blender's new texture cache</th><th>project file grows by</th></tr>
+<tr><td>1k (Draft)</td><td>30 MB</td><td>25 MB</td><td>3 MB</td></tr>
+<tr><td>2k (Normal) ★</td><td>66 MB</td><td>43 MB</td><td>13 MB</td></tr>
+<tr><td>4k (Final)</td><td>210 MB</td><td>43 MB</td><td>50 MB</td></tr>
+</table></div>
+<p class="grey">Measured at 960 × 540 pixels; a bigger render needs more. The texture cache only works for pictures read from a folder, never for pictures inside a project. So: 2k inside projects; 4k later only for Final renders, read from the pack. The test pictures are made up and noisier than real photos, so real files will be smaller.</p>
+
+<h2>Your choices</h2>
+<form id="f">
+<fieldset><legend>1 · How does a project keep the Fresing looks it uses?</legend>
+<label class="rec"><input type="radio" name="q1" value="copy" checked> ★ A copy inside the project, pictures included<small>The project opens complete everywhere: a client's PC, plain Blender, a backup, the render queue, after a pack update or without the pack (picture 2). Projects grow by the pictures they use – about 13 MB in the test.</small></label>
+<label><input type="radio" name="q1" value="link"> A link to the pack<small>Smallest files. But without the pack the linked parts are gone (picture 4), and a moved or updated pack changes or breaks old projects.</small></label>
+<label><input type="radio" name="q1" value="link-pack"> A link + Blender's new "pack linked data"<small>Travels only when the pictures sit inside the pack's own files, and the first "update looks" breaks it again (picture 6).</small></label>
+</fieldset>
+
+<fieldset><legend>2 · How large are the pictures inside a project?</legend>
+<label class="rec"><input type="radio" name="q2" value="2k" checked> ★ Normal size (2k); extra-sharp 4k later, only for Final renders and only read from the pack folder<small>66 MB of render memory per look with three pictures. In the test, 4k read from the pack folder used only 43 MB, because Blender's new texture cache loads just the detail the picture needs – but that cache does not work for pictures inside a project.</small></label>
+<label><input type="radio" name="q2" value="4k"> Always 4k inside the project<small>Sharpest everywhere, but about 4 × the file size and 3 × the render memory per look (210 MB).</small></label>
+<label><input type="radio" name="q2" value="1k"> 1k inside the project<small>Smallest and lightest; looks soft in close-ups.</small></label>
+</fieldset>
+
+<fieldset><legend>3 · How does the pack get onto a PC?</legend>
+<label class="rec"><input type="radio" name="q3" value="download" checked> ★ The installer downloads it during the install, like Blender (a PC without internet: the zip next to Install.bat)<small>The installer stays small (76 MB today) and everyone gets the pack, as you picked. The same file serves the pack updates and IT's approved folder.</small></label>
+<label><input type="radio" name="q3" value="in-zip"> Inside the installer zip<small>One file that works offline at once, but the installer grows from 76 MB to about 380 MB, and every app release carries the pack again.</small></label>
+</fieldset>
+
+<fieldset><legend>4 · When a new pack version is out</legend>
+<label class="rec"><input type="radio" name="q4" value="offer" checked> ★ The app offers it under Updates with its size; you click Download; it is put in place at the next start<small>Nothing changes during your work, and you see what is new and how big it is. Companies get the version IT approved from their own folder.</small></label>
+<label><input type="radio" name="q4" value="auto"> Download it automatically with the next app update<small>No click needed, but hundreds of MB are downloaded without asking.</small></label>
+<label><input type="radio" name="q4" value="installer"> Only with a new installer<small>Simplest to build, but most users would never get a newer pack.</small></label>
+</fieldset>
+
+<fieldset><legend>5 · Old projects</legend>
+<label class="rec"><input type="radio" name="q5" value="button" checked> ★ Never change by themselves; a button "Use the new Fresing looks" shows before / after, saves a backup and changes only after OK (Ctrl+Z works)<small>The same rule as the paint import (0340): you decide per project. Models already imported keep their materials; your colours, wear, rust and Adjust settings stay.</small></label>
+<label><input type="radio" name="q5" value="ask"> Ask once when an old project opens<small>Clear, but it asks every time you open an old project until you answer.</small></label>
+<label><input type="radio" name="q5" value="auto"> Change them automatically<small>Everything looks new at once – but a project you made for a client last year would look different without warning.</small></label>
+</fieldset>
+
+<fieldset><legend>6 · Today's built-in looks, when they get better in an update</legend>
+<p class="grey">Found while checking: today some improvements of the built-in looks reach old projects without asking (when the project opens, or the next time a group's look is rebuilt).</p>
+<label class="rec"><input type="radio" name="q6" value="keep" checked> ★ Keep as today<small>The built-in looks only get small fixes and improvements (like the better metals of 0318). No work needed. The pack itself never does this.</small></label>
+<label><input type="radio" name="q6" value="freeze"> Freeze them too: old projects keep the old built-in look until you press the button<small>Fully predictable. One small task in the Looks lane; the small fixes then wait for the button.</small></label>
+</fieldset>
+
+<fieldset><legend>7 · New projects when the pack is on the PC</legend>
+<label class="rec"><input type="radio" name="q7" value="pack" checked> ★ Use the Fresing looks; a switch in Fresing Settings > Assets turns them off<small>New work gets the better looks at once. The switch is there for a company that has not paid, or a slow PC.</small></label>
+<label><input type="radio" name="q7" value="code"> Use today's looks until you switch the pack on<small>No surprises, but most users would never see the pack.</small></label>
+</fieldset>
+
+<fieldset><legend>8 · A company that does not want to buy</legend>
+<label class="rec"><input type="radio" name="q8" value="option" checked> ★ An installer option "without assets" and the Settings switch: the app then works exactly as today<small>Makes the honest way easy – a clean app without the pack, and nothing for the licence to ask about.</small></label>
+<label><input type="radio" name="q8" value="nothing"> Nothing special; the licence text says it<small>Less work, but such a company keeps the pack on every PC.</small></label>
+</fieldset>
+
+<fieldset><legend>9 · The first set to make after the groundwork</legend>
+<label class="rec"><input type="radio" name="q9" value="paints" checked> ★ Paints and coatings (gloss, satin, matte, powder coat, marine, hammertone, wrinkle, anti-skid)<small>Every model uses them, they need no photos, and you can judge them quickly. A good first test of the whole chain: build, pick page, your OK, pack, update.</small></label>
+<label><input type="radio" name="q9" value="hdri"> Studio light with your own 360° photos<small>The biggest visible change, but it waits for your photo shoot with the Insta360.</small></label>
+<label><input type="radio" name="q9" value="env"> Environments (workshop, hall, quay)<small>Large and slower to judge; better after the first sets.</small></label>
+<label><input type="radio" name="q9" value="people"> People<small>Waits for your picks on study 0303 (people looks).</small></label>
+</fieldset>
+
+<fieldset><legend>10 · Render time of a new look</legend>
+<label class="rec"><input type="radio" name="q10" value="30" checked> ★ At most 30 % slower than today's look, unless you accept more on its pick page<small>Keeps the app quick. Each pick page shows the render time next to the picture, so you decide with the numbers in front of you.</small></label>
+<label><input type="radio" name="q10" value="none"> No limit – only the picture counts<small>The best looks, but renders may get slower step by step.</small></label>
+<label><input type="radio" name="q10" value="0"> Never slower than today<small>Fast, but it rules out many realistic looks (pictures, relief).</small></label>
+</fieldset>
+
+<fieldset><legend>11 · Size of the first pack</legend>
+<label class="rec"><input type="radio" name="q11" value="300" checked> ★ Up to about 300 MB (2k pictures; 4k only for the 360° photos)<small>A normal download: an install then fetches about 780 MB together with Blender, instead of about 480 MB today.</small></label>
+<label><input type="radio" name="q11" value="1000"> Up to 1 GB (4k pictures)<small>Sharper close-ups, but a long download for everyone.</small></label>
+<label><input type="radio" name="q11" value="100"> Up to about 100 MB (a small starter pack)<small>Quick to download; fewer and smaller pictures.</small></label>
+</fieldset>
+
+<fieldset><legend>12 · Where the files live on GitHub</legend>
+<label class="rec"><input type="radio" name="q12" value="two-repos" checked> ★ Working files in a new private repository; the finished pack in a public "download only" repository<small>Like the vessel kit: your working files and photos stay private, and every app and installer can download the finished pack without a password. You create the two empty repositories when the task starts.</small></label>
+<label><input type="radio" name="q12" value="private"> Everything in one private repository<small>Simpler, but then the app and the installer could not download the pack without a password.</small></label>
+</fieldset>
+</form>
+
+<p><b>Your picks</b> – copy this line and paste it to the lead chat:</p>
+<div id="out" aria-live="polite"></div>
+<p><button id="copy" type="button">Copy</button> <span id="copied" class="grey"></span></p>
+
+<h2>What follows if you agree</h2>
+<ol>
+<li><b>Invisible groundwork (6 tasks):</b> the pack format and the app's list; copying looks into projects; Fresing Settings > Assets; the installer and pack updates; tests with and without a pack (plus the private repository); the "Use the new Fresing looks" button. The app looks the same afterwards.</li>
+<li><b>The connection points</b> in materials, finishes, light, surroundings, learning and the small looks – tested with a made-up test pack. Still no visible change.</li>
+<li><b>One set at a time</b> (paints first): a pick page per set with today's look next to the new ones, your choice, your OK, a short record of your choices, then the pack version that brings it.</li>
+<li><b>Last, when you decide to sell:</b> the licence texts, the first-start question, the nudge line, the shop and the trademark.</li>
+</ol>
+<p class="grey">Full details, file names, measurements and the task table: the report in tasks/0344-study-assets-pack-plan.md on branch task/0344-study-assets-pack-plan. The test itself: tools/assets_pack_proto/.</p>
+</main>
+<script>
+const f=document.getElementById('f'),o=document.getElementById('out');
+function upd(){const p=[];for(let i=1;i<=12;i++){const x=f.querySelector('input[name=q'+i+']:checked');p.push(i+' '+(x?x.value:'-'));}o.textContent='0344 picks: '+p.join('; ');}
+f.addEventListener('change',upd);upd();
+document.getElementById('copy').onclick=()=>{const t=o.textContent,s=document.getElementById('copied');
+ try{navigator.clipboard.writeText(t).then(()=>{s.textContent='Copied.';},()=>{s.textContent='Select the line and copy it by hand.';});}
+ catch(e){s.textContent='Select the line and copy it by hand.';}};
+</script>
+</body></html>
