@@ -1612,6 +1612,12 @@ the release → Delete); the next run on `main` publishes it again.
   Its Lead motions button is found by drawing the top bar with and without it and comparing the pixels
   (``tools/ui_test_lead_motions.py``); a click on it needed a second click after a workspace switch (the first only
   focused the bar).
+- The clash check's memory on a big model went into things made for every part "just in case" (task 0327, stress
+  model 11,228 parts): a float64 ``Mesh`` with its orientation – which builds a BVH tree – for every unique mesh at the
+  set-up (2.3 GB, 12 s), and the whole motion (P, T, 4, 4) worked out and copied several times to find the rigid bodies
+  (1.5 GB). Only a few hundred parts ever reach a test: meshes wait as Blender's float32 / int32 numbers
+  (``clash._Meshes``) and the motion is grouped a chunk of parts at a time (``core.rigid_groups_of``): 3.8 → 1.0 GB
+  extra, same rows. Make per-part work lazy when most parts are standing.
 - Setting a 3D view's `show_region_hud` (the "Adjust Last Operation" box) back to True from a timer crashed Blender 5.2.3
   (segfault, also in a plain Blender with --factory-startup; task 0332); False worked. Its update needs the area in the
   context: set it inside `context.temp_override(window=, screen=, area=, region=)` (`quiet._set_hud`). A finished

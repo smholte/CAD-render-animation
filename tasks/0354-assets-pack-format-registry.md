@@ -1,6 +1,6 @@
 # 0354 – Assets pack P1: pack format, registry and test pack (invisible)
 
-**Who:** worker · **Status:** running · **Branch:** `task/0354-assets-pack-format-registry`
+**Who:** worker · **Status:** done · **Branch:** `task/0354-assets-pack-format-registry`
 **Started by:** lead, 25 Nov 2026 23:3x (0344's P1; owner's picks 23:17) · **Model:** Opus · effort High · Claude Code
 on the web, environment "CAD-render-animation"
 **Area:** new **Assets** lane – new files only: `fresing_render/core/assets_pack.py`, `fresing_render/core/assets_registry.py`,
@@ -90,7 +90,7 @@ his employer's name.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web, 25–26 Nov 2026 · 0.2.261
+**Chat / date:** Claude Code on the web, 25–26 Nov 2026 · 0.2.262
 
 **What changed:** four new files, no existing app file touched (only the version lines and CHANGELOG):
 `core/assets_pack.py`, `core/assets_registry.py`, `pccheck/assets_test_pack.py`, `tools/make_test_assets_pack.py`;
@@ -166,7 +166,8 @@ iron's roughness picture new (`…_rough_v2.png`); every other file byte-equal b
 - Real-Blender test: both versions read with no notes, `verify` OK, every `.blend` holds the listed datablock and no
   Text, driver, script node or linked library; node groups on the 2.3 contract with no BSDF / Output; pictures
   relative, inside the pack and listed in the row's `textures`.
-- Local: 110 tests of the two files in 10 s. GitHub runs: see below.
+- Local: 110 tests of the two files in 10 s. GitHub: 2 full runs – the first green (run 45717235569, 31 min; the
+  runner pool was shared), the second after merging main because 0327 took 0.2.261 meanwhile (renumbered to 0.2.262).
 
 **Different from 0344's plan:**
 - `pack.json` has a **`files` table** (every file of the pack: bytes + sha256) – the one list `verify` reads; asset rows

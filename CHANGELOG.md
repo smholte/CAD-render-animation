@@ -5,11 +5,20 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.261 – 25 Nov 2026 – Groundwork for the Fresing assets pack (task 0354)
+## 0.2.262 – 26 Nov 2026 – Groundwork for the Fresing assets pack (task 0354)
 
 - Groundwork for the Fresing assets pack – no visible change. The app can now find and read a pack of Fresing looks,
   check it without ever stopping, and tell for every look whether a pack item or today's built-in look answers. Nothing
   uses it yet; the app looks and works exactly as before.
+
+## 0.2.261 – 25 Nov 2026 – The clash check needs much less memory on big models (task 0327)
+
+- **6 Animation > Clash check** on a big model now needs about a quarter of the extra memory it needed: on the stress
+  model (11,228 parts) about 1.0 GB on top of the open project instead of 3.8 GB, so it fits on a 16 GB office PC
+  or laptop. It is also a little faster (59 s instead of 72 s on the 4-core test machine) and finds exactly the same
+  clashes.
+- Why: the check prepared every part's shape for testing at its start, also the thousands of parts that never come
+  near a moving one. It now prepares a part's shape only when a moving part comes near it.
 
 ## 0.2.260 – 25 Nov 2026 – Long cables and hoses come in light (task 0325)
 
