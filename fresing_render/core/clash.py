@@ -77,20 +77,69 @@ def rigid_groups(d: np.ndarray, tol: float = RIGID_TOL, reach: float = 0.0) -> n
         far = max(float(reach), float(np.abs(d[:, :, (3, 7, 11)]).max()))
         tol = max(tol, RIGID_ULPS * float(np.finfo(np.float32).eps) * far)
     flat = d.reshape(p, -1)
-    ident = np.tile(np.array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0], dtype=np.float64), d.shape[1])
     labels = np.full(p, -1, dtype=np.int64)
-    still = np.max(np.abs(flat - ident), axis=1) <= tol
+    still = _still(flat, tol)
     labels[still] = 0
-    nxt = 1 if np.any(still) else 0
     rest = np.flatnonzero(~still)
+    _group_moving(flat[rest], rest, labels, 1 if np.any(still) else 0, tol)
+    return labels
+
+
+_IDENT = np.array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0], dtype=np.float64)
+
+
+def _deviation(flat: np.ndarray) -> np.ndarray:
+    """(N,) how far each row of ``flat`` (N, T·12) leaves the identity at most."""
+    return np.max(np.abs(flat - np.tile(_IDENT, flat.shape[1] // 12)), axis=1)
+
+
+def _still(flat: np.ndarray, tol: float) -> np.ndarray:
+    """(N,) True for the rows of ``flat`` (N, T·12) that never leave the identity by more than ``tol``."""
+    return _deviation(flat) <= tol
+
+
+DELTA_CHUNK = 512             # parts whose motion is worked out at a time by ``rigid_groups_of`` (task 0327)
+
+
+def rigid_groups_of(mats: np.ndarray, reach: float = 0.0, tol: float = RIGID_TOL,
+                    chunk: int = DELTA_CHUNK) -> np.ndarray:
+    """``rigid_groups(deltas(mats), tol, reach)`` – the same numbers – without holding every part's motion at once
+    (task 0327: (P, T, 12) float64 and its copies were 1.5 GB on 11,228 parts x 251 frames). The motion is worked out
+    ``chunk`` parts at a time for the tolerance and the parts that never move; only the moving parts' motion is kept."""
+    T, p = mats.shape[:2]
+    if p == 0:
+        return np.zeros(0, dtype=np.int64)
+    far = float(reach)
+    dev = np.empty(p)                                    # how far each part's motion leaves the identity
+    for a in range(0, p, chunk):
+        b = min(p, a + chunk)
+        d = deltas(mats[:, a:b])
+        far = max(far, float(np.abs(d[:, :, (3, 7, 11)]).max()))
+        dev[a:b] = _deviation(d.reshape(b - a, -1))
+        del d
+    tol = max(tol, RIGID_ULPS * float(np.finfo(np.float32).eps) * far)
+    still = dev <= tol
+    labels = np.full(p, -1, dtype=np.int64)
+    labels[still] = 0
+    rest = np.flatnonzero(~still)
+    if len(rest):
+        _group_moving(deltas(mats[:, rest]).reshape(len(rest), -1), rest, labels, 1 if np.any(still) else 0, tol)
+    return labels
+
+
+def _group_moving(flat: np.ndarray, rest: np.ndarray, labels: np.ndarray, nxt: int, tol: float) -> None:
+    """Number the moving parts ``rest`` (their motion ``flat``, one row each, in that order) by groups that move as one,
+    from ``nxt`` on, into ``labels``."""
     if not len(rest):
-        return labels
+        return
+    local = np.full(int(rest.max()) + 1, -1, dtype=np.int64)
+    local[rest] = np.arange(len(rest))
     # sort along a fixed random direction: parts that move alike end up next to each other
     w = np.random.default_rng(65).uniform(0.5, 1.0, flat.shape[1])
-    key = flat[rest] @ w
+    key = flat @ w
     window = tol * float(np.sum(w)) * 1.01
     order = rest[np.argsort(key, kind="stable")]
-    keys = flat[order] @ w
+    keys = flat[local[order]] @ w
     reps: list[int] = []                                         # part index of each open group's first part
     rep_key: list[float] = []
     rep_label: list[int] = []
@@ -100,8 +149,8 @@ def rigid_groups(d: np.ndarray, tol: float = RIGID_TOL, reach: float = 0.0) -> n
             lo += 1                                              # groups too far down the sorted line
         found = -1
         if lo < len(reps):
-            cand = np.array(reps[lo:])
-            diff = np.max(np.abs(flat[cand] - flat[i]), axis=1)
+            cand = local[np.array(reps[lo:])]
+            diff = np.max(np.abs(flat[cand] - flat[local[i]]), axis=1)
             hit = np.flatnonzero(diff <= tol)
             if len(hit):
                 found = rep_label[lo + int(hit[0])]
@@ -112,7 +161,6 @@ def rigid_groups(d: np.ndarray, tol: float = RIGID_TOL, reach: float = 0.0) -> n
             rep_key.append(float(k))
             rep_label.append(found)
         labels[i] = found
-    return labels
 
 
 PIECES = 60_000               # a mesh's triangles are cut into about this many pieces at most for its box tree

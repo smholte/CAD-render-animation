@@ -69,6 +69,30 @@ def test_parts_far_from_the_origin_that_move_alike_are_one_body():
     assert g[0] != g[1]
 
 
+def test_rigid_groups_in_chunks_give_the_same_groups():
+    """Task 0327: ``rigid_groups_of`` works the motion out a few parts at a time (1.5 GB less on the stress model) and
+    must give exactly the groups of ``rigid_groups(deltas(...))`` – still parts, bodies, the far-from-origin tolerance,
+    a part that moves a hair late – whatever the chunk size."""
+    rng = np.random.default_rng(7)
+    T, P = 24, 700
+    mats = np.tile(np.eye(4), (T, P, 1, 1))
+    mats[:, :, :3, 3] = rng.uniform(-60.0, 60.0, (P, 3))
+    for g in range(5):
+        idx = rng.choice(P, 50, replace=False)
+        for k in range(T):
+            mats[k, idx] = rot_z((g + 1) * 2.0 * k, about=(g, -g, 0.0)) @ mats[k, idx]
+    mats[18:, 3, 0, 3] += 1e-3                     # one part leaves its body late
+    mats[:, 9, 2, 3] += 1e-6 * np.arange(T)        # one creeps by less than the tolerance
+    mats = mats.astype(np.float32).astype(np.float64)
+    reach = float(np.abs(mats[..., :3, 3]).max())
+    want = C.rigid_groups(C.deltas(mats), reach=reach)
+    assert want.max() >= 5
+    for chunk in (1, 13, 512, 5000):
+        assert np.array_equal(C.rigid_groups_of(mats, reach=reach, chunk=chunk), want)
+    assert np.array_equal(C.rigid_groups_of(np.tile(np.eye(4), (T, 3, 1, 1))), [0, 0, 0])
+    assert len(C.rigid_groups_of(np.zeros((T, 0, 4, 4)))) == 0
+
+
 def test_parts_that_part_ways_once_are_two_bodies():
     T = 10
     mats = np.tile(np.eye(4), (T, 2, 1, 1))
