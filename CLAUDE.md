@@ -939,7 +939,39 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
   run here. Have it reviewed independently (a helper agent or review chat that did not write
   it) before a release, and add a self-test line when the owner's PC can confirm it.
 - Do not change the cache format or saved-project data silently: bump `CACHE_VERSION` in
-  `importer/step_reader.py` when the cache changes; old projects must keep opening.
+  `importer/step_reader.py` when the cache changes.
+- **Old projects – the baseline (owner 25 Nov 2026 22:4x).** There are no real user projects yet. **Full backward
+  compatibility starts at the baseline: the first version that has the Fresing assets pack's groundwork in it** (0344's
+  invisible groundwork – pack format, the asset registry with code fallback, looks copied into projects). The lead
+  writes that version number here when it is released. Until then:
+  - a project from an older version only has to **open without a crash**; where something cannot be carried over, say
+    so in one plain line ("Made with an early test version – re-import the model to get <what>"), never a traceback;
+  - do **not** add new upgrade / conversion code or new old-project tests for projects older than the baseline, and
+    don't keep an old path alive only for old projects – a brief's "old project opens / builds the same" item means
+    "opens without a crash" until the baseline;
+  - old upgrade code and old-project tests are removed **per lane, by small cleanup tasks (0350a, b …) when the lane is
+    free** – never as a side job in another task;
+  - unchanged: a project never changes its look by itself, the app runs without the pack, a project opens on a
+    client's PC – these are user-friendliness rules, not backward compatibility.
+  From the baseline on, every saved project must keep opening and keep its look in every later version.
+  **Before the baseline** (owner 25 Nov 22:5x) – whatever changes what a project stores: the import lane 0340 → 0342 →
+  0341 → 0287; **0345** (parts keep their identity through a model update); **0352** compatibility kit; **0353**
+  format number on outputs; 0344's groundwork; the build tasks of **0305** (animation panel, exploded views) and
+  **0286** (libraries) after the owner's picks. New features that only add data may come after the baseline.
+- **Keep saved data small (owner 25 Nov 22:5x).** A project stores the user's choices and work (model link, joints,
+  keys, looks picked, settings); everything that can be worked out again – bakes, caches, meshes made by the app,
+  liquid, cable shapes, baked lights – is rebuilt from those choices, never upgraded. New saved data gets a name in the
+  project's format list (0352) and an upgrade step when it changes; derived data gets none.
+- **The Fresing assets pack (0344; owner's picks 25 Nov 23:17; tasks 0354–0365, Assets lane).** Fresing's own looks
+  move step by step into a pack – a folder `Fresing Assets` beside the app with its own licence – and today's code
+  looks stay as the free fallback **under the same ids**: never remove or rename a code look id, and a look only the
+  pack has gets a code twin. A project takes its own **copy** of every pack item it uses (append, pictures packed
+  inside at 2k) – **never a link** to the pack. A project changes to pack looks or a newer pack version only through
+  "Use the new Fresing looks" (0359) – never through `LOOK_VERSION`, `MAT_VERSION`, `fr_prop_ver` or another
+  load-time stamp. **The app must run without the pack** (GPL fallback, a client's PC, CI); tests make the test pack
+  at test time (no pack binary in the repository). No "without assets" option for users anywhere (owner 23:12) –
+  the Settings switch (0357) is for a slow PC or testing. The pack's working files live in a private repository with
+  no CI; the finished pack is a public pre-release download (`assets-<version>`), checked by the public CI (0356).
 - UI follows the layout rules at the top of `blender/ui.py`: steps top to bottom, choices
   above their button, details of the selected list item under the list, no cut-off labels at the
   default side-panel width, rarely used settings in folds, a state in every panel header (sub-panels
@@ -1586,6 +1618,12 @@ the release → Delete); the next run on `main` publishes it again.
   joint's size. Any scene update there costs ~15 ms by itself (a lone empty moved costs the same): Blender's floor for
   that many objects. On a per-move path tag only what changed (`joints.tag_moved`); followers, mechanisms, cables and
   hoses follow just the same.
+- The clash check's memory on a big model went into things made for every part "just in case" (task 0327, stress
+  model 11,228 parts): a float64 ``Mesh`` with its orientation – which builds a BVH tree – for every unique mesh at the
+  set-up (2.3 GB, 12 s), and the whole motion (P, T, 4, 4) worked out and copied several times to find the rigid bodies
+  (1.5 GB). Only a few hundred parts ever reach a test: meshes wait as Blender's float32 / int32 numbers
+  (``clash._Meshes``) and the motion is grouped a chunk of parts at a time (``core.rigid_groups_of``): 3.8 → 1.0 GB
+  extra, same rows. Make per-part work lazy when most parts are standing.
 - Setting a 3D view's `show_region_hud` (the "Adjust Last Operation" box) back to True from a timer crashed Blender 5.2.3
   (segfault, also in a plain Blender with --factory-startup; task 0332); False worked. Its update needs the area in the
   context: set it inside `context.temp_override(window=, screen=, area=, region=)` (`quiet._set_hud`). A finished

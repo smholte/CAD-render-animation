@@ -101,10 +101,10 @@ def test_import_uses_facets_and_old_caches_are_not_reused(tmp_path):
     tris = {m["name"]: m["tris"] for m in info["meshes"]}
     assert tris["ISO 4017 M12 x 40 - 8.8 HDG"] < 120                  # was 176 (20 instead of 42 segments)
     assert tris["SIGNAL.LAMP"] > 5000                                   # not a standard part: as before
-    assert step_reader.CACHE_VERSION == 8                    # 8: mesh keys (task 0324)
+    assert step_reader.CACHE_VERSION == 9                    # 9: long cables (task 0325)
     assert runner.cache_is_valid(str(tmp_path / "new"))
     head = tmp_path / "new" / "tree.json"                              # a cache meshed before task 0074
-    head.write_text(head.read_text(encoding="utf-8").replace('"version": 8', '"version": 5', 1), encoding="utf-8")
+    head.write_text(head.read_text(encoding="utf-8").replace('"version": 9', '"version": 5', 1), encoding="utf-8")
     assert not runner.cache_is_valid(str(tmp_path / "new"))            # is meshed again, never reused
 
 
