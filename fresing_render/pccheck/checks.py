@@ -6330,7 +6330,7 @@ def app_settings(ctx):
 
 
 @line("settings.keys", "Keys: every key of the app in one list; Fresing's own keys changed, refused on a clash, reset",
-      "0.2.248",
+      "0.2.249",
       what="Settings > Keys lists every key in five groups, made from the app's live key lists; a changed Fresing key "
            "goes into the keys the app adds, a key another Fresing key has is refused, Reset puts it back, and the "
            "printable key sheet is written (your own keys are put back as they were)")
