@@ -518,7 +518,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.253")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.254")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -6278,7 +6278,7 @@ stop("keys_tab", OUT, HUB_SET, "All keys in one list",
      "the title says it is now F9, F9 renders, F12 no longer does; close the app and start it again: still F9. Click "
      "Measure's M and press F9: refused, \"already Fresing's key for: Render the picture\". Reset all puts F12 back. Print key sheet "
      "opens one A4 page in the browser.",
-     where="Fresing menu > Keys… (also Help > Keys…); Fresing Settings > Keys", since="0.2.253",
+     where="Fresing menu > Keys… (also Help > Keys…); Fresing Settings > Keys", since="0.2.254",
      shot="Tour view", check=_check_keys_tab, auto=lambda ctx, scene, st: "")
 
 def _check_locations(scene):

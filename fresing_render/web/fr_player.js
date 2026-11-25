@@ -6,9 +6,9 @@
 //                                    second, the graphics card's name, Auto-turn, Sun / time of day (live light only),
 //                                    choices remembered on this PC (localStorage) with a Reset line
 //   playback (pages with motion)     Space play/pause, a time slider, speed ½× 1× 2×, ← → two seconds
-//   saved views (task 0179)          wide screens and a phone held sideways: one row of buttons that never wraps (it
-//                                    scrolls sideways, "All views" at its end when they do not fit); a phone held
-//                                    upright: one pill ‹ name › – the arrows step, the name opens the list of all
+//   saved views (task 0179)          wide screens: one row of buttons that never wraps (it scrolls sideways, "All
+//                                    views" at its end when they do not fit); a phone held upright or sideways (task
+//                                    0336): one pill ‹ name › – the arrows step, the name opens the list of all
 //                                    views from the bottom (closes on a pick, a tap outside, Esc or Back). Keys 1 … 9
 //   lead motions (task 0310)         one Motions button above the saved views: a panel (wide: above the stack between
 //                                    the tool columns, the model free to turn; a phone: a sheet from the bottom) with a
@@ -194,7 +194,10 @@
     '#fr-vlist li .fr-btn[aria-current="true"] .fr-n { background: #2F6A1B; }',
     '#fr-vlist li .fr-name { overflow-wrap: anywhere; }',
     '.fr-menu { position: absolute; right: calc(' + (12 + BTN + 10) + 'px + var(--sa-r)); top: var(--fr-head, 50px);',
-    '  z-index: 4; width: min(320px, calc(100vw - 86px)); max-height: calc(100% - var(--fr-head, 50px) - 12px - var(--sa-b));',
+    // task 0336 (0328 row 21): the menu ends above the bottom stack (views, play bar) and scrolls – sideways on a
+    // phone it covered the time, the speed and Film
+    '  z-index: 4; width: min(320px, calc(100vw - 86px));',
+    '  max-height: calc(100% - var(--fr-head, 50px) - var(--fr-stack, 90px) - 12px);',
     '  overflow: auto; background: rgba(20,28,34,.9); color: #F4F6F8;',
     '  border-radius: 8px; padding: 12px 14px; font: 13px ' + FONT + ';',
     '  box-shadow: 0 6px 24px rgba(0,0,0,.35); display: none; box-sizing: border-box; }',
@@ -888,7 +891,7 @@
     if (!n) { viewsBox.style.display = 'none'; mode = 'none'; page.viewMode = mode; return; }
     viewsBox.style.display = 'flex';
     mode = 'row';
-    if (narrow && n > 1) {
+    if (compact && n > 1) {                 // upright, or sideways (task 0336: a 7-button row took the height)
       buildRow(false);                      // 2–3 short names may still fit as buttons
       if (n > 3 || scroller.scrollWidth > scroller.clientWidth + 1 ||
           [].some.call(scroller.children, function (b) { var t = b.firstChild; return t.scrollWidth > t.clientWidth + 1; })) {
@@ -1078,9 +1081,9 @@
     if (laying) return;
     laying = true;
     try {
-      var wasNarrow = narrow;
+      var wasNarrow = narrow, wasCompact = compact;
       measureMode();
-      if (built && wasNarrow !== narrow) buildViews();
+      if (built && (wasNarrow !== narrow || wasCompact !== compact)) buildViews();
       if (built) refreshPlay();
       var H = window.innerHeight;
       var head = page.clean || !headerEl ? 0 : headerEl.getBoundingClientRect().bottom;

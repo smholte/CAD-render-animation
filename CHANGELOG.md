@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.253 – 25 Nov 2026 – All keys in one list, change Fresing's own (task 0295)
+## 0.2.254 – 25 Nov 2026 – All keys in one list, change Fresing's own (task 0295)
 
 - **Fresing > Keys…** (also at the end of Help) opens Fresing Settings on its new tab **Keys**: every key and mouse
   action of the app in five groups – moving the view (mouse, touchpad, number pad, Home), selecting, **Fresing's own
@@ -18,6 +18,19 @@ installer of that version was built from.
 - **Print key sheet:** one A4 page with every key – your own marked – opens in your browser to print or save as PDF.
 - **Blender's own key settings** opens Blender's Preferences > Keymap (Blender's keys, used in Full access).
 
+## 0.2.253 – 25 Nov 2026 – 3D page: Open page in sight, page views by tick, phone sideways (task 0336)
+
+- **Open page** and the folder button now sit on the **Export…** row (Make > 3D page, and 5 Scene & Render > Web 3D
+  model). After an export they are right where you clicked – in the small Make window the result used to be below the
+  window's edge. Greyed until there is an export.
+- **Include animation** no longer sits greyed without a reason: before a Build the panel shows **Build & play first**
+  in its place. A built animation whose camera does not move says that the page gets no Film button.
+- **Page views** (a new fold): a tick per camera – you choose which cameras become saved views on the page. Your own
+  cameras start ticked; the ones the app makes for its own work (the Turntable camera, the video's Animation camera,
+  the product video's camera) start unticked. **All** / **None**; Undo takes a tick back.
+- **On a phone held sideways** the page's saved views are one ‹ name › control, as upright, and the settings menu ends
+  above the views and the play bar (it scrolls) – it covered the time line, the speed and Film.
+- **Smaller file**: its tooltip and the guide no longer name the packing method.
 ## 0.2.252 – 25 Nov 2026 – Uninstall shortcut asks first; landing page publishes again (task 0339)
 
 - **"Uninstall Fresing Render" asks first.** The shortcut in the install folder and next to Fresing Render.exe, and
