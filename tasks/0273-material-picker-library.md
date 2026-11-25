@@ -215,6 +215,13 @@ Subagents: one (Sonnet) writes the tags and one-line descriptions of every built
   the source (fixed in `materials.py` / `material_picker.py`). Two of its expectations were adjusted to the design
   (Windows names get the "_" before the first dot; two copies of one material have different keys).
 
+**GitHub runs:** 4 full runs + 1 precheck stop: run 1 red (three test stand-ins without `template_icon`, an older
+locations test expecting the Settings tab as planned, the left panel's real-app test listing the new page – fixed);
+then three green runs, each followed by another task taking the version (0310 → 0.2.238, 0235 → 0.2.239,
+0320 → 0.2.240), so main was merged and the number raised each time; released as 0.2.241 (reuse run on main; its
+landing-page publish failed on GitHub's side – "no artifact named github-pages" – and was re-run once).
+Leftover branches for the owner to delete: none of this task (the session's branch `ccr-f130bd57-9cwtzc`).
+
 **Open points / follow-up tasks:**
 - The picker in Paint faces and decals (brief: later, if the owner wants it).
 - "Adjust a look" (0314) adds shine / pattern sliders: the file's `changes` then needs those keys (a minor version).
