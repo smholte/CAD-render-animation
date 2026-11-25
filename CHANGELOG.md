@@ -5,6 +5,21 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.262 – 26 Nov 2026 – Shorter top-bar menus, only the Fresing tab in the side panel (task 0367)
+
+- **File** now holds what the app uses: New project, Open…, Open Recent, Revert, Recover, Save, Save As…, Save Copy…,
+  **Import STEP…**, **Import mesh model…**, **Import House Planner scene…** and Quit. Blender's Link, Append, Import /
+  Export lists, External Data, Clean Up and Defaults are gone. The Client view keeps its own short File menu.
+- **Render** has the app's **Render Image** (as F12), **Render Animation** (as Ctrl+F12), **Render Queue…** and
+  **View Last Render** (F11) – no more Blender renders that skip the app's settings.
+- **Window** keeps Toggle Window Fullscreen, Show Status Bar and Save Screenshot.
+- **Help** keeps Fresing's lines; Blender's own (Manual, Support, Report a Bug, Save System Info …) are in one sub-menu
+  **Blender** at the bottom.
+- **The side panel** shows only the Fresing tab: Blender's **Item** tab no longer appears when you select a part, and
+  the glTF Variants tab is hidden too. A tab of another add-on you installed still shows.
+- **Fresing Settings > Keys**: "Blender's own key settings" is greyed in the Client view, with the reason in its tooltip.
+- **Fresing > Show all of Blender** (or Workspace > Full access) brings all of Blender's menus and tabs back, as before.
+
 ## 0.2.261 – 25 Nov 2026 – The clash check needs much less memory on big models (task 0327)
 
 - **6 Animation > Clash check** on a big model now needs about a quarter of the extra memory it needed: on the stress
