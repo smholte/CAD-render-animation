@@ -203,7 +203,7 @@ over a name in the list to read what it is for. Need one more function? Tick its
 project**, or pick another workspace.
 
 <a id="more-workspaces"></a>
-**Welding, Machine builder, Video producer and Houses** (new in 0.2.240) are four more workspaces for one job, each
+**Welding, Machine builder, Video producer and Houses** (new in 0.2.241) are four more workspaces for one job, each
 with its own icon in the list:
 
 | Workspace | Shows | Does not show |
@@ -213,7 +213,7 @@ with its own icon in the list:
 | **Video producer** | Saved scenes, poses, surroundings, light, camera; every animation step, camera paths, fades, trails, assembly sequence, product video, labels, title and captions, picture cards, music, brand kit, watermark, the render queue | Import, structure, adding joints and cylinders |
 | **Houses** | **House from House Planner** (also by itself through the Toolbox folder), surroundings, weather and time of day, night, props for scale, light, camera, picture, Render this view, turntable, saved scenes, the 3D page | Machine motion, CNC, cables, video finishing |
 
-Weld symbols and the weld list (coming in another update) will show in Welding too; 2D drawings come later.
+The weld symbols and the weld list show in Welding too; 2D drawings come later.
 
 <a id="workspace-stars"></a>
 **Favourites on top.** Every workspace in the list has a star. Click the star and that workspace moves to the top of
@@ -1407,11 +1407,11 @@ and mechanisms**:
 
 **What comes along:** its parts (they **share their shapes** with the original, so the project hardly grows), their
 looks and groups, its **joints** (limits, the pose it is in, couplings between them), **cylinders**, **mechanisms**,
-**way covers**, **hoses and drag chains** whose both ends are in the copy, **labels** on its parts and **logos and
-stickers**. Names count up: the copy of "TEST.CRANE" is "TEST.CRANE (2)", its joint "Boom (2)", the next one "(3)".
+**way covers**, **hoses and drag chains** whose both ends are in the copy, **labels** on its parts, **logos and
+stickers** and **welds** whose two parts are both in the copy ([Welds](#weld-copies)). Names count up: the copy of "TEST.CRANE" is "TEST.CRANE (2)", its joint "Boom (2)", the next one "(3)".
 
 **What reaches outside the copy is left out – the copy moves by itself:** a joint that also moves parts outside the
-copy, a cylinder, mechanism, hose or way cover with a piece outside, and a coupling to a joint outside the copy (the
+copy, a cylinder, mechanism, hose, way cover or weld with a piece outside, and a coupling to a joint outside the copy (the
 copied joint then moves on its own). A joint that sat on something outside sits on the copy. **Cables, drums,
 tracks**, trail lines, animation steps and cameras stay with the original: add them on the copy where you need them.
 
@@ -1835,6 +1835,43 @@ Good to know:
 - The [web 3D model](#web3d) has the beads in their colour (and paint); the ripples and the heat tint are only in
   renders.
 - In the Client view welds show but cannot be changed.
+
+<a id="weld-copies"></a>
+#### Copies take their welds along
+
+Copy a welded subassembly, some welded parts or a whole model (right-click > **Copy**, then **Paste** or **Paste
+here**; <kbd>Ctrl</kbd>+<kbd>C</kbd> / <kbd>Ctrl</kbd>+<kbd>V</kbd> – see [Copy and paste](#copy-paste)): every weld
+whose **two parts are both in the copy** comes along, with its seams, ticks and settings; its name gets the copy's
+number ("BASE PLATE – FIN (2)"). A weld with **one part outside** the copy is left out – the line in the Move / turn
+window after the paste names it. <kbd>Ctrl</kbd>+<kbd>Z</kbd> takes the copied welds away with the copy. A copy of a
+whole model follows a model update of the original: its welds find their faces again, as the original's do.
+
+<a id="weld-symbols"></a>
+#### Weld symbols
+
+Tick **Weld symbols** (under **Weld two parts**; off by default, kept with the project): every weld that is shown
+gets an ISO 2553 symbol (system A, as on a European drawing) beside its longest seam – an arrow to the seam, the
+reference line with the dashed line, and on it:
+
+- the **symbol**: the triangle of a fillet weld, ‖ for a square butt (plates up to 4 mm), V for a single-V butt;
+- left of it the **size** (a5 = throat 5 mm), right of it the **length** in mm, or **n × l (e)** for an intermittent
+  weld (n pieces of l mm, e mm between them);
+- a symbol on **both sides** of the line (and no dashed line) when the weld is on both sides – a fin welded left and
+  right, a double-V butt; a **circle** at the bend when it goes **all round**; a bar over the symbol when it is
+  **ground flush**;
+- the **tail** (<) with the process number of ISO 4063 – 135 MAG, 131 MIG, 141 TIG, 111 stick – and the weld's
+  **number** (its place in the list).
+
+The symbols keep their size on the screen however far you zoom. They are **not in renders** unless you tick **Show
+in renders** – then each symbol is a label pointing at its seam, in the label style of the brand kit. A symbol
+describes the weld's longest ticked seam; the weld list has all of them.
+
+<a id="weld-list"></a>
+#### Weld list
+
+**Weld list…** opens a window with one row per weld: its number (the one on the symbol), the two parts, the type
+(fillet, butt, both sides, all round, intermittent), the size, the length of all its ticked seams, the process, the
+finish and the symbol. **Export CSV…** writes it as a file that opens in Excel (the metal is in it too).
 
 <a id="xray"></a>
 ### X-ray look

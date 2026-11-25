@@ -36,7 +36,7 @@ def test_a_new_workspace_shows_exactly_its_functions(key):
 
 def test_welding_is_welds_and_the_render_options():
     shown = W.shown_functions(W.builtin("welding"))
-    assert {"import.step", "structure.tree", "looks.materials", "looks.welds", "looks.rust", "looks.light_look",
+    assert {"import.step", "structure.tree", "looks.materials", "looks.welds", "looks.weld_symbols", "looks.weld_list", "looks.rust", "looks.light_look",
             "scene.surroundings", "scene.light", "scene.camera", "scene.still", "scene.render_view"} <= shown
     for gone in ("joints.rotate", "animation.add", "animation.labels", "queue.still", "cnc.machine", "web.export",
                  "looks.cutaway", "looks.xray", "poses.explode"):          # proposals, not added (report)

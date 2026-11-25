@@ -518,7 +518,7 @@ def _music(path: str) -> str:
 
 # ----- the crane (the hub: the project the owner opens) -----
 
-@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.240")
+@tour_set(HUB_SET, "Crane", "test_crane_a.step", added="0.2.47", changed="0.2.241")
 def build_crane(b: Build):
     """The crane lesson's steps first (``lessons/crane.py``: View, Show me and Build it yourself make the same
     project, task 0230), then the tour's own extra shots."""
@@ -1066,12 +1066,13 @@ def _round_face(ob) -> int:
     return -1
 
 
-@tour_set("welds", "Welds", "test_weldment.step", added="0.2.231", changed="0.2.240")
+@tour_set("welds", "Welds", "test_weldment.step", added="0.2.231", changed="0.2.241")
 def build_welds(b: Build):
     from . import welds
     sc = b.scene
     _look("PRODUCT")
     welds.set_up_test_model(sc)
+    welds.settings(sc).symbols = True             # task 0320: the ISO 2553 symbols (view only)
     _camera(b, "ISO", "Tour view")
     _shot(b, "@welds")
 
@@ -1084,7 +1085,14 @@ def _check_welds(scene):
     beads = sum(1 for it in welds.items(scene) for o in welds.objects_of(it) if o.get("fr_kind") == welds.KIND)
     _check(beads == st["welds"], f"only {beads} of {st['welds']} welds have a bead")
     _check(2.0 < st["metres"] < 2.5, f"{st['metres']:.2f} m of bead, not about 2.2 m")
-    return f"{st['welds']} welds, {st['seams']} seams, {st['metres']:.2f} m of bead"
+    from ..core import weld_symbols as core_symbols     # task 0320: the symbols are on, in the view only
+    from . import weld_symbols
+    s = welds.settings(scene)
+    _check(s.symbols and not s.symbols_render, "the weld symbols are not on (view only)")
+    texts = [core_symbols.one_line(weld_symbols.symbol_of(it, i + 1)) for i, it in enumerate(welds.items(scene))]
+    _check(texts[0] == "a5 ◺/◸ 200 < 135", f"weld 1's symbol reads '{texts[0]}'")
+    _check(sum(t.startswith("○") for t in texts) == 3, f"{sum(t.startswith('○') for t in texts)} all-round symbols, not 3")
+    return f"{st['welds']} welds, {st['seams']} seams, {st['metres']:.2f} m of bead; symbols {', '.join(texts[:2])} …"
 
 
 WELDING = "Welding"
@@ -4901,15 +4909,17 @@ stop("welds", LOOK, "welds", "Welds",
      "A small invented weldment: a blue painted fillet along the fin's foot (the paint over the ripples), a grey MAG "
      "weld with spatter under the gusset, a rusty one up its side, a stainless all-round weld with straw, purple and "
      "blue heat tint round the post, a pickled (matt, no tint) one round the branch, a bright aluminium saddle where "
-     "the branch meets the tube and a butt joint ground flush to the extension plate.",
-     where="3 Looks > Welds", check=_check_welds, since="0.2.231")
+     "the branch meets the tube and a butt joint ground flush to the extension plate. Beside each weld its ISO 2553 "
+     "symbol with its number 1–7: 'a5' and a triangle on both sides of the line for the fin, a circle at the bend for "
+     "the three all-round welds, the process number (135, 141, 131) in the tail. They show in the view only.",
+     where="3 Looks > Welds (Weld symbols, Weld list…)", check=_check_welds, since="0.2.231", changed="0.2.240")
 stop("workspace_welding", LOOK, "welds", "The workspace Welding",
      "The same weldment, the Workspace row on the left panel now says 'Welding' (its small arrow open). The side "
      "panel shows only what welding needs: 1 Import, 2 Structure, 3 Looks with Welds open, 5 Scene & Render (light, "
      "camera, picture). 4 Motion, 6 Animation, the render queue and the CNC machine are gone; the welds are all still "
-     "there. Open the Workspace list: Welding, Machine builder, Video producer and Houses are new, each with its own "
+     "there, with their symbols. Open the Workspace list: Welding, Machine builder, Video producer and Houses are new, each with its own "
      "icon and a star. Pick All functions to have everything back.",
-     where="The Workspace row on the left panel", since="0.2.240", shot="Welds", setup=_welding_open,
+     where="The Workspace row on the left panel", since="0.2.241", shot="Welds", setup=_welding_open,
      check=_check_workspace_welding, auto=lambda ctx, scene, st: "")
 stop("cutaway", LOOK, "cutaway", "Slice: the pedestal opens up",
      "A slice slides in from the front and takes away the front half of the crane's pedestal and boom: the cut faces "
@@ -5890,7 +5900,7 @@ stop("workspace", OUT, HUB_SET, "Functions in this project",
      "away). "
      f"Sections 1 to {len(places.SECTIONS)} start folded: click a title to open it, Ctrl+click keeps only that one open, the tabs "
      "All · 1 … 8 under Make show one section at a time.",
-     where="The Workspace row on the left panel", since="0.2.152", changed="0.2.240", shot="Tour view",
+     where="The Workspace row on the left panel", since="0.2.152", changed="0.2.241", shot="Tour view",
      check=_check_workspace, setup=_workspace_open, auto=lambda ctx, scene, st: "")
 stop("make", OUT, HUB_SET, "Make: each output in a window",
      "At the top of the Fresing panel is Make: one row of six large icons – Picture, Product video, Turntable, 3D page, "

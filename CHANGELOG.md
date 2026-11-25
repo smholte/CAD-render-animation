@@ -5,11 +5,11 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.240 – 25 Nov 2026 – Four more workspaces: Welding, Machine builder, Video producer, Houses; Sales moves joints (task 0321)
+## 0.2.241 – 25 Nov 2026 – Four more workspaces: Welding, Machine builder, Video producer, Houses; Sales moves joints (task 0321)
 
 - **Welding** (new workspace): import, the parts' looks, **3 Looks > Welds** (placement, types, looks, finish, rust),
   surroundings, light, camera, **Render a picture** and **Render this view**. Motion, animation, video and the render
-  queue are not shown. Weld symbols and the weld list will show here too when they come.
+  queue are not shown. The new weld symbols and weld list are there too.
 - **Machine builder** (new workspace): import, structure and placing, joints, cylinders, mechanisms, way covers, hoses
   and drag chains, tracks, the Set-up window, a first animation and the clash check.
 - **Video producer** (new workspace): every animation step, camera paths, labels, picture cards, music, brand kit,
@@ -21,6 +21,21 @@ installer of that version was built from.
   hidden; nothing is locked.
 - Every workspace has its own **icon** in the Workspace list. The first-start set-up has four more ticks under
   **Your work** (Welding and fabrication, Making machines move, Videos of machines, Houses from House Planner).
+## 0.2.240 – 25 Nov 2026 – Copies take their welds, weld symbols and a weld list (task 0320)
+
+- **Copy and paste takes the welds along**: copy a welded model, subassembly or some parts (right-click > Copy,
+  Paste / Paste here, Ctrl+C / Ctrl+V) and every weld whose two parts are both in the copy comes with it – same seams,
+  size, metal and finish, named "… (2)". A weld with one part outside the copy is left out and named in the line after
+  the paste. Ctrl+Z takes the copied welds away with the copy.
+- **Weld symbols** (3 Looks > Welds, **off** until you tick it, kept with the project): an ISO 2553 symbol beside each
+  weld – arrow, reference line, the fillet triangle or butt symbol, a5, the length or "n × l (e)" for an intermittent
+  weld, the all-round circle, both sides, the process number (135 MAG, 131 MIG, 141 TIG, 111 stick) and the weld's
+  number. Same size on the screen at any zoom. Not in renders unless you tick **Show in renders** (then each symbol is
+  a label pointing at its seam).
+- **Weld list…**: a window with one row per weld (number, parts, type, size, length, process, finish, symbol) and
+  **Export CSV…** for Excel.
+- **Fixed**: updating one model to a new STEP revision marked the welds of every *other* model (and of copies) as
+  "lost". Now only the updated model's welds are looked at.
 ## 0.2.239 – 24 Nov 2026 – Real-looking models for "Painted faces" and "Logos and stickers" (task 0235)
 
 - **Painted faces** now shows a gearbox housing (rounded corners, a base flange, an oil-filler boss) with its red top

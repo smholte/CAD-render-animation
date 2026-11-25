@@ -1329,6 +1329,7 @@ elif MODE in ("waycover", "air", "labels", "coolant", "flex_panels", "flex_chain
                 keys = mod("blender.welds").set_up_test_model(sc)
             st = sc.fresing_welds
             st.index = 3
+            st.symbols = True                        # task 0320: the symbols' switch shown on
             mod("blender.ui")._OPEN_FOLDS = True
             sc.fresing.last_message = ""
             select_only()

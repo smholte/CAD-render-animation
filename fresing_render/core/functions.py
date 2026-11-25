@@ -135,7 +135,8 @@ TASK_WORKSPACES = {
     "welding": _COMMON + (
         "import.step", "import.mesh", "import.drop", "import.again", "import.update", "import.up_axis",
         "structure.tree", "looks.materials", "looks.find", "looks.rules", "looks.rule_sets", "looks.finishes",
-        "looks.rust", "looks.faces", "looks.welds", "looks.light_look", "scene.surroundings", "scene.light",
+        "looks.rust", "looks.faces", "looks.welds", "looks.weld_symbols", "looks.weld_list", "looks.weld_copy",
+        "looks.light_look", "scene.surroundings", "scene.light",
         "scene.camera", "scene.blur", "scene.still", "scene.render_view", "scene.shapes", "scene.save",
     ),
     # task 0321: making a machine move – import, structure, place, joints, cylinders, mechanisms, way covers, hoses and
@@ -265,7 +266,7 @@ fn(id="panel.task_workspaces", title="Workspaces for one job: Sales, Quick rende
    pccheck=("workspace.essentials",), since="0.2.226")
 fn(id="panel.more_workspaces", title="Workspaces for one job, round 3: Welding, Machine builder, Video producer, Houses",
    family="panel", panel="FRESING_PT_workspace", button="fresing.workspace_pick", guide="more-workspaces",
-   tour=("workspace_welding",), pccheck=("workspace.round3",), since="0.2.240")
+   tour=("workspace_welding",), pccheck=("workspace.round3",), since="0.2.241")
 fn(id="panel.workspace_stars", title="Favourite workspaces: a star puts them on top of the list", family="panel",
    panel="FRESING_PT_workspace", button="fresing.workspace_star", guide="workspace-stars",
    pccheck=("workspace.essentials",), since="0.2.226")
@@ -393,6 +394,14 @@ fn(id="looks.decals", title="Logos & stickers", family="looks", panel="FRESING_P
    button="fresing.decal_add", guide="decals", tour=("decals",), pccheck=("decals.add",), since="0.2.21")
 fn(id="looks.welds", title="Welds", family="looks", panel="FRESING_PT_welds", button="fresing.weld_add",
    guide="welds", tour=("welds",), pccheck=("looks.welds",), since="0.2.231", changed="0.2.237")
+fn(id="looks.weld_copy", short="Weld copies", title="Copies take their welds along", family="import", panel="FRESING_PT_place",
+   button="fresing.paste", guide="weld-copies", pccheck=("looks.weld_symbols",), since="0.2.240",
+   workspaces=("cnc", "offshore", "product", "education", "lifting"))
+fn(id="looks.weld_symbols", short="Weld symbols", title="Weld symbols (ISO 2553): one switch, off by default", family="looks",
+   panel="FRESING_PT_welds", prop="symbols", guide="weld-symbols", tour=("welds",), pccheck=("looks.weld_symbols",),
+   since="0.2.240")
+fn(id="looks.weld_list", short="Weld list", title="Weld list and CSV", family="looks", panel="FRESING_PT_welds", button="fresing.weld_list",
+   guide="weld-list", tour=("welds",), pccheck=("looks.weld_symbols",), since="0.2.240")
 fn(id="looks.xray", title="X-ray look", family="looks", panel="FRESING_PT_xray", button="fresing.xray_selected",
    guide="xray", tour=("fade",), pccheck=("motion.fade",), since="0.2.59")
 fn(id="looks.cutaway", title="Slice", family="looks", panel="FRESING_PT_cutaway", button="fresing.cut_add",
@@ -424,7 +433,7 @@ fn(id="joints.couplings", short="Couplings", title="Couplings and motors", famil
    changed="0.2.224")
 fn(id="joints.move", title="Move a joint: its slider, CAD (0) / Min / Max – also where adding joints is hidden (Sales)",
    family="motion", panel="FRESING_PT_joints", button="fresing.joint_value", text="CAD (0)", guide="move-joints",
-   pccheck=("workspace.round3",), since="0.2.240")
+   pccheck=("workspace.round3",), since="0.2.241")
 fn(id="poses.pose", title="Poses", family="motion", panel="FRESING_PT_poses", button="fresing.pose_save",
    guide="poses", tour=("update",), pccheck=("states.poses",), since="0.2.12")
 fn(id="poses.explode", title="Exploded view", family="motion", panel="FRESING_PT_poses", button="fresing.explode",
