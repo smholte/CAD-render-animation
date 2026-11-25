@@ -78,7 +78,7 @@ MIN_CHECKS = {"ui1": 32, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 2
               "clientkeys": 12, "keys": 30, "demokits": 25, "drawn": 25, "route": 12, "backups": 23, "forms": 29,
               "move": 14, "importagain": 18, "place": 22, "jointfold": 11, "workspaces2": 19, "copy": 16, "welds": 20, "names": 19, "measure": 16,
               "firstsetup": 42,
-              "leadmotions": 24, "materials": 22}
+              "leadmotions": 24, "materials": 28}
 # Tests that take ~10 min on a usual runner get a longer box than --timeout-min (task 0298: the PC check's first half
 # took 10 min on one runner and over 15 on two others – every line 1.4-1.8x slower, from the first import on). Task 0319:
 # the test tour's halves too – 0299's half took 15.0 min, and one new stop moved its weather stops into the other half.

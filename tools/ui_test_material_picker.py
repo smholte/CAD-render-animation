@@ -315,6 +315,7 @@ def s_adjust():
     check("the next slider changes the node, the material is not built again",
           len(mat.node_tree.nodes) == S["adj_nodes"] and abs(LA.node_of(mat).inputs["Clear coat"].default_value
                                                              - 0.6) < 1e-4)
+    state().picked = mod("blender.material_picker").group_key(g)       # the window shows the group's own: Adjust
     redraw()
     return 0.5
 
@@ -326,6 +327,7 @@ wait_until("the large picture of the adjusted look is made in the background",
 
 @step
 def s_nodes_full():
+    S["adjust_shot"] = shot("15_adjust")
     W = mod("core.workspaces")
     S["ws_before"] = mod("blender.workspaces").name_of(bpy.context.scene)
     with override():
