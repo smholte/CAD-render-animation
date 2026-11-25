@@ -1,6 +1,6 @@
 # 0348 – Lifting L6a: the lift path and live checks with the worst moment
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0348-lifting-l6a-lift-path`
+**Who:** worker · **Status:** running (web session, 25 Nov) · **Branch:** `task/0348-lifting-l6a-lift-path`
 **Started by:** lead, 25 Nov 2026 (Lifting lane: L1 0182 … L5 0232 → **L6a** → L6b = 0349 → L7 printed plan) ·
 **Model:** Opus · effort High · Claude Code on the web, environment "CAD-render-animation"
 **Area:** Lifting lane – new `blender/lifting_path.py` and `core/lifting_path.py` (pure Python: steps, evaluation along
