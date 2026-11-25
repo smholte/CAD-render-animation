@@ -567,6 +567,45 @@ def heavy_milling_finish(ctx):
     return f"{len(xs) * len(ys):,} points: the whole cut in {whole:.1f} s, {faces:,} faces, {per:.0f} ms per frame"
 
 
+@line("heavy.liquid", "Milling: coolant liquid of a 10-minute program", "0.2.260", (H,), expected=900,
+      what="The test mill roughs six pockets and slots with flood coolant, the program fitted to 10 minutes (14,400 "
+           "frames); 'Liquid on the machine' at Detail Normal (2 mm cells on the table, 5 mm in the tray) is worked "
+           "out with all helper processes",
+      shows="How long the liquid of a real-length program takes on this PC (the aim: under 10 minutes), its frames "
+            "and cells, the share of frames at rest, the bake's size on disk",
+      not_shown="The 4th / 5th axis (task 0347); Draft is about 4-8 times quicker")
+def heavy_liquid(ctx):
+    from ..blender import liquid, machining
+    machining._RUNTIME.clear()
+    liquid.forget()
+    scene = ctx.fresh(os.path.join(DATA, "test_mill.step"))
+    seconds = 20.0 if small() else 600.0
+    detail = "DRAFT" if small() else "NORMAL"
+    t0 = time.time()
+    _a, r = liquid.set_up_test_model(scene, os.path.join(ctx.work, "liquid_heavy"), liquid.long_program(6),
+                                      fit=seconds, detail=detail, fast_map=True)
+    ctx.metric("build and read the motion", time.time() - t0, "s")
+    _check(not r["warnings"], "; ".join(r["warnings"][:2]))
+    _check(liquid.problem(scene) == "", liquid.problem(scene))
+    t0 = time.time()
+    info = liquid.bake_now(scene)
+    bake = time.time() - t0
+    _check(info is not None and "frames" in info, "the liquid was not worked out")
+    ctx.metric("liquid bake", bake, "s")
+    ctx.metric("frames", info["frames"], "")
+    ctx.metric("cells", sum(info["cells"]), "")
+    ctx.metric("per frame", bake * 1000.0 / max(1, info["frames"]), "ms/frame")
+    ctx.metric("helpers", info["helpers"], "")
+    ctx.metric("frames at rest", 100.0 * info["settled"] / max(1, info["frames"]), "%")
+    ctx.metric("bake on disk", info["mb"], "MB")
+    tot = info["totals"]
+    _check(tot["drained"] > 0.0, "nothing went down the drain")
+    _memory(ctx)
+    return (f"{info['frames']:,} frames, {sum(info['cells']):,} cells ({detail.title()}): {bake / 60.0:.1f} min with "
+            f"{info['helpers']} helpers, {info['mb']:.0f} MB; {tot['drained']:.1f} of {tot['poured']:.1f} l down the "
+            f"drain")
+
+
 @line("heavy.playback", "Big machine: playback under load", "0.2.32", (H,), requires=("heavy.import",), expected=60,
       what="Three joints with a coupling move the 3,000-part machine through a 10 s animation; every frame is set "
            "and evaluated one after the other",

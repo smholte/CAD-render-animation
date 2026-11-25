@@ -69,12 +69,6 @@ DRAIN_DEEP = 0.015                   # m: a ray this far below the drain's top w
 MM = 0.001
 TICK = 0.15                          # s of bake work between two redraws (the modal job)
 
-EEVEE_ITEMS = [("CLEAR", "Clear", "See-through with ray-traced refraction (the closest to the Cycles look; may be "
-                                  "grainy at few samples)"),
-               ("MILKY", "Milky", "Milky white without refraction: smooth at any sample count, the bed does not "
-                                  "show through"),
-               ("BLENDED", "Blended", "See-through drawn blended: smooth, the bed shows through faintly")]
-
 _STATE: dict = {"guard": 0, "running": False, "cancel": False, "progress": 0.0, "scene": "", "pending": False}
 _RT: dict = {}                        # scene name -> runtime: fingerprint memo, reader, beds, status, declined
 
@@ -1183,3 +1177,110 @@ def unregister():
         if fn in lst:
             lst.remove(fn)
     forget()
+
+
+# ---------------------------------------------------------------------------
+# the test model's set-up (tests, PC check, test tour – one place)
+# ---------------------------------------------------------------------------
+
+def _zig(x0, x1, y0, y1, step, feed=2400):
+    out, y, k = [], y0, 0
+    while True:
+        out.append(f"G1 X{(x1 if k % 2 == 0 else x0):g} Y{y:g} F{feed}")
+        k += 1
+        if y + step > y1 + 1e-9:
+            break
+        y += step
+        out.append(f"G1 Y{y:g}")
+    return "\n".join(out)
+
+
+#: the test program on the test mill's block (200 x 200 x 40, work zero on its top's middle): flood (M8) while a
+#: closed pocket (60 x 66 x 10 mm with the D10) and an open slot running out at the block's +x side are cut, the tool
+#: over the pocket a moment, M9, a wait
+TEST_PROGRAM = f"""%
+(T1 D=10. CR=0. - flat end mill)
+G21 G90 G94 G17
+S9000 M3
+G0 X-60 Y-30 Z5
+M8
+G1 Z-5 F900
+{_zig(-60, -10, -30, 30, 8)}
+G1 Z-10 F900
+{_zig(-60, -10, -30, 30, 8)}
+G0 Z5
+G0 X20 Y0
+G1 Z-6 F900
+G1 X112 F1800
+G0 Z30
+G0 X-35 Y0
+G4 P2
+M9
+G4 P5
+M5
+M30
+%
+"""
+
+
+def long_program(pockets: int = 6) -> str:
+    """A longer roughing program for the Heavy line: ``pockets`` pockets 40 x 40 in three depths over the block, a
+    slot after each, the table going from one to the next; flood all the time, M9 at the end and a wait."""
+    spots = [(-60.0, -55.0), (0.0, -55.0), (60.0, -55.0), (-60.0, 15.0), (0.0, 15.0), (60.0, 15.0),
+             (-60.0, 65.0), (60.0, 65.0)]
+    rows = ["%", "(T1 D=10. CR=0. - flat end mill)", "G21 G90 G94 G17", "S9000 M3", "G0 X-60 Y-55 Z5", "M8"]
+    for k in range(pockets):
+        cx, cy = spots[k % len(spots)]
+        rows.append(f"G0 X{cx - 15:g} Y{cy - 15:g} Z5")
+        for z in (-3, -6, -9):
+            rows.append(f"G1 Z{z} F900")
+            rows.append(_zig(cx - 15, cx + 15, cy - 15, cy + 15, 7.5))
+        rows += ["G0 Z5", f"G0 X{cx - 20:g} Y{cy + 25:g}", "G1 Z-4 F900", f"G1 X{cx + 20:g} F1800", "G0 Z5"]
+    rows += ["G0 Z30", "M9", "G4 P10", "M5", "M30", "%"]
+    return "\n".join(rows) + "\n"
+
+
+def set_up_test_model(scene, folder: str, text: str = TEST_PROGRAM, fit: float = 16.0, detail: str = "DRAFT",
+                      fast_map: bool = False, axes: bool = True, name: str = "Liquid", before_build=None):
+    """The test mill (``test_mill.step`` imported into ``scene``) set up for the liquid: X / Y / Z slides, the D10 in
+    the spindle, the block milled, a Run G-code program step with ``text`` fitted into ``fit`` s, coolant and
+    "Liquid on the machine" on; built and its motion read. ``axes``: make the X / Y / Z slides (False: they are
+    there). Returns (animation, Build's result)."""
+    from . import animation, gcode, joints
+
+    def ob(name):
+        return next(o for o in scene.objects if o.get(build.PROP_NAME) == name)
+
+    for axis, asm, d in (("Y", "Y.ASM", (0, 1, 0)), ("X", "X.ASM", (-1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
+        if axes:                                      # (the test tour makes them with the way covers)
+            o = ob(asm)
+            joints.create(scene, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=axis)
+    gcode.find_axes(scene)
+    tool, stock = ob("END MILL D10"), ob("STOCK 200x200x40")
+    gcode.use_tool(scene, tool)
+    gcode.use_workpiece(scene, stock)
+    m = machining.settings(scene)
+    m.enabled = True
+    m.fast_map = bool(fast_map)
+    machining.add_bit(scene, tool)
+    machining.set_workpiece(scene, stock)
+    os.makedirs(folder, exist_ok=True)
+    path = os.path.join(folder, "liquid_test.ngc")
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(text)
+    a = scene.fresing.animations.add()
+    a.name, a.tail, a.fps = name, 0.0, "24"
+    b = a.blocks.add()
+    b.kind = "GCODE"
+    b.gcode_speed, b.gcode_fit, b.gcode_path = "FIT", float(fit), False
+    b.gcode_file = path
+    gcode.step_changed(scene, b)
+    c = settings(scene)
+    c.enabled = True
+    c.liquid_detail = detail
+    c.liquid_on = True
+    if before_build is not None:                      # (the test tour hides the finished-part reference first)
+        before_build(scene)
+    r = animation.bake(scene, a)
+    machining.sample(scene)
+    return a, r

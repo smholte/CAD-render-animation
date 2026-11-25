@@ -4096,6 +4096,47 @@ def build_coolant(b: Build):
     a.start_shot = _shot(b, "Tour: coolant").name
 
 
+@tour_set("liquid", "Coolant liquid", "test_mill.step", added="0.2.260", changed="0.2.260")
+def build_liquid(b: Build):
+    """Task 0346: the coolant collects on the VMC – fills the pocket, runs over the table into the tray."""
+    from mathutils import Vector
+
+    from . import liquid
+    sc = b.scene
+    _look("PRODUCT")
+    _xyz(sc)
+    a, r = liquid.set_up_test_model(sc, os.path.dirname(b.file("Tour liquid.ngc")), axes=False, name="Coolant liquid",
+                                    before_build=_hide_finished)
+    _check(not r["warnings"], "; ".join(r["warnings"][:2]))
+    a.quality, a.out_resolution, a.out_format = "draft", "preview", "presentation"
+    stock = _ob(sc, "STOCK 200x200x40")
+    _close_camera(b, stock.matrix_world.translation + Vector((0.0, -0.05, 0.0)), 0.45, "Tour liquid")
+    a.start_shot = _shot(b, "Tour: coolant liquid").name
+
+
+def _check_liquid(scene):
+    """The liquid is worked out (Draft) and lies in the pocket, on the table and in the tray; drawn this frame."""
+    import bpy
+
+    from . import coolant, liquid
+    _check(liquid.problem(scene) == "", liquid.problem(scene))
+    info = liquid.bake_now(scene)
+    _check(info is not None, "the liquid was not worked out")
+    liquid.show(scene)
+    rd, beds = liquid._open(scene)
+    _check(rd is not None, "no bake for the project as it is")
+    f = scene.frame_current
+    depths = rd.read(f)[0]
+    vols = [float(d.sum()) * g[0] ** 2 * 1e3 for d, g in zip(depths, beds.geom)]
+    _check(vols[0] > 0.01, f"only {vols[0]:.3f} l on the table at frame {f}")
+    sp = coolant.spans()
+    _check(len(sp) == 1, f"{len(sp)} coolant spans, not 1")
+    ob = bpy.data.objects.get(liquid.OBJ_TABLE)
+    _check(ob is not None and len(ob.data.polygons) > 0, "no liquid drawn on the table")
+    return (f"{vols[0]:.2f} l on the table, {vols[1]:.2f} l in the tray at frame {f}; "
+            f"{len(ob.data.polygons):,} faces drawn")
+
+
 def _check_coolant(scene):
     import bpy
 
@@ -5656,6 +5697,14 @@ stop("coolant", MACH, "coolant", "Coolant (flood)",
      animation="Pocket with coolant", at=0.5, play=True, check=_check_coolant, auto="clip", since="0.2.48",
      changed="0.2.205")
 
+stop("liquid", MACH, "liquid", "Coolant liquid on the machine",
+     "The bit cuts a pocket and an open slot with flood coolant and 'Liquid on the machine' ticked: milky coolant "
+     "fills the pocket and the slot, spills over the block onto the table, runs along the T-slots and off the "
+     "table's ends into the chip tray, which runs to the drain at its front right corner. After M9 the pocket stays "
+     "full. (It is worked out a moment after Build & play: the Coolant panel shows how far.)",
+     where="4 Motion > CNC machine > Coolant (Liquid on the machine)", animation="Coolant liquid", at=0.8,
+     play=True, check=_check_liquid, auto="clip", since="0.2.260")
+
 
 def _check_setup(scene):
     """The Set-up window's steps (task 0062): both set-ups are there and stand on this machine's state."""
@@ -6443,7 +6492,7 @@ stop("backups", OUT, "faces", "Automatic backups",
 #: the sets of a CNC mill or a milling bit: their stops also check the cut (marks on every cut face, every move
 #: through the block cut, no program running through a block that nothing cuts)
 MILLING_SETS = ("mill", "gantry", "atc", "doublearm", "rotary4", "rotary5", "toolpath", "tools", "marks", "air",
-                "coolant", "operator")
+                "coolant", "liquid", "operator")
 
 
 def check_milling(scene) -> str:

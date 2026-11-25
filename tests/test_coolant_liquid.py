@@ -16,10 +16,9 @@ import pytest
 bpy = pytest.importorskip("bpy")
 mf = pytest.importorskip("manifold3d")
 import addon_utils  # noqa: E402
-from mathutils import Vector  # noqa: E402
 
 import fresing_render  # noqa: E402
-from fresing_render.blender import animation, build, chips, coolant, gcode, joints, liquid, machining  # noqa: E402
+from fresing_render.blender import animation, build, chips, coolant, gcode, liquid, machining  # noqa: E402
 from fresing_render.core import liquid as lcore  # noqa: E402
 
 HERE = os.path.dirname(__file__)
@@ -30,41 +29,7 @@ TOOL = "END MILL D10"
 MM = 0.001
 
 
-def _zig(x0, x1, y0, y1, step):
-    out, y, k = [], y0, 0
-    while True:
-        out.append(f"G1 X{(x1 if k % 2 == 0 else x0):g} Y{y:g} F2400")
-        k += 1
-        if y + step > y1 + 1e-9:
-            break
-        y += step
-        out.append(f"G1 Y{y:g}")
-    return "\n".join(out)
-
-
-PROGRAM = f"""%
-(T1 D=10. CR=0. - flat end mill)
-G21 G90 G94 G17
-S9000 M3
-G0 X-60 Y-30 Z5
-M8
-G1 Z-5 F900
-{_zig(-60, -10, -30, 30, 8)}
-G1 Z-10 F900
-{_zig(-60, -10, -30, 30, 8)}
-G0 Z5
-G0 X20 Y0
-G1 Z-6 F900
-G1 X112 F1800
-G0 Z30
-G0 X-35 Y0
-G4 P2
-M9
-G4 P5
-M5
-M30
-%
-"""
+PROGRAM = liquid.TEST_PROGRAM
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -98,34 +63,9 @@ def make_scene(tmp, liquid_on=True, text=PROGRAM, fit=16.0):
     sc = bpy.context.scene
     sc.fresing.out_folder = str(tmp)
     assert bpy.ops.fresing.import_step(filepath=MILL, quality="draft") == {"FINISHED"}
-    for name, asm, d in (("Y", "Y.ASM", (0, 1, 0)), ("X", "X.ASM", (-1, 0, 0)), ("Z", "Z.ASM", (0, 0, 1))):
-        o = ob(sc, asm)
-        joints.create(sc, "SLIDE", [o], o.matrix_world.translation, Vector(d), name=name)
-    assert bpy.ops.fresing.cnc_find_axes() == {"FINISHED"}
-    click(ob(sc, TOOL))
-    assert bpy.ops.fresing.cnc_use_tool() == {"FINISHED"}
-    click(ob(sc, STOCK))
-    assert bpy.ops.fresing.cnc_use_workpiece() == {"FINISHED"}
-    m = machining.settings(sc)
-    m.enabled = True
-    machining.add_bit(sc, ob(sc, TOOL))
-    machining.set_workpiece(sc, ob(sc, STOCK))
-    path = os.path.join(str(tmp), "liquid.ngc")
-    with open(path, "w") as fh:
-        fh.write(text)
-    a = sc.fresing.animations.add()
-    a.name, a.tail, a.fps = "Program", 0.0, "24"
-    b = a.blocks.add()
-    b.kind = "GCODE"
-    b.gcode_speed, b.gcode_fit, b.gcode_path = "FIT", fit, False
-    b.gcode_file = path
-    c = sc.fresing.coolant
-    c.enabled = True
-    c.liquid_detail = "DRAFT"
-    c.liquid_on = liquid_on
-    r = animation.bake(sc, a)
+    a, r = liquid.set_up_test_model(sc, str(tmp), text, fit)
+    sc.fresing.coolant.liquid_on = liquid_on
     assert not r["warnings"], r["warnings"]
-    machining.sample(sc)
     sc["fr_test_frames"] = r["frames"]
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(str(tmp), "liquid.blend"))   # the bake goes next to it
     sc = bpy.context.scene
