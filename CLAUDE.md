@@ -954,6 +954,14 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
   - unchanged: a project never changes its look by itself, the app runs without the pack, a project opens on a
     client's PC – these are user-friendliness rules, not backward compatibility.
   From the baseline on, every saved project must keep opening and keep its look in every later version.
+  **Before the baseline** (owner 25 Nov 22:5x) – whatever changes what a project stores: the import lane 0340 → 0342 →
+  0341 → 0287; **0345** (parts keep their identity through a model update); **0352** compatibility kit; **0353**
+  format number on outputs; 0344's groundwork; the build tasks of **0305** (animation panel, exploded views) and
+  **0286** (libraries) after the owner's picks. New features that only add data may come after the baseline.
+- **Keep saved data small (owner 25 Nov 22:5x).** A project stores the user's choices and work (model link, joints,
+  keys, looks picked, settings); everything that can be worked out again – bakes, caches, meshes made by the app,
+  liquid, cable shapes, baked lights – is rebuilt from those choices, never upgraded. New saved data gets a name in the
+  project's format list (0352) and an upgrade step when it changes; derived data gets none.
 - UI follows the layout rules at the top of `blender/ui.py`: steps top to bottom, choices
   above their button, details of the selected list item under the list, no cut-off labels at the
   default side-panel width, rarely used settings in folds, a state in every panel header (sub-panels
