@@ -1,6 +1,6 @@
 # 0295 – Keys: a Keys tab in Fresing Settings – every key of the app, change Fresing's own, a printable key sheet
 
-**Who:** worker · **Status:** running (25 Nov; 0322 done, 0.2.244) · **Branch:** `claude/elegant-ritchie-mkcgli`
+**Who:** worker · **Status:** done (0.2.256, 25 Nov) · **Branch:** `claude/elegant-ritchie-mkcgli`
 **Started by:** lead, 23 Nov 2026 (owner's list, 23 Nov 19:39: "Is there a keybinds menu? Where you can edit and see what
 they are, and a Fresing render specific one?" – today: no; Blender's own Preferences > Keymap only, in Full access)
 · **Model:** Opus · effort Medium
@@ -66,7 +66,16 @@ not `task/0295-keys`). Version **0.2.256**.
   pressing Ctrl+Alt+K in the window; Copy on M refused; Ctrl+Alt+K starts Measure in the 3D view, Alt+M no longer; after
   the app is started again (app template, same settings folder) the key is Ctrl+Alt+K in the keymap.
 - PC check `settings.keys` alone: OK ("74 keys in 5 groups; 13 Fresing keys"). Test tour: all stops' Go + check pass.
-- GitHub runs: see below.
+- **GitHub runs: 12.** Real failures fixed: run 1 – the Client view's lock refused Fresing > Keys… (added to
+  `lock.ALLOWED_PREFIXES`) and the Help entry's draw function had the updates entry's name `_draw_help`
+  (`test_updates_blender`); run 2 – the allow-list size guard in `test_workspaces_independent.py` (146 → 151, the 5
+  Keys operators change only the user's keys). One-offs: the lesson undo test (`ui_test_lesson_independent.py`, group
+  scenes) failed once, 38/38 locally, green on re-run of the failed job; `test_update_reuse[weldment]` (decal objects
+  4 vs 2) failed once in pytest group 4, passed alone and in the whole group 4 locally (796 passed), green in the next
+  run – worth watching. The rest: **nine version clashes in a row** (0314, 0329, 0330, 0334, 0337, 0338, 0323, 0339,
+  0336, 0335 merged while this branch's ~40 min runs went; GitHub's queue was full). The last renumber took
+  **0.2.256 and left 0.2.255 free** (the precheck only needs "newer than main") to stop racing the task on the next
+  number. Green run 45660604060, `main` fast-forwarded to 28906da.
 
 **Open points / follow-up tasks:**
 - Only the 8 keys in `OWN` can be changed; a new Fresing key that should be changeable needs an `OWN` entry.
@@ -74,6 +83,11 @@ not `task/0295-keys`). Version **0.2.256**.
   warning says. Alt+M's replacement works in Full access too.
 - `settings_materials.png` is made by the real-app test but used by no chapter (older than 0295, left out again).
 - The Learning hub's link to the Keys section is 0304's.
+- For the lead: with 8–10 code tasks finishing at once, nearly every merge cost a full run and a renumber; fewer code
+  tasks at a time, or an agreed number per task, would save hours of runs.
+- `tests/test_workspaces_independent.py::test_zz_switching_the_extension_off_leaves_blender_as_it_was` fails on this
+  web machine also on plain `main` (passes on GitHub) – not looked into.
+- The progress note `claude/render-app-progress.md` (claude.ai project) is not reachable from here: the lead adds it.
 
 **Owner's check on your PC:**
 1. Fresing > **Keys…** – Fresing Settings opens on **Keys**. Type `render` in the search field: only the render keys.
