@@ -90,7 +90,7 @@ his employer's name.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web, 25–26 Nov 2026 · 0.2.262
+**Chat / date:** Claude Code on the web, 25–26 Nov 2026 · 0.2.263
 
 **What changed:** four new files, no existing app file touched (only the version lines and CHANGELOG):
 `core/assets_pack.py`, `core/assets_registry.py`, `pccheck/assets_test_pack.py`, `tools/make_test_assets_pack.py`;
@@ -166,8 +166,8 @@ iron's roughness picture new (`…_rough_v2.png`); every other file byte-equal b
 - Real-Blender test: both versions read with no notes, `verify` OK, every `.blend` holds the listed datablock and no
   Text, driver, script node or linked library; node groups on the 2.3 contract with no BSDF / Output; pictures
   relative, inside the pack and listed in the row's `textures`.
-- Local: 110 tests of the two files in 10 s. GitHub: 2 full runs – the first green (run 45717235569, 31 min; the
-  runner pool was shared), the second after merging main because 0327 took 0.2.261 meanwhile (renumbered to 0.2.262).
+- Local: 110 tests of the two files in 10 s. GitHub: 3 full runs – the first green (run 45717235569, 31 min; the
+  runner pool was shared), the second after merging main because 0327 took 0.2.261 meanwhile (renumbered to 0.2.262), the third because 0326 took 0.2.262 (renumbered to 0.2.263).
 
 **Different from 0344's plan:**
 - `pack.json` has a **`files` table** (every file of the pack: bytes + sha256) – the one list `verify` reads; asset rows
