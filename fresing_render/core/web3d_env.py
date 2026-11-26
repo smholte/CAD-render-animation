@@ -439,6 +439,17 @@ def brightest(page_pixels: np.ndarray) -> tuple[list[float], float]:
     return [tx, -tz, ty], share
 
 
+def brightest_colour(page_pixels: np.ndarray) -> list[float]:
+    """Task 0369: the colour of ``brightest``'s spot, scaled to brightness 1 – the page's sun of a photo or studio
+    look takes it (a fixed daylight tint made the app's neutral studio light warm on the page: mid grey 134/133/129
+    where the app shows 136/136/136)."""
+    px = shrink(page_pixels, 64)[..., :3]
+    lum = px @ np.array([0.2126, 0.7152, 0.0722])
+    v, u = np.unravel_index(int(np.argmax(lum)), lum.shape)
+    c = np.maximum(px[v, u], 0.0) / max(float(lum[v, u]), 1e-9)
+    return [round(float(x), 4) for x in c]
+
+
 _REC2020 = np.array([[0.6274, 0.0691, 0.0164], [0.3293, 0.9195, 0.0880], [0.0433, 0.0113, 0.8956]])
 _REC2020_INV = np.array([[1.6605, -0.1246, -0.0182], [-0.5876, 1.1329, -0.1006], [-0.0728, -0.0083, 1.1187]])
 _AGX_IN = np.array([[0.856627153315983, 0.137318972929847, 0.11189821299995],
@@ -449,10 +460,63 @@ _AGX_OUT = np.array([[1.1271005818144368, -0.1413297634984383, -0.14132976349843
                      [-0.016493938717834573, -0.016493938717834257, 1.2519364065950405]])
 
 
+# Task 0369: the page's tone curve, fitted to the app's (Blender's AgX view + "AgX - Medium High Contrast", the look
+# ``blender/render.apply_quality`` sets). three.js's own AgX drew dark warm colours greyer and lighter than the app (rust
+# 152/98/67 where the app shows 137/68/20; 11 of 255 on average over 40,000 colours) – a part of 0143's grey sand
+# Its form is three's (matrix in, log2, polynomial, matrix out, power, Rec.2020 -> sRGB) with numbers fitted by
+# ``tools/fit_page_tone.py``: 1.4 of 255 on average for surface colours. ``web/fr_page.js`` has the same numbers
+# (``FR_TONE``; ``tests/test_web3d_env.py`` compares them).
+TONE = {
+    "m_in": np.array([[0.181849799, 0.0369311203, 0.0294012135],
+                      [0.0891217618, 0.229309746, 0.0517804392],
+                      [0.0343371944, 0.0405300169, 0.215755379]]),
+    "m_out": np.array([[1.66983733, -0.162872274, -0.304075463],
+                       [0.135658601, 1.9236367, -0.186468688],
+                       [-0.123551921, -0.0820026042, 2.19637448]]),
+    "poly": np.array([0.000264423659, 6.38711728e-06, 1.49435877, -10.7505043, 33.2986118, -38.014579, 14.5647625]),
+    "lo": -9.15020301, "span": 9.94289478, "gamma": 1.26151539,
+}
+
+
+def pack_tone(t: dict) -> np.ndarray:
+    return np.concatenate([np.ravel(t["m_in"]), np.ravel(t["m_out"]), t["poly"], [t["lo"], t["span"], t["gamma"]]])
+
+
+def unpack_tone(p) -> dict:
+    p = np.asarray(p, np.float64)
+    return {"m_in": p[0:9].reshape(3, 3), "m_out": p[9:18].reshape(3, 3), "poly": p[18:25], "lo": float(p[25]),
+            "span": float(p[26]), "gamma": float(p[27])}
+
+
+def srgb_encode(c: np.ndarray) -> np.ndarray:
+    c = np.clip(np.asarray(c, np.float64), 0.0, 1.0)
+    return np.where(c <= 0.0031308, 12.92 * c, 1.055 * np.power(c, 1.0 / 2.4) - 0.055)
+
+
+def tone(rgb: np.ndarray, exposure: float = 1.0, params: dict | None = None, encode: bool = False) -> np.ndarray:
+    """The page's tone curve (task 0369, ``TONE``) on linear sRGB pixels -> linear sRGB 0 … 1 (``encode``: the
+    screen's sRGB 0 … 1). Row vectors: ``c @ M`` is GLSL's ``mat3(rows of M) * c``."""
+    t = TONE if params is None else params
+    c = np.asarray(rgb, np.float64)[..., :3] * exposure
+    c = c @ t["m_in"]
+    c = np.log2(np.maximum(c, 1e-10))
+    c = np.clip((c - t["lo"]) / t["span"], 0.0, 1.0)
+    c = sum(float(k) * c ** i for i, k in enumerate(t["poly"]))
+    c = c @ t["m_out"]
+    c = np.power(np.maximum(c, 0.0), t["gamma"])
+    c = np.clip(c @ _REC2020_INV, 0.0, 1.0)
+    return srgb_encode(c) if encode else c
+
+
 def agx(rgb: np.ndarray, exposure: float = 1.0) -> np.ndarray:
-    """three.js's AgX tone mapping (r180, the page's) on linear sRGB pixels -> linear sRGB 0 … 1. The page shows the
-    background picture as it is (three does not tone-map an sRGB background), so it is tone-mapped here, the same
-    way the page tone-maps the model."""
+    """The page's tone mapping (task 0369: the app's AgX look, ``tone``) on linear sRGB pixels -> linear sRGB 0 … 1.
+    The page shows the background picture as it is (three does not tone-map an sRGB background), so it is tone-mapped
+    here, the same way the page tone-maps the model."""
+    return tone(rgb, exposure).astype(np.float32)
+
+
+def agx_three(rgb: np.ndarray, exposure: float = 1.0) -> np.ndarray:
+    """three.js's own AgX (r180), the page's tone mapping before task 0369 -> linear sRGB 0 … 1 (tests, the fit)."""
     c = np.asarray(rgb, np.float64)[..., :3] * exposure
     # GLSL mat3(a, b, c) has the columns a, b, c: M * v for row vectors is v @ [a, b, c]
     c = c @ _REC2020 @ _AGX_IN
@@ -465,6 +529,42 @@ def agx(rgb: np.ndarray, exposure: float = 1.0) -> np.ndarray:
     c = np.power(np.maximum(c, 0.0), 2.2)
     c = c @ _REC2020_INV
     return np.clip(c, 0.0, 1.0).astype(np.float32)
+
+
+# Task 0369: the light of the app's sky (Blender's physical sky, ``world._env_branch``) on the parts, for the page's
+# drawn sky – (sun height in degrees, the page sun's RGB strength, the page sky's light x). Measured with
+# tools/fit_page_tone.py's swatch method: a grey cube over a calm sea in Cycles and on the page, its top in the sun
+# and its side in the shade, the page's light scaled until both match (clear sky). The page's old sun was 3.2 x
+# (1.0, 0.96, 0.9) whatever its height: about a quarter of the app's and too blue – the parts lit by the sun (a seabed
+# in the cut-away box, 0143) came out darker and greyer than in the app. Clouds scale the sun as before.
+SKY_SUN = (
+    (0.0, (0.1, 0.03, 0.0), 0.40),
+    (1.0, (0.3, 0.1, 0.02), 0.46),
+    (5.0, (4.3, 2.1, 0.9), 0.56),
+    (12.0, (8.0, 5.5, 3.0), 0.69),
+    (22.0, (9.34, 7.55, 5.2), 0.74),
+    (35.0, (10.6, 8.9, 7.1), 0.74),
+    (55.0, (10.0, 8.6, 7.2), 0.67),
+    (80.0, (9.65, 8.45, 7.1), 0.61),
+    (90.0, (9.65, 8.45, 7.1), 0.6),
+)
+
+
+def sun_table() -> list:
+    """``SKY_SUN`` as the page reads it: [height, r, g, b, sky light] per row."""
+    return [[e, *rgb, k] for e, rgb, k in SKY_SUN]
+
+
+def sky_sun(elevation: float) -> tuple[tuple, float]:
+    """(the page sun's RGB strength, the sky's light x) at this sun height, as the page works it out (``skySun``)."""
+    rows = SKY_SUN
+    if elevation <= rows[0][0]:
+        return rows[0][1], rows[0][2]
+    for (e0, c0, k0), (e1, c1, k1) in zip(rows, rows[1:]):
+        if elevation <= e1 or (e1, c1, k1) == rows[-1]:
+            f = min(max((elevation - e0) / max(e1 - e0, 1e-6), 0.0), 1.0)
+            return tuple(a + (b - a) * f for a, b in zip(c0, c1)), k0 + (k1 - k0) * f
+    return rows[-1][1], rows[-1][2]
 
 
 def hdr_bytes(pixels: np.ndarray) -> bytes:

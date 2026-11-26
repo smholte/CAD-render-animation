@@ -185,13 +185,78 @@ def test_hdr_round_trip_and_size():
     assert len(data) < 32 * 16 * 4 + 64
 
 
-def test_agx_is_three_js_agx():
-    """A few values of three.js r180's AgXToneMapping (worked out by hand from its GLSL)."""
-    out = env.agx(np.array([[0.0, 0.0, 0.0], [0.18, 0.18, 0.18], [1.0, 1.0, 1.0], [100.0, 100.0, 100.0]]))
+def test_agx_three_is_three_js_agx():
+    """A few values of three.js r180's AgXToneMapping (worked out by hand from its GLSL): the page's curve before
+    task 0369."""
+    out = env.agx_three(np.array([[0.0, 0.0, 0.0], [0.18, 0.18, 0.18], [1.0, 1.0, 1.0], [100.0, 100.0, 100.0]]))
     assert out[0] == pytest.approx([0, 0, 0], abs=2e-3)
     assert 0.12 < out[1][0] < 0.25 and out[1][0] == pytest.approx(out[1][1], abs=1e-3)
     assert out[2][0] > out[1][0] and out[3][0] > 0.95
-    assert np.all(np.diff(env.agx(np.linspace(0, 20, 50)[:, None].repeat(3, 1))[:, 0]) >= 0)
+    assert np.all(np.diff(env.agx_three(np.linspace(0, 20, 50)[:, None].repeat(3, 1))[:, 0]) >= 0)
+
+
+# Blender 5.2.3's AgX view with the look "AgX - Medium High Contrast" (the app's renders), measured with save_render:
+# linear sRGB -> the screen's 0 … 255
+APP_AGX = [((0.30, 0.24, 0.14), (151, 134, 103)), ((0.25, 0.08, 0.03), (137, 68, 20)), ((0.12, 0.06, 0.03), (88, 55, 30)),
+           ((0.04, 0.06, 0.10), (40, 59, 80)), ((0.21, 0.21, 0.21), (128, 128, 128)), ((0.70, 0.05, 0.03), (211, 58, 27)),
+           ((0.80, 0.60, 0.02), (204, 179, 79)), ((0.8, 0.8, 0.8), (199, 199, 199))]
+
+
+def test_page_tone_is_the_apps_agx_look():
+    """Task 0369: the page's tone curve gives the app's colours – sand, rust, brown and dark blue within a few of 255;
+    three.js's own AgX (the page before) made the dark warm ones greyer and lighter."""
+    x = np.array([c for c, _ in APP_AGX])
+    want = np.array([w for _, w in APP_AGX], float)
+    got = env.tone(x, encode=True) * 255.0
+    err = np.abs(got - want)
+    assert err[:5].max() <= 4, np.round(got)                  # dark warm, dark cool, mid grey
+    assert err.max() <= 15, np.round(got)                     # bright saturated paint: the fit's hardest
+    assert err.mean() <= 4
+    old = env.srgb_encode(env.agx_three(x)) * 255.0
+    assert np.abs(old[1:3] - want[1:3]).max() > 20           # rust and brown: why 0143's sand looked grey
+    assert env.agx(x).dtype == np.float32 and np.allclose(env.agx(x), env.tone(x), atol=1e-6)
+    ramp = env.tone(np.linspace(0, 30, 200)[:, None].repeat(3, 1))
+    assert np.all(np.diff(ramp, axis=0) >= -1.0 / 255) and ramp[0].max() < 2e-3 and ramp[-1].min() > 0.95
+    assert np.abs(ramp[:, 0] - ramp[:, 2]).max() < 0.01      # grey stays grey
+
+
+def test_page_has_the_same_tone_numbers():
+    """``web/fr_page.js`` writes ``FR_TONE`` into three's custom tone mapping: the same numbers as ``env.TONE``."""
+    text = open(os.path.join(web3d.WEB_DIR, "fr_page.js"), encoding="utf-8").read()
+    m = re.search(r"var FR_TONE = (\{.*?\});", text)
+    assert m, "fr_page.js has no FR_TONE"
+    js = json.loads(m.group(1))
+    for k in ("m_in", "m_out", "poly"):
+        assert np.allclose(np.array(js[k]), env.TONE[k], rtol=0, atol=1e-12), k
+    for k in ("lo", "span", "gamma"):
+        assert js[k] == pytest.approx(env.TONE[k], abs=1e-12), k
+    assert "renderer.toneMapping = T.CustomToneMapping" in text and "vec3 CustomToneMapping( vec3 color ) {" in text
+
+
+def test_sky_sun_follows_the_table():
+    """Task 0369: the page sun's strength and the sky's light by the sun's height (``SKY_SUN``), as the page reads
+    them (``sun_table``, interpolated between rows)."""
+    rows = env.SKY_SUN
+    assert [r[0] for r in rows] == sorted(r[0] for r in rows) and rows[0][0] == 0.0 and rows[-1][0] == 90.0
+    for e, rgb, k in rows:
+        got, sky = env.sky_sun(e)
+        assert got == pytest.approx(rgb) and sky == pytest.approx(k)
+        assert rgb[0] >= rgb[1] >= rgb[2] >= 0.0                # the sun is never bluer than white
+    a, b = rows[3], rows[4]
+    mid, sky = env.sky_sun((a[0] + b[0]) / 2)
+    assert mid == pytest.approx([(x + y) / 2 for x, y in zip(a[1], b[1])]) and sky == pytest.approx((a[2] + b[2]) / 2)
+    assert env.sky_sun(-5.0) == env.sky_sun(0.0) and env.sky_sun(120.0)[0] == pytest.approx(rows[-1][1])
+    assert env.sun_table()[2] == [rows[2][0], *rows[2][1], rows[2][2]]
+    # the old page sun: 3.2 x (1, 0.96, 0.9) from 15 degrees up – about a quarter of the app's at 35 degrees
+    assert env.sky_sun(35.0)[0][0] > 3.0 * 3.2
+
+
+def test_brightest_colour_is_the_spot_s_own():
+    page = np.full((64, 128, 3), 0.2, np.float32)
+    page[20, 40] = (30.0, 20.0, 10.0)
+    c = env.brightest_colour(page)
+    assert c[0] > c[1] > c[2]
+    assert float(np.dot(c, [0.2126, 0.7152, 0.0722])) == pytest.approx(1.0, abs=1e-3)
 
 
 # ---------------------------------------------------------------------------
