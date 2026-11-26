@@ -1,6 +1,6 @@
 # 0367 – Shorter top-bar menus and Blender's side-panel tabs hidden (0222 package C) + 0332's open points
 
-**Who:** worker · **Status:** running · **Branch:** `task/0367-shorter-menus-blender-tabs`
+**Who:** worker · **Status:** done (0.2.270) · **Branch:** `task/0367-shorter-menus-blender-tabs`
 **Started by:** lead, 25 Nov 2026 23:5x (owner allowed extra code tasks for the night; 0222 package C, order A → B → C
 agreed 20 Nov – A = 0241 and B = 0253 are done) · **Model:** Opus · effort Medium
 **Area:** Start & learn lane –
@@ -62,15 +62,15 @@ back exactly as today.
 
 ## Done when
 
-- [ ] Each menu as above outside Full access, and Blender's full menu with Full access / Show all of Blender – tests
+- [x] Each menu as above outside Full access, and Blender's full menu with Full access / Show all of Blender – tests
       both ways, also in the Client view.
-- [ ] The five tabs hidden outside Full access and back with it; a test add-on panel in the sidebar still shows; the
+- [x] The five tabs hidden outside Full access and back with it; a test add-on panel in the sidebar still shows; the
       Fresing panel stays in front after selecting a part.
-- [ ] Keys tab button greyed in the Client view, with its tooltip.
-- [ ] Screenshots checked with `tools/ui_screens.py` (each menu, the sidebar with a part selected); guide pictures
+- [x] Keys tab button greyed in the Client view, with its tooltip.
+- [x] Screenshots checked with `tools/ui_screens.py` (each menu, the sidebar with a part selected); guide pictures
       updated.
-- [ ] Tests added / updated; full suite passes; GitHub run green (incl. the Windows install); CHANGELOG.
-- [ ] Report filled in (what was already done before this task, what this task did), merged, released.
+- [x] Tests added / updated; full suite passes; GitHub run green (incl. the Windows install); CHANGELOG.
+- [x] Report filled in (what was already done before this task, what this task did), merged, released.
 
 ---
 
@@ -114,6 +114,17 @@ Item hidden in the main window (0332); the render's progress text kept (0332 poi
   Back hides them, the Client view's File menu and greyed key button. Screenshots of every menu and the side panel
   looked at.
 - PC-check lines app.menus, app.quiet, app.keys OK (bpy module).
+
+**Version / runs:** released as 0.2.270. GitHub runs: 10 on the branch – 1 precheck (version taken), 2 real failures
+of old tests this task changes (ui_test_layout used the Item tab as "another tab"; the Client-view operator test
+expected Blender's key button to work there) – fixed; 1 failure of `test_update_reuse[decals]` that did not repeat
+(passes alone, in its file and with its group's neighbours, 4 runs locally; nothing of this task touches decals or
+model updates – flaky, watch it); 1 verdict failure because the new test file moved an xfail and a skip into one group
+(`tools/ci_pytest_summary.py` now does not count an xfail as a skip); 5 green runs lost to other tasks releasing the
+same version first (0.2.262 … 0.2.269, a busy night). Local: `ui_test_names` failed once under load (pytest alongside)
+and passed twice alone.
+
+**Subagents:** none (the work was one lane, small files).
 
 **Open points / follow-up tasks:**
 - The Transform panel's hiding is a pointer swap inside Blender (no other way for a C panel). It is checked on Blender
