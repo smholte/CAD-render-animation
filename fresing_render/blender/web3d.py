@@ -114,12 +114,28 @@ def objects(scene) -> tuple[list, list]:
     """(parts, decal objects) shown in the view: hidden parts and Show only are respected."""
     parts = [ob for ob in build.iter_parts(scene)
              if _visible(ob) and ob.data is not None and len(ob.data.polygons)]
-    from . import welds                        # task 0319: the beads (their own colour; ripples and heat tint stay out)
-    parts += welds.web_objects(scene)
+    from . import welds                        # task 0319: the beads; task 0369: their ripples and finish baked along
+    parts += welds.web_objects(scene)          # their own UVs (``weld_heats``: the heat-zone strips beside them)
     marks = [ob for ob in scene.objects
              if decals.is_decal(ob) and ob.type == "MESH" and _visible(ob) and ob.data is not None
              and len(ob.data.polygons) and ob.data.uv_layers]
     return parts, marks
+
+
+def weld_heats(scene) -> list:
+    """Task 0369: the heat-zone strips beside the shown beads (``welds.web_objects`` gives the beads only). They go on
+    the page as see-through strips with their tint, not in the baked light."""
+    from . import welds
+    return [ob for ob in scene.objects
+            if ob.get(build.PROP_KIND) == welds.HEAT_KIND and ob.type == "MESH" and ob.data is not None
+            and len(ob.data.polygons) and _visible(ob)]
+
+
+def weld_kind(ob) -> str:
+    """Task 0369: "bead" or "heat" for a weld object, else ""."""
+    from . import welds
+    k = ob.get(build.PROP_KIND)
+    return "bead" if k == welds.KIND else "heat" if k == welds.HEAT_KIND else ""
 
 
 def visibility_curve(ob):
@@ -264,6 +280,7 @@ class Look:
         self.mat = mat
         self.decal = decal
         self.own = False                       # task 0161: baked on the part's own UVs (not tiled, not a decal)
+        self.weld = ""                         # task 0369: "bead" / "heat": a strip along the weld's own UVs
         self.bsdf = principled(mat)
         self.const: dict = {}
         self.src: dict = {}                    # channel -> tile key
@@ -487,14 +504,20 @@ def has_marine_looks() -> bool:
     return any(m.users and marine_looks.nodes_of(m) for m in bpy.data.materials)
 
 
-def _bake_material(src_mat, socket_name: str, kind: str, image, flatten: bool = True) -> bpy.types.Material:
+def _bake_material(src_mat, socket_name: str, kind: str, image, flatten: bool = True,
+                   source: tuple | None = None) -> bpy.types.Material:
     """A copy of the look that shows one input as light (Emission), for an Emit bake into ``image``. ``flatten``:
-    edge wear and corner dirt as on a flat tile (a part's own bake keeps them: it is the real shape)."""
+    edge wear and corner dirt as on a flat tile (a part's own bake keeps them: it is the real shape). ``source``:
+    (node name, output identifier) to show instead of a Principled input (task 0369: a heat zone's cover)."""
     m = src_mat.copy()
     m.name = BAKE_NAME
     nt = m.node_tree
-    b = principled(m)
-    from_sock = b.inputs[socket_name].links[0].from_socket
+    if source is not None:
+        nd = nt.nodes[source[0]]
+        from_sock = next(o for o in nd.outputs if o.identifier == source[1])
+    else:
+        b = principled(m)
+        from_sock = b.inputs[socket_name].links[0].from_socket
     out = nt.nodes.new("ShaderNodeOutputMaterial")
     out.target = "ALL"
     em = nt.nodes.new("ShaderNodeEmission")
@@ -517,6 +540,73 @@ def _bake_material(src_mat, socket_name: str, kind: str, image, flatten: bool = 
     tex.image = image
     nt.nodes.active = tex
     return m
+
+
+def weld_cover(mat):
+    """Task 0369: how much of a heat zone shows – its look mixes see-through (Transparent BSDF) and the tint
+    (``weld_looks.heat_material``). (node name, output identifier) of what feeds the mix, or a number."""
+    if mat is None or mat.node_tree is None:
+        return 1.0
+    for nd in mat.node_tree.nodes:
+        if nd.type != "MIX_SHADER":
+            continue
+        a = nd.inputs[1]
+        if not (a.is_linked and a.links[0].from_node.type == "BSDF_TRANSPARENT"):
+            continue
+        fac = nd.inputs[0]
+        if fac.is_linked:
+            sock = fac.links[0].from_socket
+            return sock.node.name, sock.identifier
+        return float(fac.default_value)
+    return 1.0
+
+
+def weld_bump(mat):
+    """Task 0369: the Bump node that gives a weld look its ripples – (height source (node name, output identifier),
+    strength, distance) when the Principled BSDF's Normal comes straight from a Bump node with a height fed by nodes;
+    else None. A baked bump loses each ripple's sharp edge (a step within one texel) and keeps the gentle slope before
+    it – every texel leaned the same way –, so the strip bakes the height and works its normals out (``height_normals``)."""
+    b = principled(mat)
+    if b is None or not b.inputs["Normal"].is_linked:
+        return None
+    nd = b.inputs["Normal"].links[0].from_node
+    if nd.type != "BUMP" or not nd.inputs["Height"].is_linked:
+        return None
+    if nd.inputs["Strength"].is_linked or nd.inputs["Distance"].is_linked:
+        return None
+    sock = nd.inputs["Height"].links[0].from_socket
+    return ((sock.node.name, sock.identifier), float(nd.inputs["Strength"].default_value),
+            float(nd.inputs["Distance"].default_value) * (-1.0 if getattr(nd, "invert", False) else 1.0))
+
+
+def height_normals(height: np.ndarray, along: float, across: float, strength: float, distance: float) -> np.ndarray:
+    """Task 0369: tangent-space normals (h, w, 3) of a weld strip from its baked height (h, w) – u along axis 1
+    (``along`` metres, repeating), v along axis 0 (``across`` metres) –, as Blender's Bump node: the surface raised
+    by height x distance, mixed with the flat normal by strength."""
+    hgt = np.asarray(height, np.float64) * distance
+    h, w = hgt.shape
+    gx = (np.roll(hgt, -1, axis=1) - np.roll(hgt, 1, axis=1)) / (2.0 * along / w)
+    gy = np.gradient(hgt, across / h, axis=0) if h > 1 else np.zeros_like(hgt)
+    bumped = np.stack([-gx, -gy, np.ones_like(hgt)], axis=-1)
+    bumped /= np.linalg.norm(bumped, axis=-1, keepdims=True)
+    s = float(np.clip(strength, 0.0, 1.0))
+    n = bumped * s + np.array([0.0, 0.0, 1.0]) * (1.0 - s)
+    return (n / np.linalg.norm(n, axis=-1, keepdims=True)).astype(np.float32)
+
+
+def weld_uv(me, scale: tuple) -> np.ndarray | None:
+    """Task 0369: the weld's UV map ``fr_weld`` per corner of the mesh's triangles, divided by ``scale`` (the strip's
+    metres along, its v across): the strip repeats along the seam."""
+    layer = me.uv_layers.get("fr_weld")
+    if layer is None:
+        return None
+    lt = me.loop_triangles
+    loops = np.empty(len(lt) * 3, np.int32)
+    lt.foreach_get("loops", loops)
+    u = np.empty(len(me.loops) * 2, np.float32)
+    layer.data.foreach_get("uv", u)
+    uv = u.reshape(-1, 2)[loops].astype(np.float64)
+    return uv / np.array([max(scale[0], 1e-9), max(scale[1], 1e-9)])
 
 
 def _bare(sc) -> None:
@@ -673,6 +763,40 @@ class Baker:
             px = px.reshape(h, w, 4)
             out[ch] = px[..., :3] if ch == "color" else px[..., 0]
             self.scene.collection.objects.unlink(tmp)
+        return out
+
+    def weld(self, lk: Look, jobs: list, along: float, across: float, v_max: float, w: int, h: int) -> dict:
+        """Task 0369: one weld look baked as a strip along its own UVs (``fr_weld``: u = metres along the seam,
+        v = 0 … 1 across a bead, metres out from the toe in a heat zone). ``jobs``: (channel, kind, source) – source
+        as ``_bake_material``. The strip is a quad ``along`` x ``across`` metres (its noise and bumps at their real
+        size), u 0 … ``along``, v 0 … ``v_max``, never near an open seam's end. Returns channel -> (h, w, 4) floats,
+        row 0 at the bottom."""
+        me = bpy.data.meshes.new(BAKE_NAME)
+        self.ids.append(me)
+        me.from_pydata([(0.0, 0.0, 0.0), (along, 0.0, 0.0), (along, across, 0.0), (0.0, across, 0.0)], [],
+                       [(0, 1, 2, 3)])
+        corners = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)]
+        atlas = me.uv_layers.new(name="atlas")
+        fw = me.uv_layers.new(name="fr_weld")
+        end = me.uv_layers.new(name="fr_weld_end")
+        for li, (a, b) in zip(me.polygons[0].loop_indices, corners):
+            atlas.data[li].uv = (a, b)
+            fw.data[li].uv = (a * along, b * v_max)
+            end.data[li].uv = (-1000.0, 1000.0)
+        me.uv_layers.active = atlas
+        atlas.active_render = True
+        ob = self._object(me)
+        out = {}
+        for ch, kind, source in jobs:
+            img = self._image(w, h)
+            bm = _bake_material(lk.mat, SOCKETS.get(ch, ""), kind, img, source=source)
+            self.ids.append(bm)
+            me.materials.clear()
+            me.materials.append(bm)
+            self._run(ob)
+            px = np.empty(w * h * 4, np.float32)
+            img.pixels.foreach_get(px)
+            out[ch] = px.reshape(h, w, 4)
         return out
 
     def own(self, ob, me, mw, looks: list, wanted_tpm: float, detail: str = "NORMAL") -> dict:
@@ -1207,6 +1331,7 @@ class Job:
         if not parts:
             raise RuntimeError("No part is shown: nothing to export")
         lit_parts = parts                      # baked light: what is shown at this frame
+        parts = parts + weld_heats(scene)      # task 0369: the heat zones (not in the baked light: a tint on the part)
         if self.animation:
             from . import animation
             if animation.has_keys(scene):      # task 0111: tool copies and parts the animation shows later
@@ -1237,9 +1362,19 @@ class Job:
         # task 0161 (0147 row 10): parts with a marine look are baked on their own UVs; the rest share the tiles
         own_objs = [ob for ob in parts if needs_own_bake(ob)]
         own_set = {ob.name for ob in own_objs}
+        # task 0369: weld beads and heat zones: one strip per weld look, along the weld's own UVs (``fr_weld``)
+        weld_groups: dict = {}                 # material name -> [(object, its fr_weld UVs per triangle corner)]
+        for ob in parts:
+            if not weld_kind(ob) or ob.name in own_set:
+                continue
+            mat = ob.material_slots[0].material if ob.material_slots else None
+            uv = weld_uv(self._drawn.mesh(ob), (1.0, 1.0)) if mat is not None else None
+            if uv is not None:
+                weld_groups.setdefault(mat.name, []).append((ob, uv))
+        weld_set = {ob.name for obs in weld_groups.values() for ob, _uv in obs}
         looks: dict = {}
         for ob in parts:
-            if ob.name in own_set:
+            if ob.name in own_set or ob.name in weld_set:
                 continue
             for slot in ob.material_slots:
                 if slot.material is not None and slot.material.name not in looks:
@@ -1257,7 +1392,7 @@ class Job:
                     jobs.append((key, lk.mat, sock, KIND[ch]))
         tiles: dict = {}
         flat: dict = {}
-        if jobs or decal_looks or own_objs:
+        if jobs or decal_looks or own_objs or weld_groups:
             self._baker = Baker(scene)
         if jobs:                       # a quick look first: inputs that come out as one number need no full bake
             self.text = f"Looking at {len(jobs)} baked inputs"
@@ -1278,7 +1413,7 @@ class Job:
         per_atlas = max(1, (core.ATLAS_MAX // self.size) ** 2)
         own_first = own_groups([own_share_key(ob, self._drawn.mesh(ob), self._drawn.place(ob)) for ob in own_objs])
         n_own = len(set(own_first))           # task 0189: one bake per group of copies
-        n_bakes = math.ceil(len(jobs) / per_atlas) + len(decal_looks) + n_own
+        n_bakes = math.ceil(len(jobs) / per_atlas) + len(decal_looks) + n_own + len(weld_groups)
         done = 0
         for start in range(0, len(jobs), per_atlas):
             batch = jobs[start:start + per_atlas]
@@ -1311,6 +1446,29 @@ class Job:
                 else:
                     tiles[key] = pack_tile(t, kind)
             done += 1
+        weld_looks, weld_labels = {}, {}
+        self._weld: dict = {}                  # part name -> (strip UVs per triangle corner, look name); None: not shown
+        t_weld = time.perf_counter()
+        for gi, (mname, obs) in enumerate(weld_groups.items()):
+            self.text = f"Baking the welds {gi + 1} of {len(weld_groups)}"
+            yield 0.05 + 0.45 * done / max(n_bakes, 1)
+            got = self._weld_strip(obs, tiles, flat)
+            done += 1
+            if got is None:                    # a heat zone that shows nothing (painted over): left out
+                for ob, _uv in obs:
+                    self._weld[ob.name] = None
+                continue
+            lk, scale = got
+            name = f"weld:{mname}"
+            weld_looks[name] = lk
+            weld_labels[name] = ("Weld heat zone" if lk.weld == "heat" else "Weld") + \
+                f" · {mname[len('FR weld '):] if mname.startswith('FR weld ') else mname}"
+            for ob, uv in obs:
+                self._weld[ob.name] = (uv / np.array(scale), name)
+        if weld_groups:
+            self.result["welds"] = {"looks": len(weld_looks), "objects": sum(1 for v in self._weld.values() if v),
+                                    "left_out": sum(1 for v in self._weld.values() if v is None),
+                                    "seconds": round(time.perf_counter() - t_weld, 2)}
         own_looks: dict = {}                   # look name -> Look (one per slot of each part baked on its own)
         own_labels: dict = {}
         self._own: dict = {}                   # part name -> (bake UVs per corner, look name per slot)
@@ -1376,9 +1534,9 @@ class Job:
         mat_index: dict = {}
         cache: dict = {}
         own_uv: set = set()                    # task 0117: materials with a mesh model's own picture
-        for k, (name, lk) in enumerate(list(looks.items()) + list(own_looks.items())
+        for k, (name, lk) in enumerate(list(looks.items()) + list(own_looks.items()) + list(weld_looks.items())
                                        + [(f"decal:{n}", lk) for n, lk in decal_looks.items()]):
-            label = (f"Look {k + 1}" if self.hide_names else own_labels.get(name) or
+            label = (f"Look {k + 1}" if self.hide_names else own_labels.get(name) or weld_labels.get(name) or
                      (name[3:] if name.startswith("FR ") else name).replace("decal:", "Decal "))
             mat = self._material(lk, label, tiles, flat, cache)
             same = json.dumps({k: v for k, v in mat.items() if k != "name"}, sort_keys=True)
@@ -1416,14 +1574,24 @@ class Job:
         for k, (ob, is_decal) in enumerate(everything):
             me = self._drawn.mesh(ob)
             own = self._own.get(ob.name) if not is_decal else None
-            if is_decal:
+            weld = self._weld.get(ob.name, False) if not is_decal else False
+            if weld is None:                   # task 0369: a heat zone with nothing to show
+                continue
+            if weld:                           # task 0369: its weld look's strip, along the weld's own UVs
+                mats = (mat_index.get(weld[1], -1),)
+                key = (me.name_full, mats, False, "weld:" + ob.name)
+                if key not in mesh_of:
+                    mesh_of[key] = self._mesh(me, mats, False, True, len(mesh_of) + 1,
+                                              light["first_uv"].get(me.name_full) if light else None, bake_uv=weld[0])
+            elif is_decal:
                 mats = (mat_index.get(f"decal:{ob.name}", -1),)
             elif own is not None:              # task 0161: its own looks, on its own UVs
                 mats = tuple(mat_index.get(n, -1) if n is not None else -1 for n in own[1])
             else:
                 mats = tuple(mat_index.get(s.material.name, -1) if s.material is not None else -1
                              for s in ob.material_slots) or (-1,)
-            key = (me.name_full, mats, is_decal, own[2] if own is not None else "")   # 0189: shared bakes, one mesh
+            if not weld:
+                key = (me.name_full, mats, is_decal, own[2] if own is not None else "")   # 0189: shared bakes
             if own is not None and key not in mesh_of:
                 mesh_of[key] = self._mesh(me, mats, False, True, len(mesh_of) + 1,
                                           light["first_uv"].get(me.name_full) if light else None, bake_uv=own[0])
@@ -1495,7 +1663,7 @@ class Job:
         coat_n = get("coat_normal", None)
         pbr: dict = {}
         mat: dict = {"name": label, "pbrMetallicRoughness": pbr, "doubleSided": True}
-        wrap = core.CLAMP if (lk.decal or lk.own) else core.REPEAT
+        wrap = (core.REPEAT, core.CLAMP) if lk.weld else core.CLAMP if (lk.decal or lk.own) else core.REPEAT
 
         def tex_info(index):                    # tiled looks: the parts' UVs are 16-bit, in 1/UV_Q tile
             info = {"index": index}
@@ -1527,8 +1695,8 @@ class Job:
         else:
             pbr["baseColorFactor"] = [float(x) for x in color] + [float(alpha)]
         if a_tex:
-            mat["alphaMode"] = "BLEND" if lk.decal else "MASK"
-            if not lk.decal:
+            mat["alphaMode"] = "BLEND" if (lk.decal or lk.weld == "heat") else "MASK"
+            if mat["alphaMode"] == "MASK":
                 mat["alphaCutoff"] = 0.5
         elif float(alpha) < 0.999:
             mat["alphaMode"] = "BLEND"
@@ -1570,7 +1738,76 @@ class Job:
                 ext["KHR_materials_emissive_strength"] = {"emissiveStrength": float(strength)}
         if ext:
             mat["extensions"] = ext
+        if lk.weld:                            # task 0369: the page draws a heat zone over its part, casting no shadow
+            mat["extras"] = {"fr_weld": lk.weld}
         return mat
+
+    def _weld_strip(self, obs: list, tiles: dict, flat: dict):
+        """Task 0369: bake one weld look (the objects ``obs`` share its material) as a strip along the weld's own UVs
+        (``Baker.weld``) into ``tiles`` / ``flat``. Returns (its Look, (metres along, v across) of one strip), or None
+        for a heat zone that shows nothing."""
+        from ..core import welds as weld_core
+        from . import lightbake, weld_looks
+        ob0 = obs[0][0]
+        kind = weld_kind(ob0)
+        mat = ob0.material_slots[0].material
+        lk = Look(mat)
+        try:
+            look = json.loads(mat.get(weld_looks.TAG, "") or "{}")
+        except (TypeError, ValueError):
+            look = {}
+        along, w, h = core.weld_strip(weld_core.RIPPLE.get(look.get("process", "MAG"), 0.0016), self.size)
+        jobs = [(ch, KIND[ch], None) for ch in lk.src if ch != "coat_normal"]
+        bump = weld_bump(mat) if "normal" in lk.src else None
+        if bump is not None:                   # the ripples' height, their normals worked out below
+            jobs = [j for j in jobs if j[0] != "normal"] + [("height", "value", bump[0])]
+        const = dict(lk.const)
+        if kind == "heat":
+            cover = weld_cover(mat)
+            if isinstance(cover, tuple):
+                jobs = [j for j in jobs if j[0] != "alpha"] + [("alpha", "value", cover)]
+            elif cover < 0.02:
+                return None
+            else:
+                const["alpha"] = float(cover)
+            v_max = max(float(uv[:, 1].max()) for _ob, uv in obs)      # metres out from the toe
+            across = v_max
+        else:
+            v_max = 1.0                                                 # toe to toe
+            area = length = 0.0
+            for ob, uv in obs:
+                area += lightbake._read_mesh(self._drawn.mesh(ob)).area
+                length += float(uv[:, 0].max() - uv[:, 0].min())
+            across = area / length if length > 1e-6 else 0.008
+        v_max = max(v_max, 1e-4)
+        across = max(across, 1e-4)
+        got = self._baker.weld(lk, jobs, along, across, v_max, w, h) if jobs else {}
+        if "height" in got:
+            hgt = core.seamless_along(got.pop("height")[..., 0])
+            n = height_normals(hgt, along, across, bump[1], bump[2])
+            packed = np.concatenate([n * 0.5 + 0.5, np.ones(n.shape[:2] + (1,), np.float32)], axis=-1)
+            got["normal"] = packed
+        keys = {}
+        for ch, arr in got.items():
+            kd = KIND.get(ch, "value")
+            key = f"weld:{mat.name}:{ch}"
+            keys[ch] = key
+            t = finish_tile(arr, kd, decal=True)
+            if t is None:
+                flat[key] = flat_value(arr, kd)
+                continue
+            t = core.seamless_along(t)
+            if kd == "normal":
+                t = t / np.maximum(np.linalg.norm(t, axis=-1, keepdims=True), 1e-6)
+            tiles[key] = pack_tile(t, kd)
+        if kind == "heat" and "alpha" in keys and keys["alpha"] in flat and float(flat[keys["alpha"]]) < 0.02:
+            return None
+        c = copy.copy(lk)
+        c.own = True
+        c.weld = kind
+        c.src = keys
+        c.const = const
+        return c, (along, v_max)
 
     def _mesh(self, me, mats: tuple, is_decal: bool, need_uv: bool, number: int,
               light_uv: np.ndarray | None = None, own_uv: bool = False,

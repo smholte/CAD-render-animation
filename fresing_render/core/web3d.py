@@ -299,6 +299,41 @@ def seamless(tile: np.ndarray) -> np.ndarray:
     return out
 
 
+# ---------------------------------------------------------------------------
+# welds (task 0369): a strip per weld look, baked along the weld's own UVs (u = metres along the seam)
+# ---------------------------------------------------------------------------
+
+WELD_STRIP_M = 0.064               # m along the seam one weld strip covers (a whole number of ripples, see weld_strip)
+WELD_STRIP_PX = 1024               # px along the strip at most (16 px per mm; at 512 px: 8 px per mm)
+WELD_ACROSS = 4                    # the strip is this many times longer (px) than it is wide
+
+
+def weld_strip(pitch: float, size: int) -> tuple[float, int, int]:
+    """(metres along, px along, px across) of one weld look's strip: an even number of ripples of ``pitch`` m in about
+    ``WELD_STRIP_M`` (so the strip repeats without a jump in the ripples, also at half its length – ``seamless_along``),
+    as many px along as the export's tile size (at most ``WELD_STRIP_PX``)."""
+    pitch = max(float(pitch), 1e-4)
+    n = max(2, 2 * int(round(WELD_STRIP_M / pitch / 2.0)))
+    w = int(min(max(int(size), 64), WELD_STRIP_PX))
+    w -= w % 2
+    return n * pitch, w, max(16, w // WELD_ACROSS)
+
+
+def seamless_along(tile: np.ndarray, band: float = 0.125) -> np.ndarray:
+    """A weld strip repeats along u (axis 1) only: near each end it is faded into the copy shifted by half a strip,
+    whose middle meets itself across the end. Across (axis 0) nothing changes – the bead's two toes and the heat zone's
+    inner and outer edge are not one place. No gain: the ripples are in step in both copies (``weld_strip``); the
+    mottle loses a little contrast in the narrow bands only."""
+    out = np.asarray(tile, np.float32)
+    n = out.shape[1]
+    t = (np.arange(n, dtype=np.float32) + 0.5) / n
+    w = np.clip(np.minimum(t, 1.0 - t) / max(band, 1e-6), 0.0, 1.0)
+    shape = [1] * out.ndim
+    shape[1] = n
+    w = w.reshape(shape)
+    return out * w + np.roll(out, n // 2, axis=1) * (1.0 - w)
+
+
 def is_flat(values: np.ndarray, tol: float = FLAT) -> bool:
     """True when a baked tile is one number (or one colour) everywhere."""
     v = np.asarray(values, np.float32)
@@ -528,14 +563,17 @@ class Gltf:
             self._required.add(ext)
 
     # -- pictures
-    def sampler(self, wrap: int = REPEAT) -> int:
+    def sampler(self, wrap=REPEAT) -> int:
+        """``wrap``: one wrap mode for both directions, or (wrapS, wrapT) (task 0369: a weld's strip repeats along
+        the seam and stops at its edges)."""
+        ws, wt = wrap if isinstance(wrap, tuple) else (wrap, wrap)
         if wrap not in self._samplers:
             self.doc["samplers"].append({"magFilter": LINEAR, "minFilter": LINEAR_MIPMAP_LINEAR,
-                                         "wrapS": wrap, "wrapT": wrap})
+                                         "wrapS": ws, "wrapT": wt})
             self._samplers[wrap] = len(self.doc["samplers"]) - 1
         return self._samplers[wrap]
 
-    def texture(self, data: bytes, name: str = "", wrap: int = REPEAT) -> int:
+    def texture(self, data: bytes, name: str = "", wrap=REPEAT) -> int:
         """A picture (PNG, JPG or WebP bytes). A WebP picture is named only by ``EXT_texture_webp`` (task 0175; a
         required extension: no second copy as a fallback, every current browser reads WebP)."""
         webp = is_webp(data)

@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.265 – 26 Nov 2026 – A big model is built faster after its import (task 0366)
+## 0.2.266 – 26 Nov 2026 – A big model is built faster after its import (task 0366)
 
 - After the STEP file is read, the app builds the model about **5 seconds faster** on a big machine (2,400 unique /
   12,000 placed parts: 40.7 s instead of 45.7 s on the 4-core test machine): the part meshes are written in one go
@@ -15,6 +15,19 @@ installer of that version was built from.
 - New in the PC check's **Heavy** mode: **Big machine: where the import time goes** – times every stage of an import
   (reading, transfer, meshing on the helper programs, the app's build, sorting, the first picture) and says which
   stages run on one core. Please paste its numbers to the lead: they decide the next speed-up of the reader.
+
+## 0.2.265 – 26 Nov 2026 – Welds on the 3D page, and the page's colours as in your renders (task 0369)
+
+- **Welds on the web 3D page** now look as in your renders: the ripples along the bead (TIG fine, MAG even, aluminium
+  MIG wide, stick coarse), its colour, rust and spatter, and the heat tint beside it – stainless steel's straw, purple
+  and blue bands, steel's blue-grey oxide, aluminium's band. A painted weld stays in its paint, the ripples showing
+  through. Each weld look is one short picture that repeats along every weld with it: the test weldment's page grew
+  from 1.1 to 1.3 MB.
+- **The page's colours match your renders.** Sand, rust and brown paint came out greyer on the page than in the app.
+  The page now uses the app's own colour curve (AgX with Medium High Contrast, as the renders), and with the Open sea,
+  the Vessel deck or the Quayside the page's sun and sky give the light of the app's sky. The seabed in the sea
+  cut-away measured 133/133/127 on the page and 172/158/138 in the app; now 176/162/141.
+- A studio look or 360° photo lights the page with the colour of its own brightest light (no warm daylight tint).
 
 ## 0.2.264 – 26 Nov 2026 – Projects remember which version saved them (task 0352)
 
