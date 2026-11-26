@@ -161,5 +161,5 @@ nodes), so the export need not recognise the Mix / Bump nodes.
   page's sky picture, not the curve.
 - Polished metal (the stainless post) still reflects darker on the page than in Cycles (environment reflection, not
   colour) – as before.
-- Runs: see the GitHub section below.
+- **GitHub runs: 4.** 1: two failures – a line `got["normal"] = np.…` tripped the id-property rule (test_idprops; renamed through a local name) and the page test hit Chromium crashing on the Linux runner (now checks the script with node there, as test_web3d_light_page). 2: version taken (0346 took 0.2.263). 3: green after re-running one real-app job (the crane lesson's Ctrl+Z test on a slow runner; 38/38 locally), but 0352 took 0.2.264. 4: 0.2.265, all 31 jobs green (run of 1e7c343).
 
