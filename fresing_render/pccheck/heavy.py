@@ -235,7 +235,7 @@ def first_draw(scene, w: int, h: int, out: str, redraws: int = 3) -> tuple:
     return first, again
 
 
-@line("heavy.import_stages", "Big machine: where the import time goes", "0.2.264", (H,), requires=("heavy.scene",),
+@line("heavy.import_stages", "Big machine: where the import time goes", "0.2.265", (H,), requires=("heavy.scene",),
       expected=90,
       what="Imports the big machine once more from its STEP file (the normal number of helpers) and times every stage: "
            "the reader's parse, transfer, meshing, cache, then Blender's meshes, objects, sorting, structure, bounds, "
