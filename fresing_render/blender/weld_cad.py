@@ -27,6 +27,7 @@ import bpy
 import numpy as np
 
 from ..core import weld_cad as cad
+from ..core import weld_pool
 from ..core import welds as core
 from ..core.words import plural
 from . import build, welds
@@ -96,7 +97,7 @@ def _cad_welds_of(scene, root) -> list:
     return out
 
 
-def detect(scene, root, progress=None, include=(), budget=cad.SHAPE_BUDGET) -> tuple:
+def detect(scene, root, progress=None, include=(), budget=cad.SHAPE_BUDGET, pool=None) -> tuple:
     """(found, {key: object}, named keys, meshes) of one model (``budget``: seconds for the search by shape). The other
     parts' meshes are read only when there is a body to look at (an import without welds costs next to nothing)."""
     objs = _parts_of(root, include)
@@ -113,7 +114,7 @@ def detect(scene, root, progress=None, include=(), budget=cad.SHAPE_BUDGET) -> t
     by = {m.key: m for m in ms}
     bodies = [by[b.key] for b in bodies]
     parts = [m for m in ms if m.key not in named]
-    return cad.find(bodies, parts, named, progress=progress, budget=budget), obs, named, ms
+    return cad.find(bodies, parts, named, progress=progress, budget=budget, pool=pool), obs, named, ms
 
 
 def after_import(scene, root) -> str:
@@ -144,17 +145,28 @@ def after_import(scene, root) -> str:
 
 
 def make_all(scene, root, budget=cad.SHAPE_BUDGET) -> tuple:
-    """The welds of one model: (new weld keys, how many of them by shape)."""
-    found, obs, _named, ms = detect(scene, root, budget=budget)
-    by_key = {m.key: m for m in ms}
-    keys = []
-    by_shape = 0
-    sources = set()
-    for f in found:
-        it = make(scene, f, obs, by_key)
-        if it is None:
+    """The welds of one model: (new weld keys, how many of them by shape). A model with many beads shares the work
+    out over helper processes (task 0368: ``core.weld_pool``)."""
+    t0 = time.perf_counter()
+    with weld_pool.Pool() as pool:
+        found, obs, _named, ms = detect(scene, root, budget=budget, pool=pool)
+        t1 = time.perf_counter()
+        by_key = {m.key: m for m in ms}
+        keys = []
+        by_shape = 0
+        sources = set()
+        made = []
+        with welds.indexed():
+            for f in found:
+                it = make(scene, f, obs, by_key, build_now=False)
+                made.append(None if it is None else it.key)   # keys: items move when the list grows (CLAUDE.md 8)
+            t2 = time.perf_counter()
+            welds.rebuild_many(scene, [k for k in made if k is not None], pool)
+        LAST.update(find_s=t1 - t0, items_s=t2 - t1, beads_s=time.perf_counter() - t2, helpers=pool.stats["helpers"])
+    for f, key in zip(found, made):
+        if key is None:
             continue
-        keys.append(it.key)
+        keys.append(key)
         sources.add(f.body)
         if f.how == "shape":
             by_shape += 1
@@ -211,6 +223,7 @@ def _set_from_found(item, f: cad.Found, obs: dict, by_key: dict, keep_settings: 
         item.cad_parts = f.joins
         item.cad_legs = tuple(float(x) for x in f.legs)
         item.cad_length = float(f.length)
+        item.cad_gap = float(getattr(f, "gap", 0.0))
         item.cad_metal = f.metal
         if f.kind == "BUTT":
             item.kind = "BUTT"
@@ -238,8 +251,9 @@ def _set_from_found(item, f: cad.Found, obs: dict, by_key: dict, keep_settings: 
     finally:
         welds._BUSY[0] = False
     welds._keep(item, seams, _np(a.matrix_world.inverted() @ b.matrix_world))
-    pts = body.points @ Ainv[:3, :3].T + Ainv[:3, 3]
-    tris = body.tris[f.tris]
+    used, inv = np.unique(body.tris[f.tris].ravel(), return_inverse=True)   # only this bead's points (task 0368)
+    pts = body.points[used] @ Ainv[:3, :3].T + Ainv[:3, 3]
+    tris = inv.reshape(-1, 3)
     uv = cad.uvs(pts, tris, seams, f.kind, f.size)
     _store_mesh(item, pts, tris, uv)
 
@@ -259,8 +273,9 @@ def _line_of(body: cad.Mesh, f: cad.Found, Ainv) -> core.Seam:
     return cad.transform([s], Ainv)[0]
 
 
-def make(scene, f: cad.Found, obs: dict, by_key: dict):
-    """A new weld from a found bead (None when its part is not there)."""
+def make(scene, f: cad.Found, obs: dict, by_key: dict, build_now: bool = True):
+    """A new weld from a found bead (None when its part is not there). ``build_now`` False: its bead and heat zone are
+    made later (``welds.rebuild_many``)."""
     if f.part_a not in obs or f.body not in obs:
         return None
     s = welds.settings(scene)
@@ -277,8 +292,9 @@ def make(scene, f: cad.Found, obs: dict, by_key: dict):
         welds._BUSY[0] = False
     item = welds.find_item(scene, key)
     _set_from_found(item, f, obs, by_key, keep_settings=False)
-    item = welds.find_item(scene, key)
-    welds.rebuild(item)
+    if build_now:
+        item = welds.find_item(scene, key)
+        welds.rebuild(item)
     return welds.find_item(scene, key)
 
 
@@ -435,70 +451,22 @@ def carry_over(scene, pairs, new_root) -> tuple:
         saved.append({k: it.get(k) for k in it.keys() if k not in ("seams",)} | {
             "_key": it.key, "_a": it.part_a, "_b": it.part_b, "_src": it.cad_source, "_mesh": it.cad_mesh,
             "_seams": [(s.length, s.kind, s.closed, s.angle, tuple(s.mid), s.enabled) for s in it.seams]})
-    for it in old_items:                                  # the old beads go with the old model
-        for ob in welds.objects_of(it):
-            me = ob.data
-            bpy.data.objects.remove(ob)
-            if me is not None and me.users == 0:
-                bpy.data.meshes.remove(me)
-        welds._CACHE.pop(it.key, None)
+    with welds.indexed():
+        for it in old_items:                              # the old beads go with the old model
+            for ob in welds.objects_of(it):
+                me = ob.data
+                bpy.data.objects.remove(ob)
+                if me is not None and me.users == 0:
+                    bpy.data.meshes.remove(me)
+            welds._CACHE.pop(it.key, None)
     notes = []
     bpy.context.view_layer.update()                       # the new parts' places
     include = {n.name for o, n in pairs if o.get(SOURCE)}
-    found, obs, _named, ms = detect(scene, new_root, include=include)
-    by_key = {m.key: m for m in ms}
-    # the old welds' lines in the new part A's coordinates
-    old_rows, keys = [], []
-    for it in old_items:
-        na = by_name.get(it.part_a.name) if it.part_a is not None else None
-        nb = by_name.get(it.part_b.name) if it.part_b is not None else None
-        try:
-            seams = core.unpack_seams(it.seam_data) if it.seam_data else []
-        except Exception:  # noqa: BLE001
-            seams = []
-        M = _np(na.matrix_world) if na is not None else np.eye(4)
-        pts = cad.line_points(cad.transform(seams, M)) if seams else np.zeros((0, 3))
-        old_rows.append((na.name if na is not None else "?a", nb.name if nb is not None else "?b", pts))
-        keys.append(it.key)
-    new_rows = [(f.part_a, f.part_b or f.part_a, cad.line_points(f.seams) if f.seams else np.zeros((0, 3)))
-                for f in found]
-    pairs_m = cad.match(old_rows, new_rows)
-    used = set()
-    new_keys = []
-    for i, j in pairs_m:
-        it = welds.find_item(scene, keys[i])
-        if j is None:
-            welds._BUSY[0] = True
-            try:
-                it.lost = True
-                it.note = "Weld lost in the new model – its bead is not in the CAD file any more"
-            finally:
-                welds._BUSY[0] = False
-            notes.append(f"Weld '{it.name}': lost in the new model (its bead is not in the CAD file any more)")
-            continue
-        used.add(j)
-        f = found[j]
-        before = (round(it.size, 5), round(it.butt_width, 5), round(it.cad_length, 4), it.intermittent)
-        _set_from_found(it, f, obs, by_key, keep_settings=True)
-        it = welds.find_item(scene, keys[i])
-        welds.rebuild(it)
-        after = (round(it.size, 5), round(it.butt_width, 5), round(it.cad_length, 4), it.intermittent)
-        if before != after:
-            notes.append(f"Weld '{it.name}': changed in the new model ({cad.describe(f)})")
-    for j, f in enumerate(found):
-        if j in used:
-            continue
-        it = make(scene, f, obs, by_key)
-        if it is not None:
-            new_keys.append(it.key)
-            notes.append(f"New weld from the CAD file: '{it.name}' ({cad.describe(f)})")
-    from . import logic
-    srcs = [obs[f.body] for f in found if f.body in obs]
-    for ob in srcs:
-        ob[SOURCE] = True
-    if srcs:
-        logic.exclude(srcs, True)
-    welds.count(scene)
+    pool = weld_pool.Pool()                               # task 0368: many beads – helper processes
+    try:
+        notes, new_keys = _carry_over_found(scene, pool, include, new_root, old_items, by_name)
+    finally:
+        pool.close()
 
     def undo():
         for k in new_keys:
@@ -532,6 +500,73 @@ def carry_over(scene, pairs, new_root) -> tuple:
             if not it.lost:
                 welds.rebuild(it)
     return notes, undo
+
+
+def _carry_over_found(scene, pool, include, new_root, old_items, by_name) -> tuple:
+    """``carry_over``'s work on the new model: (report lines, keys of the new welds)."""
+    found, obs, _named, ms = detect(scene, new_root, include=include, pool=pool)
+    with welds.indexed():
+        return _carry_over_rows(scene, pool, found, obs, ms, old_items, by_name, [])
+
+
+def _carry_over_rows(scene, pool, found, obs, ms, old_items, by_name, notes) -> tuple:
+    by_key = {m.key: m for m in ms}
+    # the old welds' lines in the new part A's coordinates
+    old_rows, keys = [], []
+    for it in old_items:
+        na = by_name.get(it.part_a.name) if it.part_a is not None else None
+        nb = by_name.get(it.part_b.name) if it.part_b is not None else None
+        try:
+            seams = core.unpack_seams(it.seam_data) if it.seam_data else []
+        except Exception:  # noqa: BLE001
+            seams = []
+        M = _np(na.matrix_world) if na is not None else np.eye(4)
+        pts = cad.line_points(cad.transform(seams, M)) if seams else np.zeros((0, 3))
+        old_rows.append((na.name if na is not None else "?a", nb.name if nb is not None else "?b", pts))
+        keys.append(it.key)
+    new_rows = [(f.part_a, f.part_b or f.part_a, cad.line_points(f.seams) if f.seams else np.zeros((0, 3)))
+                for f in found]
+    pairs_m = cad.match(old_rows, new_rows)
+    used = set()
+    new_keys = []
+    rebuild_keys = []
+    for i, j in pairs_m:
+        it = welds.find_item(scene, keys[i])
+        if j is None:
+            welds._BUSY[0] = True
+            try:
+                it.lost = True
+                it.note = "Weld lost in the new model – its bead is not in the CAD file any more"
+            finally:
+                welds._BUSY[0] = False
+            notes.append(f"Weld '{it.name}': lost in the new model (its bead is not in the CAD file any more)")
+            continue
+        used.add(j)
+        f = found[j]
+        before = (round(it.size, 5), round(it.butt_width, 5), round(it.cad_length, 4), it.intermittent)
+        _set_from_found(it, f, obs, by_key, keep_settings=True)
+        it = welds.find_item(scene, keys[i])
+        rebuild_keys.append(keys[i])
+        after = (round(it.size, 5), round(it.butt_width, 5), round(it.cad_length, 4), it.intermittent)
+        if before != after:
+            notes.append(f"Weld '{it.name}': changed in the new model ({cad.describe(f)})")
+    for j, f in enumerate(found):
+        if j in used:
+            continue
+        it = make(scene, f, obs, by_key, build_now=False)
+        if it is not None:
+            new_keys.append(it.key)
+            rebuild_keys.append(it.key)
+            notes.append(f"New weld from the CAD file: '{it.name}' ({cad.describe(f)})")
+    from . import logic
+    srcs = [obs[f.body] for f in found if f.body in obs]
+    for ob in srcs:
+        ob[SOURCE] = True
+    if srcs:
+        logic.exclude(srcs, True)
+    welds.rebuild_many(scene, rebuild_keys, pool)
+    welds.count(scene)
+    return notes, new_keys
 
 
 def stats(scene) -> dict:

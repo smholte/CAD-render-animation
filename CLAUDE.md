@@ -255,6 +255,9 @@ fresing_render/            the Blender extension (Python package)
                            can come – `footprint`, `local_points` –, `repeats` turned, `symmetry_order`),
                            vessel_motion.py (task 0085: heave / pitch / roll from the sea's own waves + a long swell;
                            hull averaging, a damped roll at its natural period, scaled so each sea state has its table),
+                           weld_pool.py (task 0368: helper processes for the welds – the finder's contacts / measures
+                           and the beads + heat zones as jobs, the master works jobs too, a failing or hanging helper
+                           hands its jobs back; started as liquid_pool's; FRESING_WELD_HELPERS=<n>),
                            finishes.py (task 0274: the 23 finishes of study 0270 – knurls, spun / faced ends, honed
                            bores, cross-hatch, fabric, grille, tread / perforated / expanded plate, scraped ways, blasted,
                            hammertone, wrinkle, anti-skid, VDI, leather, spangle, as-cast: settings, metal bases, kinds,
@@ -1677,3 +1680,9 @@ the release → Delete); the next run on `main` publishes it again.
   mode and published the release while `ci_status.py` said no run). Check the push's runs on GitHub
   (`gh api "repos/smholte/CAD-render-animation/actions/runs?branch=main&per_page=5"`) before pushing anything to
   "start" one.
+- A pool of helper processes that writes jobs to a helper in the master's own thread blocks when a job is bigger than
+  the pipe (about 4 KB on Windows, 64 KB on Linux) and the helper is still busy – with a hung helper for ever; and
+  answers of a call that ended in an error were taken by the next call (task 0368's independent reviewer, all
+  reproduced). `core/weld_pool.py`: a writer thread per helper, one answer queue, every job tagged with its call,
+  timed from when it was sent. The real-app guide pictures of a sub-panel came out empty when the project's workspace
+  hid it (`tools/guide_screens.py` welds modes call `workspaces.use_all`; other per-panel modes still do not).

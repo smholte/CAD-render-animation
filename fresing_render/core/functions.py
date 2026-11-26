@@ -433,7 +433,7 @@ fn(id="looks.weld_list", short="Weld list", title="Weld list and CSV", family="l
    guide="weld-list", tour=("welds",), pccheck=("looks.weld_symbols",), since="0.2.240")
 fn(id="looks.weld_cad", short="Welds from CAD", title="Welds from the CAD file: solid beads in a STEP become welds",
    family="looks", panel="FRESING_PT_welds", button="fresing.weld_cad_find", guide="welds-from-cad", tour=("welds_cad",),
-   pccheck=("looks.weld_cad",), since="0.2.251")
+   pccheck=("looks.weld_cad", "looks.weld_gap"), since="0.2.251", changed="0.2.268")
 fn(id="looks.xray", title="X-ray look", family="looks", panel="FRESING_PT_xray", button="fresing.xray_selected",
    guide="xray", tour=("fade",), pccheck=("motion.fade",), since="0.2.59")
 fn(id="looks.cutaway", title="Slice", family="looks", panel="FRESING_PT_cutaway", button="fresing.cut_add",
@@ -715,10 +715,10 @@ fn(id="lifting.reeve", short="Reeve the rope", title="The hoist rope in its fall
 fn(id="lifting.path", short="Lift path", title="Lift path: a set-down point, the proposed steps and every check along "
    "the path with its worst moment", family="lifting", panel="FRESING_PT_lifting_path",
    button="fresing.lifting_set_down_point", guide="lifting-path", tour=("lifting_path",), pccheck=("lifting.path",),
-   since="0.2.268", workspaces=_LIFT)
+   since="0.2.269", workspaces=_LIFT)
 fn(id="lifting.data_box", short="Lift data box", title="Lift data box in renders and videos: load, radius, crane use, "
    "worst so far", family="lifting", panel="FRESING_PT_lifting_path", prop="data_box", guide="lifting-data-box",
-   tour=("lifting_path",), pccheck=("lifting.path",), since="0.2.268", workspaces=_LIFT)
+   tour=("lifting_path",), pccheck=("lifting.path",), since="0.2.269", workspaces=_LIFT)
 
 fn(id="lifting.make", short="Make a crane", title="Make a crane from numbers (type, start from a class, Make)", family="lifting",
    panel="FRESING_PT_lifting_equipment", button="fresing.lifting_make", guide="lifting-make", tour=("lifting_make",),

@@ -284,6 +284,17 @@ def _close_camera(b: Build, centre, size: float, name: str, view: str = "ISO"):
     return _camera(b, view, name, points=pts)
 
 
+def _points_of(root):
+    """The corners of the shown parts of one model (world): a camera fitted to that model only (task 0368)."""
+    import numpy as np
+    from mathutils import Vector
+    pts = []
+    for ob in root.children_recursive:
+        if ob.type == "MESH" and ob.visible_get() and not ob.hide_render:
+            pts += [tuple(ob.matrix_world @ Vector(c)) for c in ob.bound_box]
+    return np.array(pts)
+
+
 def _shot(b: Build, name: str):
     """Save the scene as it is now. "@<stop id>": the saved scene of that stop (named like the stop)."""
     from . import states
@@ -1121,7 +1132,7 @@ def _round_face(ob) -> int:
     return -1
 
 
-@tour_set("welds", "Welds", "test_weldment.step", added="0.2.231", changed="0.2.251")
+@tour_set("welds", "Welds", "test_weldment.step", added="0.2.231", changed="0.2.268")
 def build_welds(b: Build):
     import bpy
 
@@ -1140,7 +1151,7 @@ def build_welds(b: Build):
     root.matrix_basis.translation.y -= 0.45
     build.set_mat(root, build.PROP_REST_BASIS, root.matrix_basis)
     _update()
-    _close_camera(b, (0.28, -0.30, 0.03), 0.42, "Tour CAD welds")
+    _camera(b, "ISO", "Tour CAD welds", points=_points_of(root))   # task 0368: this frame only, not the one behind
     _shot(b, "@welds_cad")
 
 
@@ -4751,7 +4762,7 @@ def _skid_load(b: Build):
 
 
 @tour_set("lifting", "Lifting plan – crane, load, hook and rigging", "test_loads.step", added="0.2.156",
-          changed="0.2.268")
+          changed="0.2.269")
 def build_lifting(b: Build):
     """Task 0231: a yard – an IBC on its pallet, a pump skid and a 20 ft container on the quayside – and an AT-40 on four
     crane mats behind the skid; the skid is the load. The camera looks from the other side of the skid, so the
@@ -5495,7 +5506,7 @@ stop("lifting_path", MOTION, "lifting", "Lifting: lift path and checks",
      "stability grey (the chart's counterweight). The magnifier of a row (Go there) puts the timeline on its worst "
      "moment; the lift data box beside the hook block shows the load, the radius, the crane use and the worst status so far; a use bar "
      "sits beside the hook in the 3D view.",
-     where="8 Lifting plan > Lift path & checks", since="0.2.268", check=_check_lifting_path, setup=_lift_path)
+     where="8 Lifting plan > Lift path & checks", since="0.2.269", check=_check_lifting_path, setup=_lift_path)
 stop("crane_setup", MOTION, "crane_setup", "Set up a crane: KB-20 rigged",
      "The built-in KB-20's bare STEP made a lifting-plan crane through Set up a crane (8 Lifting plan > Equipment > Set "
      "up a crane… > Knuckle-boom crane): its slew, main boom, knuckle, five extensions, hoist with two hook swings and "

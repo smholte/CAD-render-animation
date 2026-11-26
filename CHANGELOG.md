@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.268 – 26 Nov 2026 – Lifting plan: lift path and the checks along it (task 0348)
+## 0.2.269 – 26 Nov 2026 – Lifting plan: lift path and the checks along it (task 0348)
 
 - **Lift path & checks** (8 Lifting plan): click a **set-down point** and the app proposes the lift from where the load
   hangs – hoist clear, slew, luff / telescope (the hook keeps its height), travel for a crawler that cannot reach
@@ -21,6 +21,18 @@ installer of that version was built from.
   without making the drag slower.
 - **Lift data box**: one tick puts the load, radius, crane use and the worst status so far in renders and videos.
 
+## 0.2.268 – 26 Nov 2026 – Welds from the CAD file come in much faster; square groove with a gap (task 0368)
+
+- **A welded frame with hundreds of welds imports without the long wait.** 300 welds took about 26–30 s to find and
+  make on a 4-core test machine; now about 7 s. The welds are worked out on all the PC's cores at once (your PC has
+  24), and the search itself got faster too. A **model update** of such a frame: welds 30 s → 10 s. The welds come
+  out exactly as before.
+- **A square groove with a root gap** in the CAD file – two plate ends a few mm apart, the bead filling the gap – is
+  now a **butt weld** (it came in as "weld" with its own shape only). Its box says "square groove, gap 3 mm", its
+  symbol is the square butt ‖. Also found by its shape when the bead has no weld name; a flush bar in a gap is left
+  alone.
+- The user guide's pictures of **3 Looks > Welds** show the panel again (they were empty), and the section *Welds from
+  the CAD file* has its own picture. The test tour's stop "Welds from the CAD file" shows only that frame.
 ## 0.2.267 – 26 Nov 2026 – Groundwork for the Fresing assets pack (task 0354)
 
 - Groundwork for the Fresing assets pack – no visible change. The app can now find and read a pack of Fresing looks,

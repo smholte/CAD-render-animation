@@ -35,6 +35,7 @@ TOOLPATH = os.path.join(DATA, "test_toolpath.step")
 DECALS = os.path.join(DATA, "test_decals_a.step")
 WELDMENT = os.path.join(DATA, "test_weldment.step")
 WELDMENT_CAD = os.path.join(DATA, "test_weldment_cad_inventor.step")   # task 0323: solid weld beads in the file
+WELDMENT_GAP = os.path.join(DATA, "test_weldment_gap_inventor.step")   # task 0368: a square groove with a root gap
 LUFFER = os.path.join(DATA, "test_cylinder_a.step")
 LINKAGES = os.path.join(DATA, "test_linkage_a.step")
 GANTRY = os.path.join(DATA, "test_gantry.step")
@@ -604,7 +605,7 @@ def lifting_reeve(ctx):
     return msg + f"; {lp.message}"
 
 
-@line("lifting.path", "Lifting plan: lift path and the checks along it", "0.2.268",
+@line("lifting.path", "Lifting plan: lift path and the checks along it", "0.2.269",
       what="The pump skid hung on the AT-40 (as lifting.hang), a set-down point 5 m away clicked: the proposed steps "
            "(hoist clear, slew, luff / telescope, lower) land the skid on it; Check along the path finds every "
            "check's worst moment – the same as frame by frame, with far fewer moments worked out; Go there; the "
@@ -801,6 +802,24 @@ def looks_weld_cad(ctx):
     info = _cpu_still(ctx, scene, "weld_cad", "Welds from the CAD file (processor, draft)")
     return f"6 welds from the CAD file, found in {weld_cad.LAST.get('seconds', 0.0) * 1000:.0f} ms (import {ms:.0f} ms); " \
            f"render {info['seconds']} s"
+
+
+@line("looks.weld_gap", "Welds from the CAD file: a square groove with a 3 mm root gap is a butt weld", "0.2.268",
+      what="Two plates in line, 3 mm apart, with a square groove bead in the gap (its cap 7 mm wide) and two more plates "
+           "with a flush filler bar: the import gives 1 weld, a butt weld with a 7 mm cap and a 3 mm gap, symbol ‖; the "
+           "filler bar is no weld")
+def looks_weld_gap(ctx):
+    from ..blender import weld_cad, weld_symbols, welds
+    scene = ctx.fresh(WELDMENT_GAP)
+    its = list(welds.items(scene))
+    _check(len(its) == 1, f"{len(its)} welds from the CAD file, not 1 (the filler bar is no weld)")
+    it = its[0]
+    _check(it.kind == "BUTT" and abs(it.butt_width - 0.007) < 0.0006, f"the weld is {it.kind} {it.butt_width * 1000:.1f} mm")
+    _check(abs(it.cad_gap - 0.003) < 0.0003, f"its gap reads {it.cad_gap * 1000:.2f} mm, not 3 mm")
+    _check(len(welds.objects_of(it)) == 2, "the weld has no bead or heat zone")
+    glyph = weld_symbols.symbol_of(it, 1).glyph
+    _check(glyph == "‖", f"its symbol is '{glyph}', not the square butt '‖'")
+    return f"1 weld: {weld_cad.describe(it)}"
 
 
 @line("looks.materials", "Materials: the material sheet", "0.2.39",
