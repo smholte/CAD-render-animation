@@ -87,7 +87,10 @@ def frame_views(context, scene) -> None:
 
 def _locked(op) -> bool:
     """The Client view lets a model in but never replaces one: a model update is a change of the project."""
-    from . import lock
+    from . import compat, lock
+    if compat.blocked():                     # task 0352: no model update in a project from a newer app
+        op.report({"WARNING"}, compat.blocked())
+        return True
     if not lock.ON[0]:
         return False
     op.report({"WARNING"}, lock.MESSAGE)

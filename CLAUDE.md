@@ -346,6 +346,9 @@ fresing_render/            the Blender extension (Python package)
                            lead_motions.py (task 0309: one slider per machine function – rows of joint · value at 0 % /
                            100 % · window start–end % · easing · stage; ``values`` at a slider position, stage windows,
                            rows from two states, "moved by", play-throughs, the step's values, plain data for the page)
+                           compat.py (task 0352: the project format number `FORMAT`, `BASELINE_FORMAT`, the upgrade
+                           chain `STEPS` – plain data, `plan` / `run` / `chain_problems` –, the newer-project message,
+                           `FAMILY_DATA`, the test projects' `compare` and `NOT_CHOICES`)
                            sequence.py (assembly sequence, task 0100: order – fasteners first, outside in, a part waits
                            while another blocks its way –, direction, distance, stacking so nothing flies through a part
                            already out, staggered times; put together = the exact reverse)
@@ -615,6 +618,11 @@ fresing_render/            the Blender extension (Python package)
                            slider's own values); the top bar's **Lead motions ▾** is a popover (``TOPBAR_PT_fresing_lead``)
                            drawn by ``ui_topbar`` after the Fresing menu – every workspace, the Client view (▶, Back to
                            start, Keep open in ``lock.ALLOWED``); the editor and Keep open are function windows
+    compat.py              task 0352: the format stamp on every save (`save_pre`, first), the upgrade chain on load
+                           (`load_post`, FIRST – put back in front at every `load_pre`), a project from a newer app look-only
+                           (`blocked()`: the app's Save, backups, the queue and a model update ask it; Blender's own save
+                           of the newer file keeps it aside as "<name> (Fresing Render 0.2.X).blend"), `summary` /
+                           `picture` for the test projects (tools/make_compat_project.py, tests/data/compat/)
     form_window.py         task 0282: **function windows** – a function's form (Make a crane, Save as my own workspace,
                            the PC check …) in a window of its own instead of a dialog: ``invoke`` ends in
                            ``form_window.open(self, context, width=, height=, title=, confirm=)`` (``confirm=None``: only
@@ -978,6 +986,18 @@ on the owner's own naming, ask him for one of his own models (attached in the ch
   keys, looks picked, settings); everything that can be worked out again – bakes, caches, meshes made by the app,
   liquid, cable shapes, baked lights – is rebuilt from those choices, never upgraded. New saved data gets a name in the
   project's format list (0352) and an upgrade step when it changes; derived data gets none.
+- **Project format and the upgrade chain (task 0352).** Every save stamps each local scene with `fr_format`
+  (`core/compat.FORMAT`) and `fr_saved_by` (the app version) – plain custom properties, readable by any version.
+  **From the baseline on:** a change in what a project stores (a new, renamed or re-meant choice) = raise `FORMAT` by
+  one + ONE step in `core/compat.STEPS` (from the old number to the new one; it runs once per file with the scenes
+  below it, touches shared data once, is safe to run again – the chain stops at a failing step and retries at the next
+  open –; `changes=` names the summary paths it changes on purpose) + the test project of the new number
+  (`tools/make_compat_project.py`, section 7). Derived data never gets a step. **No new load-time upgrade outside the
+  chain** once the baseline is set – the chain runs first in `load_post` (`blender/compat.py`), before every other
+  Fresing load handler. A project from a newer app opens look-only (`compat.blocked()`): anything new that writes the
+  project or a copy of it (a save path, an export that saves, a background job) asks `blocked()` first. A new function
+  family says in `core/compat.FAMILY_DATA` whether a project stores its choices; one that does must be in the test
+  project's sets (`COMPAT_SETS`; a test says so). `BASELINE_FORMAT` is None until the lead writes the baseline here.
 - **The Fresing assets pack (0344; owner's picks 25 Nov 23:17; tasks 0354–0365, Assets lane).** Fresing's own looks
   move step by step into a pack – a folder `Fresing Assets` beside the app with its own licence – and today's code
   looks stay as the free fallback **under the same ids**: never remove or rename a code look id, and a look only the
@@ -1095,6 +1115,11 @@ merges; every installed app (0.2.16 and newer) then offers the update at its nex
    `dist/FresingRender-<version>-windows.zip` with short numbered steps.)
 6. Add a short entry to the project progress note `claude/render-app-progress.md` (if the chat cannot
    reach it, say so: the lead will add it).
+
+**A release that raises `FORMAT`** (from the baseline on, task 0352): add its step to `core/compat.STEPS`, run
+`~/venv/bin/python tools/make_compat_project.py tests/data/compat` in that version and commit `tests/data/compat/format_<n>/`
+(the projects, `summary.json`, the pictures) in the same push – the precheck fails without them. Before the baseline
+nothing is kept.
 
 To try the release path before merging (only when the release machinery itself changed): push the
 branch with `[release rehearsal]` in the newest commit message; GitHub makes a pre-release, checks it

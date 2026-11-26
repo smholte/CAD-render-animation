@@ -334,6 +334,9 @@ def start(context, only=None) -> str:
     others, 0068 row 5); None = every waiting, stopped or failed job."""
     scene = context.scene
     s = scene.fresing
+    from . import compat
+    if compat.blocked(scene):                    # task 0352: its copy would be rendered by an older app
+        raise RuntimeError(compat.blocked(scene))
     if is_running(scene):
         raise RuntimeError("The queue is already running")
     busy = busy_job(scene)

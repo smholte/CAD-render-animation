@@ -6,7 +6,7 @@ The package is split so the logic can be tested without Blender:
     blender/   everything that talks to Blender (bpy)
 """
 
-__version__ = "0.2.264"
+__version__ = "0.2.265"
 
 _modules = []
 
@@ -285,6 +285,8 @@ def register():
         print("Fresing Render (Toolbox):", exc)
     from .blender import ops_import
     ops_import.register_menu()               # task 0117: File > Import > Mesh model (glTF, OBJ, FBX)
+    from .blender import compat
+    compat.register()                        # task 0352: the format stamp and the upgrade chain, FIRST of the handlers
 
 
 def unregister():
@@ -292,6 +294,8 @@ def unregister():
 
     from . import pccheck
     from .blender import clash, coolant, decals, handlers, hover, linkages, machining, project_lock, props, updates
+    from .blender import compat
+    compat.unregister()                      # task 0352
     from .blender import ops_house, toolbox_inbox
     toolbox_inbox.unregister()
     from .blender import make_icons

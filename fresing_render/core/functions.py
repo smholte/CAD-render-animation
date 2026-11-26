@@ -714,10 +714,10 @@ fn(id="lifting.reeve", short="Reeve the rope", title="The hoist rope in its fall
 fn(id="lifting.path", short="Lift path", title="Lift path: a set-down point, the proposed steps and every check along "
    "the path with its worst moment", family="lifting", panel="FRESING_PT_lifting_path",
    button="fresing.lifting_set_down_point", guide="lifting-path", tour=("lifting_path",), pccheck=("lifting.path",),
-   since="0.2.264", workspaces=_LIFT)
+   since="0.2.265", workspaces=_LIFT)
 fn(id="lifting.data_box", short="Lift data box", title="Lift data box in renders and videos: load, radius, crane use, "
    "worst so far", family="lifting", panel="FRESING_PT_lifting_path", prop="data_box", guide="lifting-data-box",
-   tour=("lifting_path",), pccheck=("lifting.path",), since="0.2.264", workspaces=_LIFT)
+   tour=("lifting_path",), pccheck=("lifting.path",), since="0.2.265", workspaces=_LIFT)
 
 fn(id="lifting.make", short="Make a crane", title="Make a crane from numbers (type, start from a class, Make)", family="lifting",
    panel="FRESING_PT_lifting_equipment", button="fresing.lifting_make", guide="lifting-make", tour=("lifting_make",),
@@ -938,6 +938,9 @@ fn(id="help.backups", headline=True, short="Backups", title="Automatic backups e
 fn(id="help.project_names", short="Project names", title="Saving a new project proposes its first model's name; Save "
    "As proposes \"name (1)\", selected to type over", family="help", panel="TOPBAR_MT_file", button="fresing.save",
    guide="saving", pccheck=("files.name",), since="0.2.233")
+fn(id="help.newer_project", short="Newer projects", title="A project saved by a newer Fresing Render opens to look at "
+   "only: a plain message, Save is off, nothing in it is lost", family="help", panel="TOPBAR_MT_file",
+   button="fresing.save", guide="newer-project", pccheck=("project.newer",), since="0.2.264")
 fn(id="help.tools", short="One shortcut", title="One shortcut only: self-test, PC check and the app's Tools folder in Fresing > Tools and checks",
    family="help", panel="TOPBAR_MT_fresing", button="fresing.open_app_folder", guide="tools-and-checks",
    pccheck=("app.tools",), since="0.2.167")
