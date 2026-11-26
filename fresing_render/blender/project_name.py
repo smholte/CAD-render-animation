@@ -145,11 +145,12 @@ class FRESING_OT_save(bpy.types.Operator):
     show_save_modified_images_dialog: BoolProperty(options={"HIDDEN", "SKIP_SAVE"}, default=False)
 
     def invoke(self, context, event):
-        if bpy.data.filepath:
-            return bpy.ops.wm.save_mainfile("EXEC_DEFAULT")
-        return _invoke_browser(proposed_path(context.scene))
+        return self.execute(context)
 
     def execute(self, context):
+        from . import compat
+        if compat.refuse_save(self):         # task 0352: a project from a newer app is never saved over itself
+            return {"CANCELLED"}
         if bpy.data.filepath:
             return bpy.ops.wm.save_mainfile("EXEC_DEFAULT")
         return _invoke_browser(proposed_path(context.scene))
