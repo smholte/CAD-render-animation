@@ -289,6 +289,9 @@ def backups_on() -> bool:
 
 def save_project(context) -> str:
     """Save the open project before closing; '' or what went wrong."""
+    from . import compat
+    if compat.blocked():                     # task 0352: a project from a newer app is never saved (look only)
+        return ""
     try:
         with context.temp_override(**_window_override()):
             bpy.ops.wm.save_mainfile()

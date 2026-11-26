@@ -95,6 +95,9 @@ def wait_reason(scene) -> str:
     """Why a backup must wait now ("" = it may be made). Plain words for the message and the tests."""
     if scene is None or getattr(scene, "fresing", None) is None:
         return "no project"
+    from . import compat
+    if compat.blocked(scene):                    # task 0352: a project from a newer app is only looked at
+        return "a project from a newer Fresing Render"
     try:
         from . import workspaces
         if workspaces.locked(scene):

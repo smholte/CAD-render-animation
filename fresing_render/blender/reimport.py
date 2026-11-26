@@ -701,6 +701,9 @@ def update_model(context, old_root, cache_dir: str, copies: bool = True) -> dict
 
     Raises ``UpdateFailed`` when it could not be done; the project is then as it was."""
     scene = context.scene
+    from . import compat
+    if compat.blocked(scene):                    # task 0352: never write an older app's model into a newer project
+        raise UpdateFailed(compat.blocked(scene))
     if old_root.get("fr_lifting"):               # task 0214 (0209 row 4): a crane is rigged from its equipment file
         raise UpdateFailed("this is a crane of the lifting plan: Remove it in 8 Lifting plan and place it again")
     from . import copy as copy_mod
