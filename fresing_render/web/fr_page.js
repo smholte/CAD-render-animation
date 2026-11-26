@@ -77,7 +77,8 @@
                                      lowered: page.lowered, frames: page.frames,
                                      under: page.underState ? page.underState() : null,
                                      film: page.filmState ? page.filmState() : null,
-                                     lead: page.leadState ? page.leadState() : null });
+                                     lead: page.leadState ? page.leadState() : null,
+                                     welds: page.welds || null, tone: page.tone || null });
   }
   page.mark = mark;
   window.addEventListener('error', function (e) { page.errors.push(String(e.message || e)); mark(); });
@@ -113,7 +114,33 @@
     return;
   }
   renderer.outputColorSpace = T.SRGBColorSpace;
-  renderer.toneMapping = T.AgXToneMapping;
+  // task 0369: the app's look – Blender's AgX with "Medium High Contrast" – as three's custom tone mapping, three's own
+  // AgX form with numbers fitted to Blender's (core/web3d_env.TONE, tools/fit_page_tone.py; a test compares them).
+  // three's AgX drew dark warm colours greyer and lighter than the app (rust 152/98/67 where the app shows 137/68/20)
+  var FR_TONE = {"m_in": [[0.181849799, 0.0369311203, 0.0294012135], [0.0891217618, 0.229309746, 0.0517804392], [0.0343371944, 0.0405300169, 0.215755379]], "m_out": [[1.66983733, -0.162872274, -0.304075463], [0.135658601, 1.9236367, -0.186468688], [-0.123551921, -0.0820026042, 2.19637448]], "poly": [0.000264423659, 6.38711728e-06, 1.49435877, -10.7505043, 33.2986118, -38.014579, 14.5647625], "lo": -9.15020301, "span": 9.94289478, "gamma": 1.26151539};
+  var toneChunk = T.ShaderChunk.tonemapping_pars_fragment;
+  var toneStub = 'vec3 CustomToneMapping( vec3 color ) { return color; }';
+  if (toneChunk.indexOf(toneStub) >= 0) {
+    var v3 = function (r) { return 'vec3(' + r.map(function (x) { return x.toPrecision(9); }).join(', ') + ')'; };
+    var m3 = function (m) { return 'mat3(' + m.map(v3).join(', ') + ')'; };
+    var p = FR_TONE.poly.map(function (x) { return x.toPrecision(9); });
+    T.ShaderChunk.tonemapping_pars_fragment = toneChunk.replace(toneStub, [
+      'vec3 CustomToneMapping( vec3 color ) {',
+      '  color = ' + m3(FR_TONE.m_in) + ' * (color * toneMappingExposure);',
+      '  color = clamp((log2(max(color, vec3(1e-10))) - (' + FR_TONE.lo.toPrecision(9) + ')) / ' +
+        FR_TONE.span.toPrecision(9) + ', 0.0, 1.0);',
+      '  vec3 x = color;',
+      '  color = ' + p[0] + ' + x * (' + p[1] + ' + x * (' + p[2] + ' + x * (' + p[3] + ' + x * (' + p[4] +
+        ' + x * (' + p[5] + ' + x * ' + p[6] + ')))));',
+      '  color = ' + m3(FR_TONE.m_out) + ' * color;',
+      '  color = pow(max(vec3(0.0), color), vec3(' + FR_TONE.gamma.toPrecision(9) + '));',
+      '  return clamp(LINEAR_REC2020_TO_LINEAR_SRGB * color, 0.0, 1.0);',
+      '}'].join('\n'));
+    renderer.toneMapping = T.CustomToneMapping;
+  } else {
+    renderer.toneMapping = T.AgXToneMapping;     // another three.js: its own AgX
+  }
+  page.tone = renderer.toneMapping === T.CustomToneMapping ? 'app' : 'three';
   renderer.toneMappingExposure = Math.pow(2, ST.sky.exposure || 0) * 1.15;
   renderer.shadowMap.enabled = !!ST.shadows;
   renderer.shadowMap.type = T.PCFSoftShadowMap;
@@ -257,6 +284,18 @@
   var photo = ST.sky.kind === 'PHOTO';
   var strength = ST.sky.strength == null ? 1 : ST.sky.strength;
   var low, sunColour, sunPower, horizon, skyBright, ground;
+  // task 0369: the light the sun and the sky give the parts, as the app's (core/web3d_env.SKY_SUN, measured against
+  // Cycles: the app's sun at sea is about 4 x the page's old one and warmer, its sky about 0.7 x) – the sky's picture
+  // keeps sunColour. A photo's sun takes the picture's own colour (ST.sky.sun_colour)
+  var sunLight, sunLightPower, skyLight = 1;
+  var SKY_SUN = ST.sky.sun_table || null;
+  function skySun(e) {                  // [r, g, b, sky light] at sun height e (degrees), between the table's rows
+    var t = SKY_SUN, k = 0;
+    if (e <= t[0][0]) return t[0].slice(1);
+    while (k < t.length - 2 && t[k + 1][0] < e) k++;
+    var a = t[k], b = t[k + 1], f = T.MathUtils.clamp((e - a[0]) / Math.max(b[0] - a[0], 1e-6), 0, 1);
+    return [1, 2, 3, 4].map(function (i) { return a[i] + (b[i] - a[i]) * f; });
+  }
   function sunLook() {                  // the sun's colour and strength, the haze and the ground for its height
     low = 1 - T.MathUtils.smoothstep(elev, 2, 35);             // 1 at sunrise, 0 above 35 degrees
     sunColour = new T.Color(1.0, 0.96, 0.9).lerp(new T.Color(1.0, 0.62, 0.36), low);
@@ -264,6 +303,15 @@
                      : 3.2 * T.MathUtils.clamp(Math.sin(elev * Math.PI / 180) * 4, 0.05, 1);
     if (!photo && clouds === 'SOME') sunPower *= 0.8;
     if (!photo && clouds === 'OVERCAST') sunPower *= 0.12;
+    sunLight = photo && ST.sky.sun_colour ? new T.Color().fromArray(ST.sky.sun_colour) : sunColour.clone();
+    sunLightPower = sunPower;
+    skyLight = 1;
+    if (!photo && SKY_SUN) {
+      var tb = skySun(elev), mx = Math.max(tb[0], tb[1], tb[2], 1e-6);
+      sunLight = new T.Color(tb[0] / mx, tb[1] / mx, tb[2] / mx);
+      sunLightPower = mx * (clouds === 'SOME' ? 0.8 : clouds === 'OVERCAST' ? 0.12 : 1);
+      skyLight = tb[3];
+    }
     // colours of the far distance (haze) and the ground below the horizon
     horizon = ST.sky.horizon ? new T.Color().fromArray(ST.sky.horizon)
       : new T.Color(0.55, 0.64, 0.76).lerp(new T.Color(0.86, 0.6, 0.45), low * 0.8);
@@ -273,7 +321,7 @@
     ground = hasSea ? new T.Color(0.012, 0.045, 0.055) : new T.Color(0.33, 0.32, 0.30).multiplyScalar(skyBright);
   }
   sunLook();
-  var sun = new T.DirectionalLight(sunColour, sunPower * strength);
+  var sun = new T.DirectionalLight(sunLight, sunLightPower * strength);
   scene.add(sun, sun.target);
   sun.position.copy(sunDir);          // the light comes from here (fitShadow moves both with shadows on); without this
                                       // three's default put the sun straight overhead when shadows were off
@@ -415,7 +463,7 @@
   } else {
     var envTarget = pmrem.fromScene(envScene, 0, 0.1, 5000);
     scene.environment = envTarget.texture;
-    scene.environmentIntensity = strength;
+    scene.environmentIntensity = strength * skyLight;
   }
 
   // ---------------------------------------------------------------- haze
@@ -1425,10 +1473,22 @@
     page.gltf = gltf;                  // task 0135: the part tools read the file's face data and its meshes
     model.children.forEach(function (c) { c.userData.frPart = true; });    // a part's node: what a click picks
     var moves = [];
+    var welds = { beads: 0, heat: 0 };
     model.traverse(function (o) {
       if (o.isMesh) {
         o.castShadow = !!ST.shadows; o.receiveShadow = !!ST.shadows;
         meshes.push(o);
+        // task 0369: a weld's heat zone is a see-through strip 0.05 mm over its part: drawn over it, no shadow
+        var wk = !Array.isArray(o.material) && o.material.userData && o.material.userData.fr_weld;
+        if (wk === 'heat') {
+          o.castShadow = false;
+          o.material.polygonOffset = true; o.material.polygonOffsetFactor = -1; o.material.polygonOffsetUnits = -4;
+          o.material.depthWrite = false;
+          o.renderOrder = 2;
+          welds.heat++;
+        } else if (wk === 'bead') {
+          welds.beads++;
+        }
         if (ST.rain) {
           var mats = Array.isArray(o.material) ? o.material : [o.material];
           mats.forEach(function (m) {
@@ -1445,6 +1505,7 @@
       var vm = o.userData && o.userData.fr_vm;
       if (vm === 'STILL' || vm === 'LEVEL') moves.push([o, vm]);
     });
+    page.welds = welds.beads || welds.heat ? welds : null;
     if (ST.light) { baked = bakedLight(meshes); }
     moves.forEach(function (pair) {   // parts that keep their place in the world (or stay level)
       var g = pair[1] === 'STILL' ? stillGroup : levelGroup;
@@ -2068,8 +2129,9 @@
     var az = (az0 + (h - 13) / 8 * 100) * Math.PI / 180, e = elev * Math.PI / 180;
     sunLook();
     sunDir.copy(b2t([Math.sin(az) * Math.cos(e), Math.cos(az) * Math.cos(e), Math.sin(e)])).normalize();
-    sun.color.copy(sunColour);
-    sun.intensity = sunPower * strength;
+    sun.color.copy(sunLight);
+    sun.intensity = sunLightPower * strength;
+    if (!photo) scene.environmentIntensity = strength * skyLight;
     if (!sun.castShadow) { sun.position.copy(sunDir); sun.target.position.set(0, 0, 0); }
     domeUniforms.uSunDir.value.copy(sunDir);
     domeUniforms.uSunCol.value.copy(sunColour).multiplyScalar(skyBright);

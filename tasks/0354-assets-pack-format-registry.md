@@ -90,7 +90,7 @@ his employer's name.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web, 25–26 Nov 2026 · 0.2.265
+**Chat / date:** Claude Code on the web, 25–26 Nov 2026 · 0.2.266
 
 **What changed:** four new files, no existing app file touched (only the version lines and CHANGELOG):
 `core/assets_pack.py`, `core/assets_registry.py`, `pccheck/assets_test_pack.py`, `tools/make_test_assets_pack.py`;
@@ -166,8 +166,8 @@ iron's roughness picture new (`…_rough_v2.png`); every other file byte-equal b
 - Real-Blender test: both versions read with no notes, `verify` OK, every `.blend` holds the listed datablock and no
   Text, driver, script node or linked library; node groups on the 2.3 contract with no BSDF / Output; pictures
   relative, inside the pack and listed in the row's `textures`.
-- Local: 110 tests of the two files in 10 s. GitHub: 5 full runs – the first green (run 45717235569, 31 min; the
-  runner pool was shared), the second after merging main because 0327 took 0.2.261 meanwhile (renumbered to 0.2.262), the third because 0326 took 0.2.262 (renumbered to 0.2.263), the fourth because 0346 took 0.2.263 (renumbered to 0.2.264), the fifth because 0352 took 0.2.264 (renumbered to 0.2.265).
+- Local: 110 tests of the two files in 10 s. GitHub: 6 full runs – the first green (run 45717235569, 31 min; the
+  runner pool was shared), the second after merging main because 0327 took 0.2.261 meanwhile (renumbered to 0.2.262), the third because 0326 took 0.2.262 (renumbered to 0.2.263), the fourth because 0346 took 0.2.263 (renumbered to 0.2.264), the fifth because 0352 took 0.2.264 (renumbered to 0.2.265) – it failed: group 2 had two skipped tests, because my two new files shifted the split and put 0352's `test_compat_projects.py` (skips by design: no kept test project yet) beside `test_web3d_keys.py` (no meshopt bridge on GitHub); fixed by adding it to `SKIPS_ON_GITHUB` in `tools/ci_groups.py` –, the sixth with that fix and because 0369 took 0.2.265 (renumbered to 0.2.266).
 
 **Different from 0344's plan:**
 - `pack.json` has a **`files` table** (every file of the pack: bytes + sha256) – the one list `verify` reads; asset rows
