@@ -121,6 +121,16 @@ Tests: all weld tests (0319 / 0320 / 0323, 435 incl. functions, places, PC check
 `tests/test_weld_gap.py` (3), `test_weld_cad.py` +3 (groove import by name and by shape, App's bead on it, heavy(4)
 with 0 and 2 helpers bit for bit). PC-check line looks.weld_gap run locally: OK.
 
+**Independent review** (subagent, did not write the code) of `core/weld_pool.py`: 7 faults found, all reproduced on
+Linux – a job bigger than the pipe sent to a busy / hung helper blocked the master (Windows pipes ~4 KB: also lost most
+of the speed there), answers of a call that ended in an error were taken by the next call, the master's caches were
+sent to helpers, an unpicklable job raised, start-up and answer timeouts added up per helper. Fixed (writer thread per
+helper, one answer queue, jobs tagged with their call, deadlines from when a job was sent, the master's jobs read
+their own dict) and 3 tests added from its cases. Not testable here: CREATE_NO_WINDOW / priority / job object on
+Windows (the same code as the liquid's helpers), a `;` in a folder name on PYTHONPATH.
+
+Measured again after the fixes: 300 welds 7.2 s, the same meshes.
+
 **Open points / follow-up tasks:**
 - No Heavy PC-check line for the speed (the 300-weld frame is made by a tool outside the app); the owner's PC (24
   cores, up to 12 helpers) should be faster than the web machine – not measured there.
