@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coolant liquid B1</title>
+<style>
+  :root { --bg: #f6f6f4; --fg: #1d1f22; --muted: #5d636b; --card: #ffffff; --line: #d9dbde; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: #16181b; --fg: #e8e9eb; --muted: #a2a7ae; --card: #1f2226; --line: #30343a; }
+  }
+  :root[data-theme="dark"] { --bg: #16181b; --fg: #e8e9eb; --muted: #a2a7ae; --card: #1f2226; --line: #30343a; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  p.lead { color: var(--muted); margin-top: 0; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 6px 0 18px; }
+  .row figure { margin: 0; background: var(--card); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .row img { width: 100%; display: block; }
+  figcaption { font-size: .85rem; color: var(--muted); padding: 4px 8px; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0 24px; font-size: .95rem; }
+  td, th { border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
+  @media (max-width: 640px) { .row { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main>
+<h1>Coolant liquid on the machine (task 0346)</h1>
+<p class="lead">The test mill (VMC) cuts a closed pocket and an open slot with flood coolant (14 l/min). Left: the coolant
+as before (jets and splash only). Right: with <b>Liquid on the machine</b> ticked, Detail Normal. Cycles, 24 samples,
+on the processor of the 4-core test machine; test models only.</p>
+
+<h2>Close-up: the block on the table</h2>
+<p>Frame 120: the pocket is cut and fills. 250: the slot; the liquid spills onto the table and runs along the T-slots.
+330: the tool waits over the pocket, the flood still on. 385: 2 s after M9 – the pocket stays full, the table runs
+off.</p>
+<div class="row"><figure><img src="img/close_120_before.jpg" alt="Frame 120 without the liquid"><figcaption>Frame 120 – before</figcaption></figure>
+<figure><img src="img/close_120_liquid.jpg" alt="Frame 120 with the liquid"><figcaption>Frame 120 – liquid</figcaption></figure></div>
+<div class="row"><figure><img src="img/close_250_before.jpg" alt="Frame 250 without the liquid"><figcaption>Frame 250 – before</figcaption></figure>
+<figure><img src="img/close_250_liquid.jpg" alt="Frame 250 with the liquid"><figcaption>Frame 250 – liquid</figcaption></figure></div>
+<div class="row"><figure><img src="img/close_330_before.jpg" alt="Frame 330 without the liquid"><figcaption>Frame 330 – before</figcaption></figure>
+<figure><img src="img/close_330_liquid.jpg" alt="Frame 330 with the liquid"><figcaption>Frame 330 – liquid</figcaption></figure></div>
+<div class="row"><figure><img src="img/close_385_before.jpg" alt="Frame 385 without the liquid"><figcaption>Frame 385 – before</figcaption></figure>
+<figure><img src="img/close_385_liquid.jpg" alt="Frame 385 with the liquid"><figcaption>Frame 385 – liquid</figcaption></figure></div>
+
+<h2>Wide: off the table's end into the chip tray</h2>
+<div class="row"><figure><img src="img/wide_250_before.jpg" alt="Frame 250 wide without the liquid"><figcaption>Frame 250 – before</figcaption></figure>
+<figure><img src="img/wide_250_liquid.jpg" alt="Frame 250 wide with the liquid"><figcaption>Frame 250 – liquid</figcaption></figure></div>
+<div class="row"><figure><img src="img/wide_385_before.jpg" alt="Frame 385 wide without the liquid"><figcaption>Frame 385 – before</figcaption></figure>
+<figure><img src="img/wide_385_liquid.jpg" alt="Frame 385 wide with the liquid"><figcaption>Frame 385 – liquid</figcaption></figure></div>
+
+<h2>To look at on your PC</h2>
+<table>
+<tr><th>What</th><th>Where</th></tr>
+<tr><td>The EEVEE looks (Clear / Milky / Blended)</td><td>Test tour &gt; Machining &gt; "Coolant liquid on the machine", Go; then
+4 Motion &gt; CNC machine &gt; Coolant &gt; <b>EEVEE look</b>, and an EEVEE picture (5 Scene &amp; Render, engine EEVEE) for each.
+Say which one looks best on the RTX 3090.</td></tr>
+<tr><td>How long a 10-minute program takes</td><td>Help &gt; Fresing Render PC check &gt; <b>Heavy</b>: the line "Milling: coolant liquid of a
+10-minute program".</td></tr>
+</table>
+</main>
+</body>
+</html>

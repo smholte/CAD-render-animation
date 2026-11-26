@@ -584,6 +584,8 @@ fn(id="cnc.air", title="Air blast", family="cnc", panel="FRESING_PT_cnc", fold="
 fn(id="cnc.coolant", title="Coolant", family="cnc", panel="FRESING_PT_cnc_coolant",
    button="fresing.cnc_coolant_nozzle", guide="coolant", tour=("coolant",), pccheck=("milling.coolant",),
    since="0.2.48", changed="0.2.205")
+fn(id="cnc.liquid", title="Coolant liquid on the machine", family="cnc", panel="FRESING_PT_cnc_coolant",
+   prop="liquid_on", guide="coolant-liquid", tour=("liquid",), pccheck=("milling.liquid",), since="0.2.264")
 
 # ----- 4 Motion: milling -----
 fn(id="milling.cut", title="Milling: material disappears where the bit cuts", family="milling",
@@ -877,7 +879,7 @@ fn(id="help.blender_all", short="All of Blender", title="Fresing > Show all of B
 fn(id="help.quiet_menus", short="Shorter menus", title="Shorter top-bar menus (File, Render, Window, Help with a "
    "sub-menu Blender) and only the Fresing tab in the side panel outside Full access", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.blender_all", guide="quiet-menus", pccheck=("app.menus",),
-   since="0.2.263", workspaces=("cnc", "offshore", "product", "education", "lifting"))
+   since="0.2.264", workspaces=("cnc", "offshore", "product", "education", "lifting"))
 
 # task 0253: Blender's keys outside Full access, F12 / Ctrl+F12, the right-click menu (study 0222 package B)
 fn(id="help.blender_keys", short="Blender keys", title="Blender's keys that delete or change parts do nothing outside Full "

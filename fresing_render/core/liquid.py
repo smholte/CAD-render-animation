@@ -224,6 +224,8 @@ class Kernel:
         self.NY, self.NX = int(meta["NY"]), int(meta["NX"])
         self.xs = np.asarray(meta["xs"], float)
         self.ys = np.asarray(meta["ys"], float)
+        cap = meta.get("wave_depth")
+        self.cap = float(cap) if cap else None      # (task 0346) the faces' depth for the waves at most this
         self.runs = []
         self.cache = []
         self.start = []
@@ -301,10 +303,22 @@ class Kernel:
             h, wdt = R1 - R0, C1 - C0
             self.cache.append(dict(
                 win=(R0, R1, C0, C1), core=(r0, r1, c0, c1), valid=None if all_valid else valid, bed0=A["bed0"][w],
+                crest=self._crest(A["cz"][w], a_x, a_y, b_x, b_y, l),
                 fx=face["x"], fy=face["y"], a_x=a_x, a_y=a_y, b_x=b_x, b_y=b_y, gq=gq, gq_x=gq_x, gq_y=gq_y,
                 down=down, dcoef=dcoef, rsub=rsub,
                 buf=dict(out=np.empty((h, wdt)), dd=np.empty((h, wdt)), lost=np.empty((h, wdt)))))
             self.start.append(np.array(A["d0"][r0:r1, c0:c1]))
+
+    @staticmethod
+    def _crest(cz, a_x, a_y, b_x, b_y, l):
+        """(task 0346) The crest each face's outflow must rise over, from either side: the higher bed, less / more
+        the half cell the liquid's surface rises along the driving gravity (a tilted chart: the surface is sloped in
+        the chart's frame). (left of x-faces, right of x-faces, below y-faces, above y-faces)."""
+        cx = np.maximum(cz[:, :-1], cz[:, 1:])
+        cy = np.maximum(cz[:-1, :], cz[1:, :])
+        sx = np.clip(0.5 * np.divide(b_x, np.maximum(a_x, 1e-12)), -l, l)
+        sy = np.clip(0.5 * np.divide(b_y, np.maximum(a_y, 1e-12)), -l, l)
+        return cx - sx, cx + sx, cy - sy, cy + sy
 
     def sub(self, k):
         """Sub-step k of the frame for every run: read buffer k % 2, write buffer (k + 1) % 2."""
@@ -329,15 +343,29 @@ class Kernel:
         np.maximum(he, 0.0, out=he)
         if valid is not None:
             he *= valid
-        h15 = np.sqrt(he)
-        h15 *= he
-        if self.uniform:
-            h15 *= cw["gq"]
-            wxL, wxR, wyL, wyR = h15[:, :-1], h15[:, 1:], h15[:-1, :], h15[1:, :]
-        else:
-            wxL, wxR = cw["gq_x"] * h15[:, :-1], cw["gq_x"] * h15[:, 1:]
-            wyL, wyR = cw["gq_y"] * h15[:-1, :], cw["gq_y"] * h15[1:, :]
         E = cw["bed0"] + d
+        # critical flow over the crest (task 0346): the head that drives a face's flow out of a cell is its liquid
+        # above the higher of the two beds – a full pocket stops spilling once it is down to its rim (it went on by
+        # momentum and emptied itself below it)
+        Ef = E - FILM
+        cxL, cxR, cyL, cyR = cw["crest"]
+        wxL = np.minimum(he[:, :-1], np.maximum(Ef[:, :-1] - cxL, 0.0))
+        wxR = np.minimum(he[:, 1:], np.maximum(Ef[:, 1:] - cxR, 0.0))
+        wyL = np.minimum(he[:-1, :], np.maximum(Ef[:-1, :] - cyL, 0.0))
+        wyR = np.minimum(he[1:, :], np.maximum(Ef[1:, :] - cyR, 0.0))
+        for w_ in (wxL, wxR, wyL, wyR):
+            w_ *= np.sqrt(w_)
+        if self.uniform:
+            gq = cw["gq"]
+            wxL *= gq
+            wxR *= gq
+            wyL *= gq
+            wyR *= gq
+        else:
+            wxL *= cw["gq_x"]
+            wxR *= cw["gq_x"]
+            wyL *= cw["gq_y"]
+            wyR *= cw["gq_y"]
         Qx = self._faces(qx_in[R0:R1, C0:C1 - 1], he[:, :-1], he[:, 1:], wxL, wxR, E[:, :-1], E[:, 1:], cw["fx"],
                          cw["a_x"], cw["b_x"])
         Qy = self._faces(qy_in[R0:R1 - 1, C0:C1], he[:-1, :], he[1:, :], wyL, wyR, E[:-1, :], E[1:, :], cw["fy"],
@@ -422,6 +450,8 @@ class Kernel:
         gravity x dt l."""
         hf = fc["wl"] * hL
         hf += fc["wr"] * hR
+        if self.cap is not None:                 # deep pools: waves no faster than sqrt(g cap) (fewer sub-steps)
+            np.minimum(hf, self.cap, out=hf)
         dE = EL - ER
         if fc["both"] is not None:
             dE *= fc["both"]
@@ -636,8 +666,12 @@ class Liquid:
     floor (what falls below it is gone). ``helpers``: helper processes (0 = all in this process; the result is the
     same bit for bit). ``hold``: hold tiles at rest (False: step every wet tile every frame)."""
 
-    def __init__(self, charts, mats, fps, floor_z, helpers=0, hold=True, python=None):
+    def __init__(self, charts, mats, fps, floor_z, helpers=0, hold=True, python=None, wave_depth=None):
         self.charts = list(charts)
+        # (task 0346) a face's depth counts at most this for the flow: waves in deep pools (a T-slot, a deep pocket)
+        # travel at sqrt(g wave_depth) and the sub-steps follow that; levels, volumes and the drains are unchanged,
+        # a deep pool only sloshes slower. None: no cap (task 0255's tests)
+        self.wave_depth = float(wave_depth) if wave_depth else None
         self.mats = [np.asarray(m, float) for m in mats]
         if len(self.mats) != len(self.charts):
             raise ValueError("one matrix track per chart")
@@ -679,9 +713,8 @@ class Liquid:
         self._touched_rain = [[] for _ in self.grids]
         self._touched_push = [[] for _ in self.grids]
 
-    @staticmethod
-    def _meta(g):
-        return dict(cell=g.l, NY=g.NY, NX=g.NX, xs=g.xs, ys=g.ys)
+    def _meta(self, g):
+        return dict(cell=g.l, NY=g.NY, NX=g.NX, xs=g.xs, ys=g.ys, wave_depth=self.wave_depth)
 
     # --- set-up and reading ---------------------------------------------------------------------------------------
     def fill(self, c, depth):
@@ -880,7 +913,7 @@ class Liquid:
         hmax = float(g.hmax.max())
         if g.rain_tiles.any() or g.woken.any():
             hmax = max(hmax, float(A["d0"].max()))
-        c_wave = math.sqrt(max(gn_max, 1.0) * max(hmax, 1e-4))
+        c_wave = math.sqrt(max(gn_max, 1.0) * max(min(hmax, self.wave_depth or hmax), 1e-4))
         n = max(1, math.ceil(T / (CFL * g.l / c_wave)))
         n += n % 2
         # which tiles to step

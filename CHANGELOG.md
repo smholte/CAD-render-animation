@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.263 – 26 Nov 2026 – Shorter top-bar menus, only the Fresing tab in the side panel (task 0367)
+## 0.2.264 – 26 Nov 2026 – Shorter top-bar menus, only the Fresing tab in the side panel (task 0367)
 
 - **File** now holds what the app uses: New project, Open…, Open Recent, Revert, Recover, Save, Save As…, Save Copy…,
   **Import STEP…**, **Import mesh model…**, **Import House Planner scene…** and Quit. Blender's Link, Append, Import /
@@ -19,6 +19,24 @@ installer of that version was built from.
   the glTF Variants tab is hidden too. A tab of another add-on you installed still shows.
 - **Fresing Settings > Keys**: "Blender's own key settings" is greyed in the Client view, with the reason in its tooltip.
 - **Fresing > Show all of Blender** (or Workspace > Full access) brings all of Blender's menus and tabs back, as before.
+## 0.2.263 – 26 Nov 2026 – Coolant that collects on the machine (task 0346)
+
+- **Liquid on the machine** (4 Motion > CNC machine > Coolant, a new tick, off by default): the flood coolant now
+  stays on the machine. It **fills the pockets and slots** the bit cuts, **spills over the block onto the table**,
+  runs **along the T-slots and off the table's ends into the chip tray**, and the tray runs **down its drain**. It
+  moves with the table (it sloshes when the table stops hard) and the spinning tool throws it off. After M9 a closed
+  pocket stays full; the table and the tray run dry.
+- It is worked out by itself a moment after **Build & play** – the panel shows how far, you can keep working, and
+  **Cancel** stops it. It is kept in a folder next to the project and used again until the program, the model or a
+  setting changes, so reopening the project or rendering in the render queue does not work it out again.
+- **Detail**: Draft (quick, to try things) or Normal (for the final video). The flow is the Flow slider, now also
+  shown as litres per minute (0.7 = about 14 l/min).
+- **EEVEE look**: Clear, Milky or Blended – try them on your graphics card and tell us which looks best. Cycles
+  always shows the liquid milky and see-through; the 3D view in Solid shading shows a light grey sheet.
+- New: the test tour stop "Coolant liquid on the machine", the PC check lines "Milling: coolant collects on the
+  machine" and (Heavy) "Milling: coolant liquid of a 10-minute program".
+- The test mill's chip tray now falls towards its drain on both sides (its left half fell the wrong way and had a
+  hole in its front corner).
 
 ## 0.2.262 – 26 Nov 2026 – Joints move much faster on big models (task 0326)
 

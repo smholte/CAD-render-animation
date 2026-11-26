@@ -105,6 +105,9 @@ class FRESING_PT_cnc_coolant(_Panel, bpy.types.Panel):
                 wrap(layout, context, f"{plural(n, 'part')} get wet (marked at Build & play)", icon="CHECKMARK",
                      inset=12)
         layout.prop(s, "draft", text="Draft (quick view: no splash, no drops)")
+        # -- the liquid on the machine (task 0346)
+        gap(layout)
+        draw_liquid(layout, context, scene, s)
         # -- the codes
         gap(layout)
         body = fold(layout, "fr_coolant_codes", f"Codes: M{s.flood_code} flood, M{s.mist_code} mist, "
@@ -121,6 +124,32 @@ class FRESING_PT_cnc_coolant(_Panel, bpy.types.Panel):
                      icon="FORCE_WIND", inset=12)
             wrap(body, context, "M9 always stops flood and mist (and the air, as on LinuxCNC)", icon="INFO",
                  inset=12)
+
+
+def draw_liquid(layout, context, scene, s) -> None:
+    """The coolant liquid on the machine (task 0346): the tick, Detail, the EEVEE look, the bake's state."""
+    from . import liquid
+    row = layout.row(align=True)
+    row.prop(s, "liquid_on", text="Liquid on the machine")
+    row.label(text=f"about {liquid.rate(scene):.0f} l/min" if s.liquid_on else "")
+    if not s.liquid_on:
+        return
+    col = split_props(layout)
+    col.prop(s, "liquid_detail", text="Detail")
+    col.prop(s, "liquid_eevee", text="EEVEE look")
+    why = liquid.problem(scene)
+    if why:
+        wrap(layout, context, why, icon="INFO", inset=12)
+        return
+    row = layout.row(align=True)
+    if liquid.running():
+        row.label(text=liquid.status(scene), icon="SORTTIME")
+        row.operator("fresing.liquid_cancel", text="Cancel", icon="CANCEL")
+    else:
+        done = liquid.is_baked(scene)
+        row.label(text=liquid.status(scene), icon="CHECKMARK" if done else "MOD_FLUIDSIM")
+        if not done:
+            row.operator("fresing.liquid_bake", text="Work out", icon="PLAY")
 
 
 def draw_step(context, box, scene, b, info) -> None:
