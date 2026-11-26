@@ -433,7 +433,7 @@ fn(id="looks.weld_list", short="Weld list", title="Weld list and CSV", family="l
    guide="weld-list", tour=("welds",), pccheck=("looks.weld_symbols",), since="0.2.240")
 fn(id="looks.weld_cad", short="Welds from CAD", title="Welds from the CAD file: solid beads in a STEP become welds",
    family="looks", panel="FRESING_PT_welds", button="fresing.weld_cad_find", guide="welds-from-cad", tour=("welds_cad",),
-   pccheck=("looks.weld_cad",), since="0.2.251")
+   pccheck=("looks.weld_cad", "looks.weld_gap"), since="0.2.251", changed="0.2.268")
 fn(id="looks.xray", title="X-ray look", family="looks", panel="FRESING_PT_xray", button="fresing.xray_selected",
    guide="xray", tour=("fade",), pccheck=("motion.fade",), since="0.2.59")
 fn(id="looks.cutaway", title="Slice", family="looks", panel="FRESING_PT_cutaway", button="fresing.cut_add",
@@ -882,7 +882,7 @@ fn(id="help.blender_all", short="All of Blender", title="Fresing > Show all of B
 fn(id="help.quiet_menus", short="Shorter menus", title="Shorter top-bar menus (File, Render, Window, Help with a "
    "sub-menu Blender) and only the Fresing tab in the side panel outside Full access", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.blender_all", guide="quiet-menus", pccheck=("app.menus",),
-   since="0.2.268", workspaces=("cnc", "offshore", "product", "education", "lifting"))
+   since="0.2.269", workspaces=("cnc", "offshore", "product", "education", "lifting"))
 
 # task 0253: Blender's keys outside Full access, F12 / Ctrl+F12, the right-click menu (study 0222 package B)
 fn(id="help.blender_keys", short="Blender keys", title="Blender's keys that delete or change parts do nothing outside Full "

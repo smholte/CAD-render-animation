@@ -284,6 +284,17 @@ def _close_camera(b: Build, centre, size: float, name: str, view: str = "ISO"):
     return _camera(b, view, name, points=pts)
 
 
+def _points_of(root):
+    """The corners of the shown parts of one model (world): a camera fitted to that model only (task 0368)."""
+    import numpy as np
+    from mathutils import Vector
+    pts = []
+    for ob in root.children_recursive:
+        if ob.type == "MESH" and ob.visible_get() and not ob.hide_render:
+            pts += [tuple(ob.matrix_world @ Vector(c)) for c in ob.bound_box]
+    return np.array(pts)
+
+
 def _shot(b: Build, name: str):
     """Save the scene as it is now. "@<stop id>": the saved scene of that stop (named like the stop)."""
     from . import states
@@ -1121,7 +1132,7 @@ def _round_face(ob) -> int:
     return -1
 
 
-@tour_set("welds", "Welds", "test_weldment.step", added="0.2.231", changed="0.2.251")
+@tour_set("welds", "Welds", "test_weldment.step", added="0.2.231", changed="0.2.268")
 def build_welds(b: Build):
     import bpy
 
@@ -1140,7 +1151,7 @@ def build_welds(b: Build):
     root.matrix_basis.translation.y -= 0.45
     build.set_mat(root, build.PROP_REST_BASIS, root.matrix_basis)
     _update()
-    _close_camera(b, (0.28, -0.30, 0.03), 0.42, "Tour CAD welds")
+    _camera(b, "ISO", "Tour CAD welds", points=_points_of(root))   # task 0368: this frame only, not the one behind
     _shot(b, "@welds_cad")
 
 
@@ -4504,7 +4515,7 @@ def _check_storm(scene):
 HOUSE_MOMENT = "summer-evening"
 
 
-@tour_set("house", "House from House Planner", "sample-house.hpscene", added="0.2.92", changed="0.2.268")
+@tour_set("house", "House from House Planner", "sample-house.hpscene", added="0.2.92", changed="0.2.269")
 def build_house(b: Build):
     """The made-up sample house: imported, one moment baked small (the package next to the tour), the evening
     shown in the view from the recipe's garden camera."""
@@ -4575,7 +4586,7 @@ def mesh_ring_click(scene):
     return ob, o, d, desc
 
 
-@tour_set("mesh", "Mesh model (glTF)", "test_mesh_crane.glb", added="0.2.99", changed="0.2.268")
+@tour_set("mesh", "Mesh model (glTF)", "test_mesh_crane.glb", added="0.2.99", changed="0.2.269")
 def build_mesh(b: Build):
     """The invented mesh crane (a glTF file: no CAD faces) imported; its 48-sided slewing ring clicked for a joint
     that turns the turret, as a user does it."""

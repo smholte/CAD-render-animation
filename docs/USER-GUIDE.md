@@ -2081,6 +2081,8 @@ list – with the app's looks on the bead (ripples, heat tint, paint, rust) and 
 symbols – without picking any faces. The import's message says how many ("6 welds from the CAD file"); the list marks
 them with the import icon.
 
+<img class="panel" src="img/panel_3_welds_cad.png" alt="3 Looks > Welds with six welds from the CAD file, From the CAD file open">
+
 What comes through, by CAD program:
 
 - **Inventor**: solid welds (fillet, groove) come out of a STEP export as **one part with all the beads** of the
@@ -2100,7 +2102,9 @@ What the app reads from each bead:
 
 - the **two parts** it joins (the bead moves with the bigger one); a bead lying on one part or on three is kept and
   says "joins 1 part" / "joins 3 parts";
-- the **kind**: a fillet in a corner, or a groove (butt) weld that fills the gap between two plate edges;
+- the **kind**: a fillet in a corner, or a groove (butt) weld that fills the gap between two plate edges – also a
+  **square groove with a root gap** (plate ends a few mm apart, the bead filling the gap; its box says "square groove,
+  gap 3 mm" and its symbol is the square butt ‖);
 - the **size**: a fillet's legs z1 / z2 on each part and its throat **a** (as on a drawing, rounded to 0.5 mm;
   unequal legs are said: "legs 10 × 6 mm"), a groove's cap width; the **length**; **all round** when it goes round
   a tube or a post; pieces of one line as one **intermittent** weld (n × l (e));
@@ -2122,6 +2126,9 @@ From then on they are welds like the others: in the weld list and the symbols, c
 the first part, left out of the clash check, in the web 3D model and the Client view. A **model update** keeps your
 changes on a weld whose bead came back in the same place (its new size and length are taken and said), lists a
 weld whose bead is gone ("Weld lost in the new model") and adds a new bead as a new weld (said in the report).
+
+A frame with hundreds of welds imports without a long wait: the welds are found and made on all the PC's cores at
+once (300 welds: about 7 seconds on a 4-core machine).
 
 <a id="xray"></a>
 ### X-ray look

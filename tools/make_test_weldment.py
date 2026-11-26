@@ -10,6 +10,8 @@
                                                               the file, as KIND exports it (inventor / creo / unnamed;
                                                               tests/data/test_weldment_cad_<kind>.step, the inventor
                                                               one also in fresing_render/data/); B: revision B
+    python tools/make_test_weldment.py --gap inventor|unnamed out.step   task 0368: a square groove with a 3 mm root
+                                                              gap (+ a flush filler bar that is no weld)
     python tools/make_test_weldment.py --heavy N --beads out.step
                                                               the heavy frame with its 3 x N welds as beads in one
                                                               "Welds" part (Inventor-like): import timing of 0323
@@ -321,6 +323,46 @@ def heavy_beads(n: int) -> tuple:
     return root, {"Welds": "Welded Steel Mild"}
 
 
+# task 0368: a square groove with a root gap (no common edge between the plates)
+GAP = 3.0                  # mm between the two plates' ends
+GAP_T = 10.0               # mm plate thickness
+
+
+def _square_groove(x0: float, y0: float, y1: float, gap: float = GAP, t: float = GAP_T):
+    """The bead of a square groove between plate ends at x = x0 and x0 + gap: the gap filled to the plates' top, a cap
+    2 mm over each plate and 1.5 mm high (along y from y0 to y1)."""
+    x1 = x0 + gap
+    pts = [(x0, 0.0), (x1, 0.0), (x1, t), (x1 + 2.0, t), (0.5 * (x0 + x1), t + 1.5), (x0 - 2.0, t), (x0, t)]
+    return g.polygon_prism([(x, -z) for x, z in pts][::-1], y1 - y0, g.Frame((0, y0, 0), (1, 0, 0), (0, 1, 0)))
+
+
+def gap_frame(kind: str = "inventor") -> tuple:
+    """(assembly, {part: CAD material}): two plates 200 x 150 x 10 in line with a 3 mm root gap and their square
+    groove bead; beside them two more plates with a flush filler bar in their gap (no cap: not a weld)."""
+    if kind not in ("inventor", "unnamed"):
+        raise ValueError(kind)
+    root = Asm("TEST.WELDMENT.GAP")
+    mats = {}
+    parts = [("PLATE A", g.box(0, 0, 0, 200, 150, GAP_T), BLUE),
+             ("PLATE B", g.box(200 + GAP, 0, 0, 200, 150, GAP_T), BLUE),
+             ("PLATE C", g.box(0, 250, 0, 200, 150, GAP_T), STEEL),
+             ("PLATE D", g.box(200 + GAP, 250, 0, 200, 150, GAP_T), STEEL)]
+    bar = g.box(200, 250, 0, GAP, 150, GAP_T)            # the look-alike: flush with the plates, no cap
+    bead = _square_groove(200.0, 0.0, 150.0)
+    for name, shape, col in parts:
+        root.add(Part(name, shape, col))
+        mats[name] = "Steel, Mild"
+    if kind == "inventor":
+        root.add(Part("FILLER BAR", bar, STEEL))
+        mats["FILLER BAR"] = "Steel, Mild"
+        root.add(Part("Welds", bead, STEEL))
+        mats["Welds"] = "Welded Steel Mild"
+    else:
+        root.add(Part("BODY 1", bead, STEEL))
+        root.add(Part("BODY 2", bar, STEEL))
+    return root, mats
+
+
 def main(argv) -> int:
     args = argv[1:]
     n = None
@@ -330,14 +372,22 @@ def main(argv) -> int:
         n, args = int(args[1]), args[2:]
         if args and args[0] == "--beads":
             beads, args = True, args[1:]
+    gap = None
     if args and args[0] == "--cad":
         kind, args = args[1], args[2:]
+    if args and args[0] == "--gap":
+        gap, args = args[1], args[2:]
     revision = "A"
     if len(args) == 2 and args[1] in ("A", "B"):
         revision, args = args[1], args[:1]
     if len(args) != 1:
-        raise SystemExit("usage: make_test_weldment.py [--heavy N [--beads]] [--cad KIND] out.step [A|B]")
+        raise SystemExit("usage: make_test_weldment.py [--heavy N [--beads]] [--cad KIND] [--gap KIND] out.step [A|B]")
     t0 = time.time()
+    if gap is not None:
+        root, mats = gap_frame(gap)
+        write_cad_step(root, args[0], mats)
+        print(f"written: {len(root.children)} parts, {os.path.getsize(args[0]) / 1024:.0f} KB, {time.time() - t0:.1f} s")
+        return 0
     if kind is not None or beads:
         root, mats = cad(kind, revision) if kind is not None else heavy_beads(n)
         write_cad_step(root, args[0], mats)

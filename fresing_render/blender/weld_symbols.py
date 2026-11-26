@@ -77,7 +77,8 @@ def data_of(item, number: int, thickness: bool = True) -> core.Weld:
                      part_b=welds.part_name(item.part_b), kind=item.kind, size=float(item.size),
                      thickness=_thickness(item) if needs_t else 0.0, seams=seams, intermittent=bool(item.intermittent),
                      piece=float(item.length), pitch=float(item.pitch), process=process, finish=item.finish,
-                     metal=metal, lost=lost)
+                     metal=metal, lost=lost,
+                     square=bool(getattr(item, "from_cad", False) and item.cad_kind == "BUTT" and item.cad_gap > 0))
 
 
 def all_data(scene) -> list:

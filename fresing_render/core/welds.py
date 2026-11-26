@@ -210,20 +210,83 @@ class Side:
             return a[np.all(self.lo[a] <= np.asarray(hi) + pad, 1) & np.all(self.hi[a] >= np.asarray(lo) - pad, 1)]
         return np.flatnonzero(np.all(self.lo <= np.asarray(hi) + pad, 1) & np.all(self.hi >= np.asarray(lo) - pad, 1))
 
-    def nearest_local(self, pts: np.ndarray, reach: float, chunk: int = 24):
+    def nearest_local(self, pts: np.ndarray, reach: float, chunk: int = 24, batch: int = 120000):
         """``distance`` for points that only care about the surface within ``reach`` (projections): the points in small
         runs (they come in order along a seam), each against the triangles near it. Points farther than ``reach`` from
-        every triangle get distance inf and triangle -1."""
+        every triangle get distance inf and triangle -1.
+
+        Task 0368: the runs are not measured one by one (each call cost ~0.5 ms of NumPy overhead for a few hundred
+        pairs); every run's (point, triangle) pairs go into one array, ``batch`` pairs at a time, and each point takes
+        its nearest pair – the same numbers, the same triangle on a tie (the lowest number), as run by run."""
         pts = np.asarray(pts, np.float64).reshape(-1, 3)
-        d = np.full(len(pts), np.inf)
-        q = np.zeros((len(pts), 3))
-        t = np.full(len(pts), -1, np.int64)
-        for s in range(0, len(pts), chunk):
-            c = pts[s:s + chunk]
-            idx = self.near(c.min(0), c.max(0), reach)
-            if len(idx):
-                d[s:s + chunk], q[s:s + chunk], t[s:s + chunk] = self.distance(c, idx)
+        n = len(pts)
+        d = np.full(n, np.inf)
+        q = np.zeros((n, 3))
+        t = np.full(n, -1, np.int64)
+        if not n or not len(self.v):
+            return d, q, t
+        cand = self._act if self._act is not None else np.arange(len(self.v))
+        if not len(cand):
+            return d, q, t
+        starts = np.arange(0, n, chunk)
+        ends = np.minimum(starts + chunk, n)
+        clo = np.minimum.reduceat(pts, starts, axis=0) - reach
+        chi = np.maximum.reduceat(pts, starts, axis=0) + reach
+        tlo, thi = self.lo[cand], self.hi[cand]
+        per = max(1, 4000000 // max(1, len(cand)))          # chunk boxes x triangles at a time (a bool matrix)
+        pi_all, ti_all = [], []
+        for c0 in range(0, len(starts), per):
+            c1 = min(len(starts), c0 + per)
+            hit = (np.all(tlo[None] <= chi[c0:c1, None], 2) & np.all(thi[None] >= clo[c0:c1, None], 2))
+            ci, tj = np.nonzero(hit)                          # chunk, candidate (in order of both)
+            if not len(ci):
+                continue
+            cnt = ends[c0 + ci] - starts[c0 + ci]             # points per pair of (chunk, triangle)
+            # every point of the chunk with every triangle of the chunk, the points of a chunk in order
+            pair_chunk = np.repeat(np.arange(len(ci)), cnt)
+            off = np.arange(len(pair_chunk)) - np.repeat(np.cumsum(cnt) - cnt, cnt)
+            pi_all.append(starts[c0 + ci][pair_chunk] + off)
+            ti_all.append(cand[tj][pair_chunk])
+        if not pi_all:
+            return d, q, t
+        pi = np.concatenate(pi_all)
+        ti = np.concatenate(ti_all)
+        # a lower bound per pair: the triangle's box and its plane are never farther than the triangle. Each point is
+        # measured exactly against its pairs with the smallest bound first; a pair whose bound lies beyond that cannot
+        # be the nearest and is left out (so nothing changes but the time)
+        pp = pts[pi]
+        gap = np.maximum(np.maximum(self.lo[ti] - pp, pp - self.hi[ti]), 0.0)
+        lb = np.sqrt((gap * gap).sum(1))
+        lb = np.maximum(lb, np.abs(((pp - self.v[ti, 0]) * self.n[ti]).sum(1)) * (1 - 1e-9))
+        mlb = np.full(n, np.inf)
+        np.minimum.at(mlb, pi, lb)
+        first = lb <= mlb[pi]
+        dd, _qq = self._pairs(pts, pi[first], ti[first])
+        ub = np.full(n, np.inf)
+        np.minimum.at(ub, pi[first], dd)
+        keep = lb <= ub[pi] * (1 + 1e-9) + 1e-12
+        pi, ti = pi[keep], ti[keep]
+        for s in range(0, len(pi), batch):
+            P, T = pi[s:s + batch], ti[s:s + batch]
+            dd, qq = self._pairs(pts, P, T)
+            m = np.full(n, np.inf)
+            np.minimum.at(m, P, dd)
+            at = dd == m[P]                                   # the nearest pairs (several on a tie)
+            tm = np.full(n, np.iinfo(np.int64).max)
+            np.minimum.at(tm, P[at], T[at])
+            win = at & (T == tm[P])                           # ... the lowest triangle among them: one per point
+            P, T, dd, qq = P[win], T[win], dd[win], qq[win]
+            better = (dd < d[P]) | ((dd == d[P]) & (T < t[P]))
+            P, T, dd, qq = P[better], T[better], dd[better], qq[better]
+            d[P], q[P], t[P] = dd, qq, T
         return d, q, t
+
+    def _pairs(self, pts, P, T):
+        """(distance, nearest point) of point P[i] to triangle T[i]."""
+        pp = pts[P]
+        vv = self.v[T]
+        qq = closest_on_triangles(pp, vv[:, 0], vv[:, 1], vv[:, 2])
+        return np.linalg.norm(qq - pp, axis=1), qq
 
     def distance(self, pts: np.ndarray, tri_idx: np.ndarray | None = None, chunk: int = 200000):
         """(distance, nearest point, triangle) from each point to this side's surface (``tri_idx``: only these)."""
@@ -998,6 +1061,16 @@ def bead(seam: Seam, look: Look, surface_a: Side | None = None, surface_b: Side 
         n_uv = len(uvs)
     v = np.array(verts, np.float64).reshape(-1, 3) if verts else np.zeros((0, 3))
     return BeadMesh(v, faces, uvs, mats, length, ends)
+
+
+def job_beads(shared: dict, jobs: list) -> list:
+    """A helper process's job (task 0368, ``core/weld_pool.py``): ``bead(*job)`` for each job of one weld (its sides
+    prepared here when they come unprepared)."""
+    for job in jobs:
+        for side in job[2:4]:
+            if side is not None and side.v is None:
+                side.prepare()
+    return [bead(*job) for job in jobs]
 
 
 def _bead_piece(pp, pc, look, kind, closed, s0, verts, faces, uvs, mats, taper=(True, True)):

@@ -194,6 +194,7 @@ class FRWeld(PropertyGroup):
     cad_parts: IntProperty(default=2)                     # how many parts it lies on
     cad_legs: FloatVectorProperty(size=2, default=(0.0, 0.0))
     cad_length: FloatProperty(default=0.0)
+    cad_gap: FloatProperty(default=0.0)                  # task 0368: a square groove's root gap (m; 0: none)
     cad_metal: StringProperty(default="")                # the CAD material's metal ('' : from the parts)
 
 
@@ -289,8 +290,43 @@ def is_weld(ob) -> bool:
     return ob is not None and ob.get(build.PROP_KIND) in KINDS
 
 
+_INDEX: list = [None]     # task 0368: {weld key: [objects]} while many welds are made at once (``indexed``)
+
+
 def objects_of(item) -> list:
+    idx = _INDEX[0]
+    if idx is not None:
+        out = []
+        for ob in idx.get(item.key, ()):
+            try:
+                if ob.get(build.PROP_KIND) in KINDS and ob.get(PROP_KEY) == item.key:
+                    out.append(ob)
+            except ReferenceError:                    # removed meanwhile
+                pass
+        return out
     return [ob for ob in bpy.data.objects if ob.get(build.PROP_KIND) in KINDS and ob.get(PROP_KEY) == item.key]
+
+
+class indexed:
+    """``with welds.indexed():`` – the weld objects are looked up in a table made once, not in every object of the
+    file per weld (300 welds on a 2,000-object model: 2 s). Objects made meanwhile go into it (``_ensure_object``)."""
+
+    def __enter__(self):
+        if _INDEX[0] is None:
+            idx: dict = {}
+            for ob in bpy.data.objects:
+                if ob.get(build.PROP_KIND) in KINDS:
+                    idx.setdefault(ob.get(PROP_KEY), []).append(ob)
+            _INDEX[0] = idx
+            self.own = True
+        else:
+            self.own = False
+        return self
+
+    def __exit__(self, *exc):
+        if self.own:
+            _INDEX[0] = None
+        return False
 
 
 def of_part(ob) -> list:
@@ -380,10 +416,11 @@ def find_raw(part_a, faces_a, part_b, faces_b, gap: float = core.GAP):
     return seams, sa, sb
 
 
-def find(item, force: bool = False):
+def find(item, force: bool = False, prepare: bool = True):
     """(seams, side A, side B) of a weld: the seams kept in the project (``seam_data``) with the second part where it
     was when they were found (``rel``) – never where it happens to stand now (an exploded view, a pose). ``force`` or no
-    kept seams: found now and kept (``refind``)."""
+    kept seams: found now and kept (``refind``). ``prepare`` False: kept seams come with sides not yet prepared (a
+    helper process prepares them, task 0368; nothing is kept for the next call)."""
     fa, fb = _faces(item.faces_a), _faces(item.faces_b)
     if item.from_cad and item.seam_data:
         force = False                         # task 0323: a CAD weld's seams are where its bead lies, never refound
@@ -398,8 +435,12 @@ def find(item, force: bool = False):
     if hit is not None and hit[0] == sig:
         return hit[1]
     rel = np.array(item.rel, np.float64).reshape(4, 4)
-    sa = side_of(item.part_a, None if item.whole else fa, np.eye(4)).prepare()
-    sb = side_of(item.part_b, None if item.whole else fb, rel).prepare()
+    sa = side_of(item.part_a, None if item.whole else fa, np.eye(4))
+    sb = side_of(item.part_b, None if item.whole else fb, rel)
+    if not prepare:
+        return core.unpack_seams(item.seam_data), sa, sb
+    sa.prepare()
+    sb.prepare()
     got = (core.unpack_seams(item.seam_data), sa, sb)
     _CACHE[item.key] = (sig, got)
     return got
@@ -536,6 +577,8 @@ def _ensure_object(item, heat: bool, me):
         ob.matrix_basis = Matrix.Identity(4)
         ob[build.PROP_KIND] = HEAT_KIND if heat else KIND
         ob[PROP_KEY] = item.key
+        if _INDEX[0] is not None:
+            _INDEX[0].setdefault(item.key, []).append(ob)
         ob.hide_select = True
         ob.lock_location = ob.lock_rotation = ob.lock_scale = (True,) * 3
         if heat and hasattr(ob, "visible_shadow"):
@@ -632,34 +675,74 @@ def follow_rust(scene) -> int:
 
 def rebuild(item, refind_seams: bool = False) -> bool:
     """Make the weld's bead and heat zone again from its seams and settings. False when it cannot (lost)."""
-    from . import weld_looks
+    plan = _rebuild_plan(item, refind_seams)
+    if plan is None:
+        return False
+    return _rebuild_write(item, plan, [core.bead(*job) for job in plan["jobs"]])
+
+
+def rebuild_many(scene, keys, pool=None) -> int:
+    """``rebuild`` of the welds with these keys; with ``pool`` (``core.weld_pool.Pool``) their beads and heat zones
+    are worked out in helper processes (the same meshes, task 0368). Returns how many were made."""
+    plans = []
+    for key in keys:
+        it = find_item(scene, key)
+        plan = _rebuild_plan(it, False, prepare=False) if it is not None else None
+        if plan is not None:
+            plans.append((key, plan))
+    if pool is not None:
+        results = pool.map("welds.job_beads", [(plan["jobs"],) for _k, plan in plans])
+    else:
+        results = [core.job_beads({}, plan["jobs"]) for _k, plan in plans]
+    made = 0
+    for (key, plan), meshes in zip(plans, results):
+        it = find_item(scene, key)
+        if it is not None and _rebuild_write(it, plan, meshes):
+            made += 1
+    return made
+
+
+def _rebuild_plan(item, refind_seams: bool, prepare: bool = True):
+    """The first half of ``rebuild``: the checks, the seams and the jobs for ``core.bead`` – or None (lost)."""
     t0 = time.perf_counter()
     if item.part_a is None or item.part_b is None or item.part_a.data is None or item.part_b.data is None:
         _set_lost(item, "One of its parts is not in the model any more: pick its faces again")
-        return False
+        return None
     if item.lost:
-        return False
+        return None
     try:
-        seams, sa, sb = find(item, force=refind_seams)
+        seams, sa, sb = find(item, force=refind_seams, prepare=prepare)
     except Exception as exc:  # noqa: BLE001 - a broken mesh must never break the panel
         _set_lost(item, f"Its seams could not be found ({exc})")
-        return False
+        return None
     _BUSY[0] = True
     try:
         if len(item.seams) != len(seams):                 # (an older or damaged list: the ticks follow the seams)
             keep = [(tuple(s.mid), s.kind, s.enabled) for s in item.seams]
             store_seams(item.seams, seams, keep)
-        ticked = [t.enabled for t in item.seams]
+    finally:
+        _BUSY[0] = False
+    ticked = [t.enabled for t in item.seams]
+    other = item.from_cad and item.cad_kind == "OTHER"          # task 0323: a CAD bead with no seam: its shape only
+    jobs = []
+    for s, tick in zip(seams, item.seams):
+        if not tick.enabled or other:
+            continue
+        ends = tuple(seams[j[0]].corners[0 if j[1] == 0 else -1]
+                     if j is not None and j[0] < len(seams) and ticked[j[0]] else None for j in s.joins)
+        jobs.append((s, look_of(item, s.kind), sa, sb, ends))
+    return {"t0": t0, "jobs": jobs, "other": other}
+
+
+def _rebuild_write(item, plan, meshes) -> bool:
+    """The second half of ``rebuild``: the bead's and heat zone's objects from the worked-out meshes."""
+    t0, other = plan["t0"], plan["other"]
+    _BUSY[0] = True
+    try:
         verts_b, faces_b, uv_b = [], [], []
         verts_h, faces_h, uv_h, end_h = [], [], [], []
         length = 0.0
-        other = item.from_cad and item.cad_kind == "OTHER"      # task 0323: a CAD bead with no seam: its shape only
-        for s, tick in zip(seams, item.seams):
-            if not tick.enabled or other:
-                continue
-            ends = tuple(seams[j[0]].corners[0 if j[1] == 0 else -1]
-                         if j is not None and j[0] < len(seams) and ticked[j[0]] else None for j in s.joins)
-            m = core.bead(s, look_of(item, s.kind), sa, sb, ends=ends)
+        for m in meshes:
             length += m.length
             k = 0
             remap_b, remap_h = {}, {}
@@ -1137,8 +1220,9 @@ def _depsgraph(scene, depsgraph):
         return
     _LAST["t"] = now
     try:
-        sync_paint(scene)
-        follow_rust(scene)                       # task 0318: the group's Rust slider
+        with indexed():                          # task 0368: one look through the objects, not one per weld
+            sync_paint(scene)
+            follow_rust(scene)                   # task 0318: the group's Rust slider
     except Exception:  # noqa: BLE001 - never break an update
         pass
 

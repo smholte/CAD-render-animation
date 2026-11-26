@@ -56,6 +56,8 @@ MAX_FACES = 40            # by shape: a bead has few CAD faces (a fillet 5, a ri
 SLENDER = 5.0             # by shape: a bead is at least this many times as long as its section is wide
 SHAPE_BUDGET = 10.0       # s: at an import the search by shape stops after this (Find in CAD file: no limit)
 LEGS_RATIO = 3.0          # by shape: legs more unequal than this are no weld (a strip 3 x 40 lying in a corner)
+GAP_MAX = 0.008           # m: a square groove's root gap at most (task 0368; the plates' ends face each other)
+GAP_CAP = (0.0002, 0.006)  # m: by shape, a square groove's cap stands this much over the plates (a flush bar: no weld)
 ALONG = 0.6               # the seam under a bead (found by shape) covers this share of the bead's length at least
 THIN = 0.006              # m: 2·volume / surface of a bead is ~z/3.4 (z: its legs) – a body thicker than this is no bead
 #                            by shape (a plate: its thickness)
@@ -260,6 +262,7 @@ class Found:
     note: str = ""
     metal: str = ""                        # from the CAD material ('' : from the parts)
     pieces: int = 1
+    gap: float = 0.0                       # m: a square groove's root gap (task 0368)
 
     @property
     def joins(self) -> int:
@@ -559,9 +562,11 @@ STOPPED = [False]          # the last ``find`` stopped its search by shape at SH
 
 
 def find(bodies: list, parts: list, named: set | None = None, progress=None,
-         budget: float | None = SHAPE_BUDGET) -> list[Found]:
+         budget: float | None = SHAPE_BUDGET, pool=None) -> list[Found]:
     """The welds in ``bodies`` (Mesh): those whose key is in ``named`` are welds by their name (every piece a bead),
-    the others only by their shape – looked at for ``budget`` seconds at most (None: all; ``STOPPED`` says so)."""
+    the others only by their shape – looked at for ``budget`` seconds at most (None: all; ``STOPPED`` says so).
+    ``pool`` (``core.weld_pool.Pool``): the pieces' contacts and measures shared out over helper processes – the same
+    welds (task 0368)."""
     import time
     named = set(named or ())
     STOPPED[0] = False
@@ -569,6 +574,20 @@ def find(bodies: list, parts: list, named: set | None = None, progress=None,
     pending = []                                       # (body, piece triangles, contacts)
     t0 = time.perf_counter()
     bodies = sorted(bodies, key=lambda b: b.key not in named)     # the named ones first: never cut short
+    if pool is not None:
+        pool.share("parts", [_plain(p) for p in parts])
+    first = [b for b in bodies if b.key in named]        # the named ones: all their pieces' contacts in one go
+    if pool is not None and first:
+        cut = {}
+        for body in first:
+            cut[body.key] = _pieces(body)
+        pool.share("cbodies", {b.key: _plain(b) for b in first})
+        jobs = [(b.key, piece) for b in first for piece in cut[b.key]]
+        cons = iter(pool.map("weld_cad.job_contacts", jobs))
+        for body in first:
+            for piece in cut[body.key]:
+                pending.append((body, piece, next(cons), True))
+        bodies = [b for b in bodies if b.key not in named]
     for bi, body in enumerate(bodies):
         if budget is not None and body.key not in named and time.perf_counter() - t0 > budget:
             STOPPED[0] = True                          # the search by shape stopped (said in the import's message)
@@ -576,14 +595,13 @@ def find(bodies: list, parts: list, named: set | None = None, progress=None,
         others = [p for p in parts if p.key != body.key]
         if body.key not in named and _touches(body, others) < 2:
             continue                                      # by shape: it must lie on two parts (a quick look first)
-        for piece in components(body.points, body.tris):
-            v = body.points[body.tris[piece]]
-            c = v.reshape(-1, 3).mean(0)
-            w = v - c
-            if float(np.einsum("ij,ij->i", w[:, 0], np.cross(w[:, 1], w[:, 2])).sum()) < 0:
-                body.tris = body.tris.copy()              # an inside-out piece (a mirrored part): turned the right way
-                body.tris[piece] = body.tris[piece][:, ::-1]
-            con = _contacts(body, piece, others)
+        pieces = _pieces(body)
+        if pool is not None:                              # (a piece's contacts read only its own triangles)
+            pool.share("cbodies", {body.key: _plain(body)})
+            cons = pool.map("weld_cad.job_contacts", [(body.key, piece) for piece in pieces])
+        else:
+            cons = [_contacts(body, piece, others) for piece in pieces]
+        for piece, con in zip(pieces, cons):
             pending.append((body, piece, con, body.key in named))
         if progress:
             progress(bi / max(1, len(bodies)) * 0.4)
@@ -600,12 +618,29 @@ def find(bodies: list, parts: list, named: set | None = None, progress=None,
             a, b = _order(by_key[keys[0]], by_key[keys[1]])
             pairs.setdefault((a.key, b.key), []).append(k)
         pending[k] = (body, piece, con, is_named, keys, total)
-    seams_of = _Pairs(pairs, pending, by_key)
     if progress:
         progress(0.7)
+    if pool is not None:
+        # one job per pair of parts (its seams are found once) and one per piece on no pair
+        groups = [(pair, ks) for pair, ks in pairs.items()]
+        in_pair = {k for _pair, ks in groups for k in ks}
+        groups += [(None, [k]) for k in range(len(pending)) if k not in in_pair]
+        bodies_by = {}
+        for body, *_rest in pending:
+            bodies_by.setdefault(body.key, body)
+        pool.share("bodies", {key: _plain(b) for key, b in bodies_by.items()})
+        jobs = [(pair, [(k, pending[k][0].key, pending[k][1], pending[k][2], pending[k][3], pending[k][4],
+                         pending[k][5]) for k in ks]) for pair, ks in groups]
+        results = [None] * len(pending)
+        for got in pool.map("weld_cad.job_measure", jobs):
+            for k, f in got:
+                results[k] = f
+    else:
+        seams_of = _Pairs(pairs, pending, by_key)
+        results = [_measure(body, piece, con, keys, is_named, by_key, seams_of)
+                   for body, piece, con, is_named, keys, _total in pending]
     per_pair: dict = {}
-    for k, (body, piece, con, is_named, keys, total) in enumerate(pending):
-        f = _measure(body, piece, con, keys, is_named, by_key, seams_of)
+    for f in results:
         if f is None:
             continue
         if f.part_a is not None and f.part_b is not None and f.seams:
@@ -617,6 +652,58 @@ def find(bodies: list, parts: list, named: set | None = None, progress=None,
     if progress:
         progress(1.0)
     return found
+
+
+# ---- the jobs of the helper processes (task 0368, ``core/weld_pool.py``) -----------------------------------------
+
+def _plain(m: Mesh) -> tuple:
+    """A Mesh as plain data for a helper (its worked-out side stays here)."""
+    return (m.key, m.name, m.points, m.tris, m.face, m.material)
+
+
+def _shared_parts(shared: dict) -> list:
+    if "_parts" not in shared or shared["_parts"][0] is not shared["parts"]:
+        shared["_parts"] = (shared["parts"], [Mesh(*t) for t in shared["parts"]])
+    return shared["_parts"][1]
+
+
+def _shared_body(shared: dict, name: str = "body", key: str | None = None) -> Mesh:
+    src = shared[name] if key is None else shared[name][key]
+    cache = shared.setdefault("_bodies", {})
+    if id(src) not in cache or cache[id(src)][0] is not src:
+        cache[id(src)] = (src, Mesh(*src))
+    return cache[id(src)][1]
+
+
+def _pieces(body: Mesh) -> list:
+    """The pieces of a body; an inside-out piece (a mirrored part) turned the right way (in ``body.tris``)."""
+    pieces = components(body.points, body.tris)
+    for piece in pieces:
+        v = body.points[body.tris[piece]]
+        c = v.reshape(-1, 3).mean(0)
+        w = v - c
+        if float(np.einsum("ij,ij->i", w[:, 0], np.cross(w[:, 1], w[:, 2])).sum()) < 0:
+            body.tris = body.tris.copy()
+            body.tris[piece] = body.tris[piece][:, ::-1]
+    return pieces
+
+
+def job_contacts(shared: dict, body_key: str, piece) -> dict:
+    body = _shared_body(shared, "cbodies", body_key)
+    return _contacts(body, piece, [p for p in _shared_parts(shared) if p.key != body.key])
+
+
+def job_measure(shared: dict, pair, items) -> list:
+    """The pieces of one pair of parts (or one piece on no pair) measured: [(k, Found or None)]."""
+    by_key = {p.key: p for p in _shared_parts(shared)}
+    pending = {}
+    for k, body_key, piece, con, is_named, keys, total in items:
+        pending[k] = (_shared_body(shared, "bodies", body_key), piece, con, is_named, keys, total)
+    seams_of = _Pairs({pair: [k for k, *_r in items]} if pair is not None else {}, pending, by_key)
+    out = []
+    for k, (body, piece, con, is_named, keys, _total) in pending.items():
+        out.append((k, _measure(body, piece, con, keys, is_named, by_key, seams_of)))
+    return out
 
 
 class _Pairs:
@@ -791,6 +878,10 @@ def _measure(body, piece, con, keys, is_named, by_key, seams_of) -> Found | None
     got = []
     pa, pb = seams_of.picked(A.key, B.key)
     roots = _root_seams(body, piece, con[A.key][1], con[B.key][1], pa, pb)
+    if not roots:                                         # task 0368: a square groove with a root gap
+        sq = _square_groove(f, body, piece, con[A.key][1], con[B.key][1], is_named)
+        if sq is not None:
+            return sq if sq is not False else None
     if roots:
         got = [(-1, 0.0, _arc(s.points, s.closed)[-1], s) for s in roots]
     elif not is_named:
@@ -884,6 +975,94 @@ def _measure(body, piece, con, keys, is_named, by_key, seams_of) -> Found | None
         f.closed = True
     for s in f.seams:
         s.kind = f.kind
+    return f
+
+
+def _square_groove(f: Found, body, piece, tris_a, tris_b, is_named: bool):
+    """A square groove with a root gap (task 0368): the plates' ends face each other a few mm apart and the bead fills
+    the gap (its faces on A and on B opposite and parallel, no common edge). Its seam lies on the plates' top face in
+    the middle of the gap (as 0319's butt weld), its cap width is the weld's size. Returns the Found filled in, None when
+    the bead is no such groove (the other ways are tried), False when it looked like one but failed the shape check
+    (by shape: no weld)."""
+    v_all, n_all, ar_all = _tri_geom(body.points, body.tris[piece])
+    on_a, on_b = np.isin(piece, tris_a), np.isin(piece, tris_b)
+    if not on_a.any() or not on_b.any():
+        return None
+    na_, nb_ = n_all[on_a], n_all[on_b]
+    # the gap faces: a bead face on A with one on B turned the other way (the cap's underside on both faces down)
+    opp_a = (na_ @ nb_.T < -0.97).any(1)
+    opp_b = (nb_ @ na_.T < -0.97).any(1)
+    if not opp_a.any() or not opp_b.any():
+        return None
+    wa, wb = ar_all[on_a][opp_a], ar_all[on_b][opp_b]
+    n = core.unit((na_[opp_a] * wa[:, None]).sum(0))       # out of the bead into A
+    if float(core.unit((nb_[opp_b] * wb[:, None]).sum(0)) @ n) > -0.97:
+        return None
+    ca = v_all[on_a][opp_a].mean(1)                          # triangle centres
+    cb = v_all[on_b][opp_b].mean(1)
+    pa = (ca * wa[:, None]).sum(0) / wa.sum()
+    pb = (cb * wb[:, None]).sum(0) / wb.sum()
+    gap = float((pa - pb) @ n)
+    if not (0.0003 <= gap <= GAP_MAX):
+        return None
+    # along the joint: the long way of the gap faces (a straight groove)
+    pts = np.concatenate([v_all[on_a][opp_a].reshape(-1, 3), v_all[on_b][opp_b].reshape(-1, 3)])
+    w = pts - pts.mean(0)
+    w = w - np.outer(w @ n, n)
+    _u, sv, vt = np.linalg.svd(w, full_matrices=False)
+    if len(sv) < 2 or sv[0] < 2.0 * sv[1]:
+        return None                                          # (a ring between pipe ends: not read yet)
+    t = core.unit(vt[0] - n * float(vt[0] @ n))
+    up = core.unit(np.cross(t, n))
+    bead_pts = body.points[np.unique(body.tris[piece])]
+    hu = pts @ up
+    over_up = float((bead_pts @ up).max() - hu.max())
+    over_down = float(hu.min() - (bead_pts @ up).min())
+    if over_down > over_up:                                  # the cap is on the plates' top face
+        up, over_up = -up, over_down
+        t = -t
+        hu = pts @ up
+    top = float(hu.max())
+    s = pts @ t
+    s0, s1 = float(s.min()), float(s.max())
+    mid_n = float(0.5 * (pa + pb) @ n)
+    base = n * mid_n + up * top
+
+    def at(x):
+        return base + t * x
+
+    # the cap: how wide the bead is across the plates' top at a few places
+    bead_v = body.points[body.tris[piece]]
+    widths = []
+    for fr in np.linspace(0.1, 0.9, SAMPLES):
+        p = at(s0 + fr * (s1 - s0))
+        q = _slice(bead_v, p, t)
+        q = q[(q - p) @ up >= -0.0002]
+        if len(q):
+            x = (q - p) @ n
+            widths.append(float(x.max() - x.min()))
+    width = float(np.median(widths)) if widths else gap
+    length = s1 - s0
+    if not is_named:
+        # the shape check: a cap over the plates (a flush filler bar is no weld), no wider than a cap, long for its gap
+        if not (GAP_CAP[0] <= over_up <= GAP_CAP[1]) or width < gap + 0.0005 or width > gap + 2 * LEG_MAX:
+            return False
+        if length < max(0.01, 5.0 * gap) or length < ALONG * _extent(bead_pts):
+            return False
+    corners = []
+    pts_line = np.array([at(s0), at(s1)])
+    for p in pts_line:
+        corners.append(core.Corner("BUTT", 180.0, p + n * (0.5 * gap), n.copy(), up.copy(), 0,
+                                   p - n * (0.5 * gap), -n, up.copy(), 0))
+    seam = core.Seam(pts_line, corners, False, "BUTT")
+    f.kind = "BUTT"
+    f.seams = [seam]
+    f.length = float(length)
+    f.size = max(_half(width), 0.001)
+    f.gap = float(gap)
+    f.legs = (0.5 * width, 0.5 * width)
+    f.closed = False
+    f.note = f"square groove, gap {_mm(gap)} mm"
     return f
 
 
