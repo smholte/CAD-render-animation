@@ -297,8 +297,20 @@ def set_value(j, value: float, use_limits: bool = True) -> float:
             return get_value(j)              # its leader decides (only the CAD pose mutes that and sets 0)
     v = clamp(j, value) if use_limits else value
     j.motion[VALUE] = float(v)
-    j.motion.update_tag()
+    tag_moved(j.motion)
     return v
+
+
+# What Blender's own slider tags when a custom property is dragged (transform + data). A bare ``update_tag()`` tags
+# "everything changed": on the 11,228-part stress model that made Blender go over every object again – 82 ms per drag
+# step instead of 16 ms, whatever the size of the joint (task 0326). Followers, mechanisms, cables and hoses follow
+# the same way with this tag.
+MOVED = frozenset({"OBJECT", "DATA"})
+
+
+def tag_moved(motion) -> None:
+    """Tell Blender that a joint's motion empty got a new value: its drivers and what hangs under it update."""
+    motion.update_tag(refresh=MOVED)
 
 
 def apply_limits(j, model_size: float = 10.0, clamp: bool = True) -> None:

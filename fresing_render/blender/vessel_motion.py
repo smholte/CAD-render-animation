@@ -656,8 +656,8 @@ def _on_depsgraph(scene, _depsgraph=None):
     if _STATE["busy"] or _STATE["resting"] or scene is None:
         return
     try:
-        if rig("vessel") is None or not effective(scene):
-            return
+        if not effective(scene) or rig("vessel") is None:   # the cheap test first: a name lookup costs ~1 ms on
+            return                                             # 11,000 objects, at every update (task 0326)
         if _STATE["sig"].get(scene.name) == _signature(scene):
             return
     except (AttributeError, ReferenceError):
