@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.262 – 26 Nov 2026 – A big model is built faster after its import (task 0366)
+## 0.2.263 – 26 Nov 2026 – A big model is built faster after its import (task 0366)
 
 - After the STEP file is read, the app builds the model about **5 seconds faster** on a big machine (2,400 unique /
   12,000 placed parts: 40.7 s instead of 45.7 s on the 4-core test machine): the part meshes are written in one go
@@ -16,6 +16,15 @@ installer of that version was built from.
   (reading, transfer, meshing on the helper programs, the app's build, sorting, the first picture) and says which
   stages run on one core. Please paste its numbers to the lead: they decide the next speed-up of the reader.
 
+## 0.2.262 – 26 Nov 2026 – Joints move much faster on big models (task 0326)
+
+- **Moving a joint on a big model is about 4–5 times faster.** On the 11,000-part stress model one step of the crane's
+  slew took 75 ms on a 4-core test machine; now 16 ms. Every way a joint is moved from the app gets it: poses, the
+  lead motions' slider, saved scenes, the PC check. The app told Blender "everything about this part changed" at each
+  step, and Blender then went over every object in the model again; now it says only "it moved".
+- What is left (about 15 ms there) is Blender's own work for any change in a model that big – playing the animation
+  costs the same per frame.
+- PC check: the Stress line **Stress model: dragging a joint** shows the new time.
 ## 0.2.261 – 25 Nov 2026 – The clash check needs much less memory on big models (task 0327)
 
 - **6 Animation > Clash check** on a big model now needs about a quarter of the extra memory it needed: on the stress

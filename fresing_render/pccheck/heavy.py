@@ -235,7 +235,7 @@ def first_draw(scene, w: int, h: int, out: str, redraws: int = 3) -> tuple:
     return first, again
 
 
-@line("heavy.import_stages", "Big machine: where the import time goes", "0.2.262", (H,), requires=("heavy.scene",),
+@line("heavy.import_stages", "Big machine: where the import time goes", "0.2.263", (H,), requires=("heavy.scene",),
       expected=90,
       what="Imports the big machine once more from its STEP file (the normal number of helpers) and times every stage: "
            "the reader's parse, transfer, meshing, cache, then Blender's meshes, objects, sorting, structure, bounds, "
@@ -265,15 +265,16 @@ def heavy_import_stages(ctx):
         ctx.metric(name, sec, "s")
     ctx.metric("import, whole", got["total"], "s")
     z = sizes()
-    try:
-        first, again = first_draw(ctx.scene_of("heavy.import_stages"), z["w"], z["h"],
-                                  os.path.join(ctx.work, "first_draw.png"))
-        ctx.metric("first draw (Solid view picture)", first, "s")
-        ctx.metric("next draws, each", again, "s")
-        drawn = f", first draw {first:.1f} s"
-    except RuntimeError as exc:                         # no graphics card (a test server): the rest still counts
-        print("Fresing Render PC check: first draw not measured:", exc)
-        drawn = ", first draw not measured here (no graphics card)"
+    drawn = ", first draw not measured here (no graphics card)"
+    if ctx.has_gpu:          # without one, drawing in this program can crash Blender (GitHub's Windows): the rest counts
+        try:
+            first, again = first_draw(ctx.scene_of("heavy.import_stages"), z["w"], z["h"],
+                                      os.path.join(ctx.work, "first_draw.png"))
+            ctx.metric("first draw (Solid view picture)", first, "s")
+            ctx.metric("next draws, each", again, "s")
+            drawn = f", first draw {first:.1f} s"
+        except RuntimeError as exc:
+            print("Fresing Render PC check: first draw not measured:", exc)
     single = sum(float(st.get(k, 0.0)) for k, _n, s1 in READER_STAGES if s1) + sum(bl.values())
     ctx.metric("on one core (reader + Blender)", single, "s")
     _memory(ctx)
