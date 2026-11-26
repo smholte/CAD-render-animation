@@ -1785,7 +1785,8 @@ class Job:
         if "height" in got:
             hgt = core.seamless_along(got.pop("height")[..., 0])
             n = height_normals(hgt, along, across, bump[1], bump[2])
-            got["normal"] = np.concatenate([n * 0.5 + 0.5, np.ones(n.shape[:2] + (1,), np.float32)], axis=-1)
+            packed = np.concatenate([n * 0.5 + 0.5, np.ones(n.shape[:2] + (1,), np.float32)], axis=-1)
+            got["normal"] = packed
         keys = {}
         for ch, arr in got.items():
             kd = KIND.get(ch, "value")
