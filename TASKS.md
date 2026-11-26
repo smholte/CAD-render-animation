@@ -241,6 +241,7 @@ The lead turns each into a task (number, brief, model) and then deletes its entr
 | 0002 | Measure on the owner's PC: EGR import time (0.2.3+), animation time per frame with Time test (0.2.4+), EEVEE speed on the RTX 3090 | owner | – | done 20 Nov (owner: close it – EGR import 50–52 s on 2 Nov, EEVEE 0.4 s/frame HD on 6 Nov, PC checks since) | – |
 | 0003 | Rest of the first Windows test: own Inventor STEP + still, joint on a real pivot | owner | – | done 20 Nov (owner: a CNC mill set-up on one of his own earlier models, G-code ran, animation rendered) | – |
 | 0006 | Phase 3, when projects need it: motion paths, several machines in one scene, clash warning, project templates | worker (per feature) | – | open | – |
+| 0371 | **Demo kit: reader crash on Make it after Cancel + no "format could not be read" lines** – Cancel ends the old reader for sure, a new run shares nothing with one still ending, a reader stop names its model, the log flushed line by line; `compat.py`'s `_RestrictData` prints gone (owner's PC 26 Nov, 0.2.270, kit 2; the next Make it worked). **Private vessel: yes** (read; push only if the kit changes) | worker | Opus · High | open – can start | `tasks/0371-demo-kit-cancel-restart-crash.md` |
 
 ## Done
 
