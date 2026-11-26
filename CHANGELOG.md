@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.267 – 26 Nov 2026 – Lifting plan: lift path and the checks along it (task 0348)
+## 0.2.268 – 26 Nov 2026 – Lifting plan: lift path and the checks along it (task 0348)
 
 - **Lift path & checks** (8 Lifting plan): click a **set-down point** and the app proposes the lift from where the load
   hangs – hoist clear, slew, luff / telescope (the hook keeps its height), travel for a crawler that cannot reach
@@ -20,6 +20,12 @@ installer of that version was built from.
 - **Live**: a small use bar beside the hook in the 3D view and a "Now" list update as you move a joint or the load,
   without making the drag slower.
 - **Lift data box**: one tick puts the load, radius, crane use and the worst status so far in renders and videos.
+
+## 0.2.267 – 26 Nov 2026 – Groundwork for the Fresing assets pack (task 0354)
+
+- Groundwork for the Fresing assets pack – no visible change. The app can now find and read a pack of Fresing looks,
+  check it without ever stopping, and tell for every look whether a pack item or today's built-in look answers. Nothing
+  uses it yet; the app looks and works exactly as before.
 
 ## 0.2.266 – 26 Nov 2026 – A big model is built faster after its import (task 0366)
 
@@ -84,6 +90,7 @@ installer of that version was built from.
 - What is left (about 15 ms there) is Blender's own work for any change in a model that big – playing the animation
   costs the same per frame.
 - PC check: the Stress line **Stress model: dragging a joint** shows the new time.
+
 ## 0.2.261 – 25 Nov 2026 – The clash check needs much less memory on big models (task 0327)
 
 - **6 Animation > Clash check** on a big model now needs about a quarter of the extra memory it needed: on the stress
@@ -92,6 +99,7 @@ installer of that version was built from.
   clashes.
 - Why: the check prepared every part's shape for testing at its start, also the thousands of parts that never come
   near a moving one. It now prepares a part's shape only when a moving part comes near it.
+
 ## 0.2.260 – 25 Nov 2026 – Long cables and hoses come in light (task 0325)
 
 - **Long cables and hoses from CAD** (a round section swept along a curve, as Inventor's cables and harnesses are) are
