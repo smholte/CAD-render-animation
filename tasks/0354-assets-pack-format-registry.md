@@ -1,6 +1,6 @@
 # 0354 – Assets pack P1: pack format, registry and test pack (invisible)
 
-**Who:** worker · **Status:** running · **Branch:** `task/0354-assets-pack-format-registry`
+**Who:** worker · **Status:** done · **Branch:** `task/0354-assets-pack-format-registry`
 **Started by:** lead, 25 Nov 2026 23:3x (0344's P1; owner's picks 23:17) · **Model:** Opus · effort High · Claude Code
 on the web, environment "CAD-render-animation"
 **Area:** new **Assets** lane – new files only: `fresing_render/core/assets_pack.py`, `fresing_render/core/assets_registry.py`,
@@ -90,10 +90,101 @@ his employer's name.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 25–26 Nov 2026 · 0.2.267
 
-**What changed:**
+**What changed:** four new files, no existing app file touched (only the version lines and CHANGELOG):
+`core/assets_pack.py`, `core/assets_registry.py`, `pccheck/assets_test_pack.py`, `tools/make_test_assets_pack.py`;
+tests `tests/test_assets_pack.py` (103 plain tests) and `tests/test_assets_test_pack.py` (7, Blender as a module in a
+child process). Nothing calls the modules yet – the app looks and works exactly as before.
 
-**Tested and measured** (name the machine and the model):
+**Interfaces (0355, 0356, 0358 build on these)**
+
+`core/assets_pack.py` (no bpy; never raises):
+- Constants: `FORMAT` "fresing-assets", `FORMAT_VERSION` 1, `PACK_JSON`, `FOLDER` "Fresing Assets", `ENV`
+  "FRESING_ASSETS", `CONTRACTS` {kind: n} (material, finish, light, hdri, environment, prop, person = 1; decal,
+  cable_look, crane, project, weather = 0 = "no pack items yet" – a plug-in task raises its kind to 1; weather stays
+  0), `KINDS`, `BLEND_KINDS` {kind: allowed datablock collections}, `PICTURE_KINDS` {kind: file endings},
+  `SOCKETS` (material / finish node-group contract: required inputs, outputs, optional outputs), `FORBIDDEN_NODES`
+  (BSDFs, outputs, Bevel, AO, Script …), `FINISH_ATTRIBUTES`, `PIXEL_ATTRIBUTE`, `DEFAULT_QUALITIES`, `SLOWER` 1.3,
+  `TOTAL_WARN_MB` 300.
+- `find(app_version, folder="", binary_path="") -> Found` – looks in `places()`: `FRESING_ASSETS` **alone** when set;
+  else `folder` (the company's shared pack) then `<install folder>/Fresing Assets` (install folder = Blender's
+  parent holding `installed.txt`, the rule of `appicon.install_dir`; pass `bpy.app.binary_path` – works in
+  background Blenders, reads no settings file). The **first place holding a pack.json** is used, damaged or not.
+- `read(root, app_version) -> Found` – `Found(pack, state, note, detail, where)`; `state` none · ok · damaged ·
+  not_ours · newer · app_old · app_new; `note` = ONE plain line ("" = nothing to say); `detail` = for the console.
+- `Pack(root, id, title, version, app_min, app_max, licence, licence_id, qualities, sets, files, assets, left_out,
+  contracts)`; `pack.path(rel)` → full path or "" when outside the folder (also through a link); `pack.bytes`.
+- `Asset(id, kind, file, datablock, contract, fallback, picture, textures, set, since, changed, size_m, cost,
+  approved_slower, sha256, bytes)`, `.code_id`.
+- `verify(pack, progress=None) -> Verified(ok, problems, files, bytes)` – size + sha256 of every file in `files`;
+  only after an install / update. `size_problems(pack)` – set above `budget_mb`, pack above 300 MB (warnings).
+- `split_id`, `path_ok`, `inside`, `install_folder`, `places`, `rows_note(n)`, `describe(found)`.
+- Notes (texts): `NOTE_DAMAGED` "The Fresing assets pack could not be read – it may be damaged. The app uses its
+  built-in looks." · `NOTE_NOT_OURS` "The folder of the Fresing assets pack holds something else. …" · `NOTE_NEWER`
+  "The Fresing assets pack is newer than this app – update Fresing Render to use it. Until then …" · `NOTE_APP_OLD`
+  "The Fresing assets pack {version} needs Fresing Render {app_min} or newer – update the app. …" · `NOTE_APP_NEW`
+  "… was made for Fresing Render up to {app_max} – get its newer version under Updates. …" · `NOTE_ROWS` "{n items}
+  of the Fresing assets pack {is/are} left out (a newer app is needed, or the pack's list is damaged there). The app
+  uses its built-in looks for them."
+
+`core/assets_registry.py` (no bpy):
+- `code_ids() -> {kind: frozenset}` read once from the code: `materials_lib.UIDS`, `finishes.FINISHES`,
+  `studio.LOOKS`, `surroundings.KINDS` / `PROPS`, `props_detail.OUTFITS`, `decal_art.STICKER_KEYS`,
+  `blender/cable_looks.KINDS`, `lifting_model.classes.CLASSES`, `weather.PRESETS`, projects = the tour's
+  `@tour_set` ids (read with `ast`, no Blender) + `blender/lessons/` modules; hdri = none. `code_full_ids()`.
+- `Registry.build(found, code=None)`: `.usable` {id: Asset}, `.refused` [(id, why)] (pack-only without a twin;
+  material / finish always need a twin, `TWIN_ONLY`; others may name a `fallback` code id), `.note` (one line: rows
+  left out + refused, or the pack-level note), `.items(kind)`, `.has(id)`, `.pack`, `.version`, `.problems()` (plain
+  lines for Check the pack / PC check).
+- `resolve(full_id, source="pack", use_pack=True) -> Choice(source, id, asset, pack_version)`: pack when the
+  project's source is "pack", the switch is on and the item is usable; else the same code id; else the pack row's
+  fallback; else `Choice("code", "")` (the caller's default). Step 1 (the project's own copy) is the Blender side's:
+  `stamp(choice)` gives the `fr_asset` value {id, pack, version, contract, sha}.
+- `current(app_version, folder="", binary_path="")` reads the pack ONCE (later calls answer from memory, tested: no
+  file opened); `forget()` after a pack update or in tests.
+
+`pccheck/assets_test_pack.py`: `make(folder, version="1.0.0", app_min="0.0.1", app_max="") -> {seconds, bytes,
+files, folder}` – writes into `<folder>.making`, moves it in place when whole; replaces an earlier test pack, refuses
+a folder with other files; leaves the caller's open file as it was (a caller's datablock with one of its names is set
+aside and named back – tested). `VERSIONS` ("1.0.0", "1.1.0"). Items: `material:paint_satin` (procedural),
+`material:cast_iron` (two pictures, 1k + 2k), `finish:knurl_diamond` (reads `fr_fx_o` + `fr_pixel_angle`),
+`light:PRODUCT` (EXR 2048 x 1024), `hdri:test_hall` (pack-only, fallback `light:OVERCAST`, 1k + 2k), `prop:PALLET`
+(`fr_lod` 1 / 2, z from 0), `environment:FACTORY` (bench + floor tile, own floor material `fr_env` "floor"); 256 px
+picker pictures; placeholder `LICENSE-ASSETS.txt` (test pack, CC0). 1.1.0: paint_satin rougher (0.36 → 0.42), cast
+iron's roughness picture new (`…_rough_v2.png`); every other file byte-equal between versions (tested).
+
+**Tested and measured** (4-core web machine, Linux, Blender 5.2.3):
+- Maker: 1.0.0 = 23 files, 3.48 MB, 3.6–4.2 s; 1.1.0 = 23 files, 3.57 MB, 4.7–5.6 s (bpy as a module). In the real
+  Blender binary in the background (`blender -b --factory-startup --python tools/make_test_assets_pack.py -- …`):
+  5.4 s inside, 23 s with Blender's start; read with no note, `verify` OK.
+- Every rule of 0344 1.5 has a test: missing, damaged (bad JSON, NaN / Infinity, not UTF-8, > 4 MB, 22 bad heads), not
+  ours, newer format, outside the window (both ends, pre-release), 30 kinds of bad row incl. paths outside the pack
+  (`..`, absolute, drive, backslash, hidden, unlisted, a link out of the folder), a newer contract for each of the 12
+  kinds, a look > 1.3 x without the owner's OK, `verify` size / sha256 / missing; ids (every code id of every kind
+  resolves with and without a pack; pack-only without twin or fallback refused); the resolve order; read-once.
+- Real-Blender test: both versions read with no notes, `verify` OK, every `.blend` holds the listed datablock and no
+  Text, driver, script node or linked library; node groups on the 2.3 contract with no BSDF / Output; pictures
+  relative, inside the pack and listed in the row's `textures`.
+- Local: 110 tests of the two files in 10 s. GitHub: 7 full runs – the first green (run 45717235569, 31 min; the
+  runner pool was shared), the second after merging main because 0327 took 0.2.261 meanwhile (renumbered to 0.2.262), the third because 0326 took 0.2.262 (renumbered to 0.2.263), the fourth because 0346 took 0.2.263 (renumbered to 0.2.264), the fifth because 0352 took 0.2.264 (renumbered to 0.2.265) – it failed: group 2 had two skipped tests, because my two new files shifted the split and put 0352's `test_compat_projects.py` (skips by design: no kept test project yet) beside `test_web3d_keys.py` (no meshopt bridge on GitHub); fixed by adding it to `SKIPS_ON_GITHUB` in `tools/ci_groups.py` –, the sixth with that fix and because 0369 took 0.2.265 (renumbered to 0.2.266) – it failed once in a real-app click test of Place and Remove ("a click on the boom selects its subassembly"; this task changes no app code) –, the seventh because 0366 took 0.2.266 (renumbered to 0.2.267).
+
+**Different from 0344's plan:**
+- `pack.json` has a **`files` table** (every file of the pack: bytes + sha256) – the one list `verify` reads; asset rows
+  only name paths (`file`, `picture`, `textures`), and `Asset.sha256` / `bytes` come from that table (1.1 had them per
+  row; shared pictures would be listed twice).
+- Kinds follow 2.1 (the proof's `world` / `texture` are gone); decal, cable_look, crane, project have contract 0 until
+  their plug-in task; `person` code ids = the outfits (a pack person replaces an outfit's figure; poses stay code);
+  project ids = tour sets + lessons.
+- A look > 1.3 x its code twin without `approved_slower` is **left out by the app** too (not only a CI warning).
+- An unknown id resolves to `Choice("code", "")` (the proof picked the first code id of the kind).
+- The first place holding a pack.json wins even when it is damaged (its note is shown; no silent fall-through to the
+  install folder's pack).
+- The test pack has no person (the 17-bone rig contract belongs to 0362).
 
 **Open points / follow-up tasks:**
+- No independent review (plain Python, no Windows-only code – CLAUDE.md "saving usage"); 0355 has one.
+- `code_ids()` imports `blender/cable_looks.py` (no bpy at its top) and parses `blender/tour.py` with `ast` – a test
+  compares every kind with its module; if tour.py's decorator changes form, `tour_sets` needs it too.
+- The PC-check line and Settings > Assets come with 0357; 0356's `assets_check.py` can reuse `SOCKETS`,
+  `FORBIDDEN_NODES` and the inspection in `tests/test_assets_test_pack.py`.

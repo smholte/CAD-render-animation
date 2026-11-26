@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.267 – 26 Nov 2026 – Welds from the CAD file come in much faster; square groove with a gap (task 0368)
+## 0.2.268 – 26 Nov 2026 – Welds from the CAD file come in much faster; square groove with a gap (task 0368)
 
 - **A welded frame with hundreds of welds imports without the long wait.** 300 welds took about 26–30 s to find and
   make on a 4-core test machine; now about 7 s. The welds are worked out on all the PC's cores at once (your PC has
@@ -17,6 +17,12 @@ installer of that version was built from.
   alone.
 - The user guide's pictures of **3 Looks > Welds** show the panel again (they were empty), and the section *Welds from
   the CAD file* has its own picture. The test tour's stop "Welds from the CAD file" shows only that frame.
+## 0.2.267 – 26 Nov 2026 – Groundwork for the Fresing assets pack (task 0354)
+
+- Groundwork for the Fresing assets pack – no visible change. The app can now find and read a pack of Fresing looks,
+  check it without ever stopping, and tell for every look whether a pack item or today's built-in look answers. Nothing
+  uses it yet; the app looks and works exactly as before.
+
 ## 0.2.266 – 26 Nov 2026 – A big model is built faster after its import (task 0366)
 
 - After the STEP file is read, the app builds the model about **5 seconds faster** on a big machine (2,400 unique /
@@ -80,6 +86,7 @@ installer of that version was built from.
 - What is left (about 15 ms there) is Blender's own work for any change in a model that big – playing the animation
   costs the same per frame.
 - PC check: the Stress line **Stress model: dragging a joint** shows the new time.
+
 ## 0.2.261 – 25 Nov 2026 – The clash check needs much less memory on big models (task 0327)
 
 - **6 Animation > Clash check** on a big model now needs about a quarter of the extra memory it needed: on the stress
@@ -88,6 +95,7 @@ installer of that version was built from.
   clashes.
 - Why: the check prepared every part's shape for testing at its start, also the thousands of parts that never come
   near a moving one. It now prepares a part's shape only when a moving part comes near it.
+
 ## 0.2.260 – 25 Nov 2026 – Long cables and hoses come in light (task 0325)
 
 - **Long cables and hoses from CAD** (a round section swept along a curve, as Inventor's cables and harnesses are) are
