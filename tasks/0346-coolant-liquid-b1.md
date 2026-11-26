@@ -203,7 +203,7 @@ real program.
 **GitHub runs:** 2 full runs on the branch – the first (before the version raise) all green except two version
 bookkeeping checks (the new line's `since` ahead of the branch, the tour-version record), Windows install A with the
 PC check Full (`milling.liquid` with helper processes on Windows) green; the second after merging `main` (0.2.261)
-and raising to 0.2.263: RUN2. Then the report push and the fast-forward of `main`.
+and raising to 0.2.263 (another task took 0.2.262 meanwhile: merged again, renumbered): green, run 45725343042 (49.9 min on runners shared with other tasks). Then the report push and the fast-forward of `main`.
 
 **Subagents:** one independent tester (Sonnet, worktree) wrote `tests/test_coolant_liquid_independent.py` (14 tests)
 from the brief and the code's functions. It found two real faults, both fixed by me and its tests kept as they are:
