@@ -304,7 +304,7 @@ def sky_block(scene, ch: dict) -> tuple[dict, dict]:
         else:
             height, turn = float(s.sun_elevation), float(s.light_rotation)
         return {"kind": "SKY", "sun": env.sun_vector(height, turn), "strength": float(s.light_strength),
-                "exposure": float(s.exposure)}, {}
+                "exposure": float(s.exposure), "sun_table": env.sun_table()}, {}      # task 0369: the app's light
     img, rotation, shown = pic
     src = _image_pixels(img)
     light = env.shrink(env.equirect_for_page(src, rotation, min(1024, img.size[0])), q["light"])
@@ -313,6 +313,7 @@ def sky_block(scene, ch: dict) -> tuple[dict, dict]:
     horizon = [float(v) for v in band.reshape(-1, 3).mean(axis=0) * float(s.light_strength)]
     pictures = {"light": ("image/vnd.radiance", env.hdr_bytes(light))}
     block = {"kind": "PHOTO", "sun": sun, "sun_share": min(3.0, share / 6.0), "strength": float(s.light_strength),
+             "sun_colour": env.brightest_colour(light),             # task 0369: the picture's own colour of light
              "exposure": float(s.exposure), "light": "light", "photo": None, "horizon": horizon}
     if shown:
         width = min(q["sky"], 2 ** int(math.log2(max(img.size[0], 256))))
