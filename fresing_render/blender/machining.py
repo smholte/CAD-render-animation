@@ -1553,7 +1553,18 @@ def update_if_needed(scene, progress=None) -> bool:
         finally:
             if wm is not None:
                 wm.progress_end()
+        _liquid_after_sample(scene)
     return refresh(scene)
+
+
+def _liquid_after_sample(scene) -> None:
+    """The motion was read again: the coolant liquid (task 0346) is worked out for it soon (in the window)."""
+    try:
+        from . import liquid
+        if liquid.asked(scene):
+            liquid.request(scene)
+    except Exception as exc:                         # never stop the cut from showing
+        print("Fresing Render: liquid request failed:", exc)
 
 
 def prepare(scene, progress=None) -> None:
@@ -1564,6 +1575,11 @@ def prepare(scene, progress=None) -> None:
         progress(0, "Milling: reading the motion of the bits")
     sample(scene)
     refresh(scene, force=True)
+    from . import liquid
+    if liquid.asked(scene):                            # the coolant liquid for this animation (task 0346)
+        if progress is not None:
+            progress(0, "Coolant liquid: working it out")
+        liquid.prepare(scene)
 
 
 # ---------------------------------------------------------------------------
