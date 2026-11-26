@@ -1,6 +1,6 @@
 # 0368 – Faster welds at import and model update + the square groove with a root gap (0323's open points)
 
-**Who:** worker · **Status:** running · **Branch:** `task/0368-faster-welds-at-import`
+**Who:** worker · **Status:** done 26 Nov (0.2.268) · **Branch:** `task/0368-faster-welds-at-import`
 **Started by:** lead, 25 Nov 2026 23:5x (owner allowed extra code tasks for the night; 0323's open points)
 · **Model:** Opus · effort Medium
 **Area:** Welds lane – `core/welds.py`, `core/weld_cad.py`, `blender/welds.py`, `blender/weld_cad.py`,
@@ -52,14 +52,14 @@ in the CAD file is found as a butt weld.
 
 ## Done when
 
-- [ ] 300-weld frame: the welds take **≤ about 10 s** at import on the web machine (was 30.3 s). Model update measured
+- [x] 300-weld frame: the welds take **≤ about 10 s** at import on the web machine (was 30.3 s). Model update measured
       before / after. The profile split before / after is in the report.
-- [ ] The same welds as before: the existing weld tests and the 0323 CAD tests stay green. The 6-weld frame and the tour
+- [x] The same welds as before: the existing weld tests and the 0323 CAD tests stay green. The 6-weld frame and the tour
       set give the same welds and looks (a picture before / after in the report).
-- [ ] A square groove with a root gap is found by shape and from the CAD file as BUTT – a new test each.
-- [ ] Guide pictures right; tour set `changed=` raised if the stop changed (`tools/tour_versions.py --record`).
-- [ ] Tests added / updated; full suite passes; GitHub run green; CHANGELOG.
-- [ ] Report filled in, merged, released.
+- [x] A square groove with a root gap is found by shape and from the CAD file as BUTT – a new test each.
+- [x] Guide pictures right; tour set `changed=` raised if the stop changed (`tools/tour_versions.py --record`).
+- [x] Tests added / updated; full suite passes; GitHub run green; CHANGELOG.
+- [x] Report filled in, merged, released.
 
 ---
 
@@ -130,6 +130,11 @@ their own dict) and 3 tests added from its cases. Not testable here: CREATE_NO_W
 Windows (the same code as the liquid's helpers), a `;` in a folder name on PYTHONPATH.
 
 Measured again after the fixes: 300 welds 7.2 s, the same meshes.
+
+**GitHub runs:** 5 full runs. 1st green; 2nd and 4th only renumbering (0346, 0352, 0366, 0354 took 0.2.263 – 0.2.267
+meanwhile); 3rd and 4th red on "2 tests skipped" in pytest group 6 – the new test files moved
+`test_web_tools.py` (no node on GitHub) and 0352's `test_compat_projects.py` (empty parameter set) beside 0298's
+xfail: both put in `ci_groups.SKIPS_ON_GITHUB`. `main` fast-forwarded to the green commit 4a6e5d8.
 
 **Open points / follow-up tasks:**
 - No Heavy PC-check line for the speed (the 300-weld frame is made by a tool outside the app); the owner's PC (24
