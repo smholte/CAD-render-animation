@@ -6,7 +6,7 @@ The package is split so the logic can be tested without Blender:
     blender/   everything that talks to Blender (bpy)
 """
 
-__version__ = "0.2.263"
+__version__ = "0.2.264"
 
 _modules = []
 
@@ -57,6 +57,7 @@ def _classes():
     from .blender import ops_copy                   # task 0293: Copy / Paste with joints and mechanisms
     from .blender import ops_lead_motions, ui_lead_motions   # task 0309: lead motions (top bar, editor, step)
     from .blender import ops_measure, ui_measure    # task 0322: Measure in the 3D view (top bar, keys M / Alt+M)
+    from .blender import ops_liquid                 # task 0346: the coolant liquid's bake (Cancel)
     from .blender import keys                       # task 0295: Settings > Keys
     from .blender import ops_material_picker, ui_material_picker   # task 0273: the Materials window, the short list
     # 3 Looks > Logos & stickers (task 0024) right after Paint faces: sub-panels show in registration order
@@ -94,7 +95,7 @@ def _classes():
             + ops_locations.CLASSES + form_window.CLASSES + first_setup.CLASSES + ops_welds.CLASSES + ui_welds.CLASSES
             + ops_lead_motions.CLASSES + ui_lead_motions.CLASSES
             + ops_material_picker.CLASSES + ui_material_picker.CLASSES
-            + ops_measure.CLASSES + ui_measure.CLASSES + keys.CLASSES)
+            + ops_measure.CLASSES + ui_measure.CLASSES + keys.CLASSES + ops_liquid.CLASSES)
 
 
 def _all_classes():
@@ -226,6 +227,8 @@ def register():
     project_name.register()                  # task 0291: Ctrl+S / Ctrl+Shift+S, File > Save / Save As, the save browser
     machining.register()
     coolant.register()                       # after milling: the milled block's cut faces get the wet sheen too
+    from .blender import liquid
+    liquid.register()                        # task 0346: the coolant liquid on the machine
     linkages.register()
     clash.register()
     from .blender import finishes
@@ -343,6 +346,8 @@ def unregister():
     from .blender import copy as copy_paste
     copy_paste.unregister()
     linkages.unregister()
+    from .blender import liquid
+    liquid.unregister()
     coolant.unregister()
     machining.unregister()
     from .blender import project_name

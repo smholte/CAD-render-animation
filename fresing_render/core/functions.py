@@ -584,6 +584,8 @@ fn(id="cnc.air", title="Air blast", family="cnc", panel="FRESING_PT_cnc", fold="
 fn(id="cnc.coolant", title="Coolant", family="cnc", panel="FRESING_PT_cnc_coolant",
    button="fresing.cnc_coolant_nozzle", guide="coolant", tour=("coolant",), pccheck=("milling.coolant",),
    since="0.2.48", changed="0.2.205")
+fn(id="cnc.liquid", title="Coolant liquid on the machine", family="cnc", panel="FRESING_PT_cnc_coolant",
+   prop="liquid_on", guide="coolant-liquid", tour=("liquid",), pccheck=("milling.liquid",), since="0.2.263")
 
 # ----- 4 Motion: milling -----
 fn(id="milling.cut", title="Milling: material disappears where the bit cuts", family="milling",
@@ -930,7 +932,7 @@ fn(id="help.project_names", short="Project names", title="Saving a new project p
    guide="saving", pccheck=("files.name",), since="0.2.233")
 fn(id="help.newer_project", short="Newer projects", title="A project saved by a newer Fresing Render opens to look at "
    "only: a plain message, Save is off, nothing in it is lost", family="help", panel="TOPBAR_MT_file",
-   button="fresing.save", guide="newer-project", pccheck=("project.newer",), since="0.2.263")
+   button="fresing.save", guide="newer-project", pccheck=("project.newer",), since="0.2.264")
 fn(id="help.tools", short="One shortcut", title="One shortcut only: self-test, PC check and the app's Tools folder in Fresing > Tools and checks",
    family="help", panel="TOPBAR_MT_fresing", button="fresing.open_app_folder", guide="tools-and-checks",
    pccheck=("app.tools",), since="0.2.167")

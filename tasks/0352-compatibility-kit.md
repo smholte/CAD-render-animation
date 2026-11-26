@@ -319,7 +319,7 @@ All paths are under `fresing_render/blender/`. Kinds: **a** = upgrades stored da
 ## Report (filled in by the chat that did the task)
 
 **Chat / date:** Claude Code on the web, 25 Nov 2026 (one session; branch `task/0352-compatibility-kit`, released as
-0.2.263).
+0.2.264).
 
 **What changed:**
 - `core/compat.py` (no Blender): `FORMAT = 1`, `BASELINE_FORMAT = None`, the chain `STEPS = ()` as plain data
