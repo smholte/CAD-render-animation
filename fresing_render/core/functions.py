@@ -584,6 +584,8 @@ fn(id="cnc.air", title="Air blast", family="cnc", panel="FRESING_PT_cnc", fold="
 fn(id="cnc.coolant", title="Coolant", family="cnc", panel="FRESING_PT_cnc_coolant",
    button="fresing.cnc_coolant_nozzle", guide="coolant", tour=("coolant",), pccheck=("milling.coolant",),
    since="0.2.48", changed="0.2.205")
+fn(id="cnc.liquid", title="Coolant liquid on the machine", family="cnc", panel="FRESING_PT_cnc_coolant",
+   prop="liquid_on", guide="coolant-liquid", tour=("liquid",), pccheck=("milling.liquid",), since="0.2.263")
 
 # ----- 4 Motion: milling -----
 fn(id="milling.cut", title="Milling: material disappears where the bit cuts", family="milling",
@@ -712,10 +714,10 @@ fn(id="lifting.reeve", short="Reeve the rope", title="The hoist rope in its fall
 fn(id="lifting.path", short="Lift path", title="Lift path: a set-down point, the proposed steps and every check along "
    "the path with its worst moment", family="lifting", panel="FRESING_PT_lifting_path",
    button="fresing.lifting_set_down_point", guide="lifting-path", tour=("lifting_path",), pccheck=("lifting.path",),
-   since="0.2.263", workspaces=_LIFT)
+   since="0.2.264", workspaces=_LIFT)
 fn(id="lifting.data_box", short="Lift data box", title="Lift data box in renders and videos: load, radius, crane use, "
    "worst so far", family="lifting", panel="FRESING_PT_lifting_path", prop="data_box", guide="lifting-data-box",
-   tour=("lifting_path",), pccheck=("lifting.path",), since="0.2.263", workspaces=_LIFT)
+   tour=("lifting_path",), pccheck=("lifting.path",), since="0.2.264", workspaces=_LIFT)
 
 fn(id="lifting.make", short="Make a crane", title="Make a crane from numbers (type, start from a class, Make)", family="lifting",
    panel="FRESING_PT_lifting_equipment", button="fresing.lifting_make", guide="lifting-make", tour=("lifting_make",),
