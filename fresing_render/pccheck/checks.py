@@ -4106,7 +4106,7 @@ def web3d_under(ctx):
     return note + "; the page shows them (Under the sea and Camera under water in its settings)" + env.tries_note(got)
 
 
-@line("web3d.welds", "Web 3D model: welds with their ripples and heat tint", "0.2.262",
+@line("web3d.welds", "Web 3D model: welds with their ripples and heat tint", "0.2.263",
       what="Task 0369: the test weldment with every weld look (painted, as welded with spatter and rust, stainless, "
            "pickled, aluminium, ground flush) saved as a web 3D model: every bead takes its look baked as a strip "
            "along the weld – its ripples as a normal picture –, the heat zones go on the page as see-through strips "
