@@ -306,10 +306,24 @@ def s_show_panel():
     return 0.5
 
 
+class FR_TEST_PT_other_tab(bpy.types.Panel):
+    """Another add-on's panel in a tab of its own (task 0367: Blender's own tabs are all hidden outside Full access)."""
+
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "Other add-on"
+    bl_label = "Other add-on"
+
+    def draw(self, context):
+        self.layout.label(text="another add-on")
+
+
 @step
 def s_other_tab_select():
-    """Task 0332: outside Full access Blender's tabs Tool / View / Animation are hidden; only Item (Blender's own C
-    panel) still shows, while an object is active – make one active so that tab is there."""
+    """Task 0332 / 0367: outside Full access Blender's tabs (Item too) are hidden; another add-on's tab still shows –
+    register one so there is another tab to open."""
+    if not getattr(FR_TEST_PT_other_tab, "is_registered", False):
+        bpy.utils.register_class(FR_TEST_PT_other_tab)
     sc = bpy.context.scene
     ob = sc.objects.get("FR layout test empty")
     if ob is None:
@@ -325,7 +339,7 @@ def s_other_tab_select():
 @step
 def s_other_tab():
     _w, area, sp = view()
-    ui_region(area).active_panel_category = "Item"
+    ui_region(area).active_panel_category = FR_TEST_PT_other_tab.bl_category
     from importlib import import_module
     h = import_module(pkg() + ".blender.ui_header")
     check("another tab open: the header button shows", not h.panel_visible(area))
@@ -336,6 +350,8 @@ def s_other_tab():
     ob = bpy.context.scene.objects.get("FR layout test empty")
     if ob is not None:
         bpy.data.objects.remove(ob)
+    if getattr(FR_TEST_PT_other_tab, "is_registered", False):
+        bpy.utils.unregister_class(FR_TEST_PT_other_tab)
     return 0.3
 
 

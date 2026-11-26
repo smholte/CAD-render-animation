@@ -1286,7 +1286,9 @@ def test_every_fresing_operator_is_refused_in_the_client_view_except_the_allow_l
     workspaces.switch(sc, "Client view")
     for i in ops:
         if lock.allowed(i):
-            if i != "fresing.client_locked":                 # what still works, works as before
+            if i == "fresing.keys_blender":                  # task 0367: Blender's Preferences stay closed there
+                assert not _op(i).poll(), i
+            elif i != "fresing.client_locked":               # what still works, works as before
                 assert bool(_op(i).poll()) == free[i], i
         else:
             assert not _op(i).poll(), i
