@@ -1,6 +1,6 @@
 # 0366 – Faster model build after the import (0301 #1) + where the import time goes
 
-**Who:** worker · **Status:** running · **Branch:** `task/0366-faster-model-build`
+**Who:** worker · **Status:** done 26 Nov (0.2.266) · **Branch:** `task/0366-faster-model-build`
 **Started by:** lead, 25 Nov 2026 23:5x (owner allowed extra code tasks for the night; study 0301's first proposal)
 · **Model:** Opus · effort Medium
 **Area:** Import lane –
@@ -63,14 +63,14 @@ whether 0301's bigger change (#2) is worth its risk.
 
 ## Done when
 
-- [ ] The same model as before: a test compares the built meshes (positions, triangles, normals, UV layers, face data),
+- [x] The same model as before: a test compares the built meshes (positions, triangles, normals, UV layers, face data),
       the group sorting and the bounds with today's build, on the Heavy model and on at least one test-tour model.
-- [ ] Blender build stages about −5 s on Big on the web machine (study: −5 to −6 s of ~39 s), the before / after table in
+- [x] Blender build stages about −5 s on Big on the web machine (study: −5 to −6 s of ~39 s), the before / after table in
       the report. Model update on the Stress model measured before / after.
-- [ ] `heavy.import_stages` runs in the PC check's Heavy mode (and in its CI check, as the other Heavy lines); the guide's
+- [x] `heavy.import_stages` runs in the PC check's Heavy mode (and in its CI check, as the other Heavy lines); the guide's
       PC-check list has its line.
-- [ ] Tests added / updated; full suite passes; GitHub run green; CHANGELOG.
-- [ ] Report filled in, with **the owner's line**: "PC check > Heavy – the line 'Big machine: where the import time
+- [x] Tests added / updated; full suite passes; GitHub run green; CHANGELOG.
+- [x] Report filled in, with **the owner's line**: "PC check > Heavy – the line 'Big machine: where the import time
       goes'; paste its numbers to the lead". Merged and released before Monday 30 Nov.
 
 ## Not in this task
@@ -82,10 +82,73 @@ import popup (0340); anything in `ops_import.py` / `reimport.py`.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (worker), 25–26 Nov 2026. No subagents (a small, local change; the independent
+review was skipped: no Windows-only code).
 
 **What changed:**
+- `blender/build.py`: `_new_mesh` writes points and corners straight into the attributes `position` / `.corner_vert`
+  (loop starts and `update(calc_edges=True)` as before); `world_bounds` in NumPy – each mesh's box read once (an object
+  with modifiers has its own), all boxes turned into the world at once (R c + t ± |R| e = the 8 corners).
+- `blender/props.py`: `_group_look_changed` – inside the new `held_looks()` a changed group look is noted and given to
+  the parts in ONE walk at the end (nested: the outermost walks); outside it, at once as before.
+  `blender/logic.py`: `apply_rules` (new groups' material + colour) and `apply_scheme` run inside `held_looks()`.
+- `importer/step_reader.py`: stats `seconds_parse`, `seconds_transfer`, `seconds_tree`, `seconds_part_total`,
+  `seconds_biggest_part`, `seconds_write` (each helper's reply carries its part's seconds as a 7th item; no cache
+  format change). `mesh_reader.py` unchanged (it writes no reader stages).
+- `pccheck/heavy.py`: Heavy line **`heavy.import_stages`** "Big machine: where the import time goes" (before
+  `heavy.import`, which reads again anyway): every reader stage, helpers used, part-seconds, biggest part, the Blender
+  stages (meshes, objects, sorting, welds from the file, structure, bounds, surroundings) by clocks wrapped round them,
+  the whole import, the time on one core, and the first draw – a Solid-view (Workbench) picture at 1920 × 1080 and the
+  mean of the next 3 (the PC check runs without a window, so no draw handler can run; on a PC without a graphics card
+  this part is left out with one line, the rest still counts). `MIN_LINES_HEAVY` 19 → 20. Guide: the line in the
+  Heavy paragraph.
+- `tests/test_build_speed.py` (7 tests): the old build kept in the test as the reference; the tour crane, painted
+  faces, an OBJ with UVs and the Heavy machine (scaled down, made at test time) built both ways from the same cache and
+  compared exactly – points, corners, loop starts, every attribute (edges, normals …), UV layers, mesh properties,
+  groups, slots, face materials, every material, matrices; bounds within 1e-6 of the model's size. A mutation (corners
+  turned round) fails it. Plus: an empty part, bounds with turned / scaled / modified / CAD-bounds parts, the one walk.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** – **4-core web machine** (Intel Xeon 2.1 GHz), Blender 5.2.3 as a Python module, `finish_import`
+on the same cache, old = `main` 0.2.261, new = this branch:
+
+| Stage (s) | Big (2,400 / 11,968 parts, 9.5 M tris) old | new | Stress (1,995 / 11,228, 1.2 M) old | new |
+|---|---|---|---|---|
+| meshes (`_new_mesh`) | 4.51 | **1.80** | 0.92 | 0.31 |
+| build (meshes + objects, cache read) | 7.40 | **4.76** | 2.99 | 2.46 |
+| sorting (`apply_rules`) | 2.86 | **1.38** | 4.09 | 1.32 |
+| bounds (`update_bounds`) | 0.22 | 0.15 | 0.21 | 0.19 |
+| structure / surroundings | 0.16 / 0.85 | 0.13 / 0.75 | 0.14 / 0.79 | 0.12 / 0.75 |
+| welds from the file (`weld_cad.after_import`, not this task) | 33.6 | 33.0 | 28.4 | 28.4 |
+| **Blender side, whole** | **45.7** | **40.7 (−5.0)** | **37.2** | **33.9 (−3.3)** |
+
+Bounds were already fast on today's `main` (0.2 s, the study's 1.2 s included an update since made elsewhere); the gain
+is meshes −2.7 s and sorting −1.5 s on Big. Reader on this machine (3 helpers): Big 51.1 s (read 22.1, meshing 27.6),
+Stress 65.4 s (read 44.5, meshing 19.3).
+**Model update, Stress A → B** (1,899 of 1,995 meshes reused): 128.3 s before, 129.5 s after – no gain (its own build
+is 5 s and mostly reused). A profile shows where it goes: **52 s** `weld_cad._parts_of` and **50 s**
+`bpy.data.batch_remove` of the old revision's objects in `reimport.py` (see open points).
+The Heavy line ran in the PC check's Heavy mode, scaled down (bpy module, no graphics card: the Workbench picture still
+rendered, 4.8 s): OK, all metrics written. Tests run locally: `test_build_speed.py`, `test_importer.py`,
+`test_faces.py`, `test_rule_sets.py`, `test_copy.py`, `test_blender.py`, `test_material_picker*.py`,
+`test_queue_schemes.py`, `test_queue_fixes.py`, `test_fixes_0120.py`, `test_surroundings.py`, `test_pccheck.py` – all
+pass; GitHub runs the rest.
+
+**The owner's line:** PC check > Heavy – the line "Big machine: where the import time goes"; paste its numbers to the
+lead.
+
+**GitHub runs:** 5 full runs. 1: red – Windows part B: the Solid-view picture of the new line, drawn inside the PC
+check's own Blender without a graphics card, crashed Blender (Linux under xvfb drew it fine); fixed: the first draw is
+measured only when the check found a graphics card (the owner's PC has one), else one line says so. 2–4: green (or cancelled), but 0326,
+0346, 0352 and 0369 took 0.2.262 … 0.2.265 meanwhile; 5: after merging main, 0.2.266.
 
 **Open points / follow-up tasks:**
+- **The biggest import cost found is outside this task: the weld check after an import walks the parts with
+  `ob.children`, which Blender works out by looking at every object in the file – once per part, so it grows with the
+  square of the part count: 28–33 s of the ~35–45 s Blender side on Big and Stress, and 52 s of a 128 s model update.**
+  A parent → children map made once (or `children_recursive` of the root) should bring it to well under a second.
+  `blender/weld_cad.py` (`_parts_of`) is the Welds lane: for **0368** (running) or a follow-up.
+- Model update: `bpy.data.batch_remove` of the old revision's ~11,500 objects took 50 s (2 calls) in
+  `reimport.py` (the end of `_carry_over`: objects, then meshes). Worth a look in the Import lane after 0340 (e.g. remove
+  the meshes first, or unlink the collection before removing).
+- 0301 #2 (split transfer): decide from the owner's numbers of the new line.
+- Model-update gains from this task stay small while 0324 reuses most meshes.

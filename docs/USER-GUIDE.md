@@ -2014,8 +2014,8 @@ Good to know:
 - **Model update**: a weld finds its faces again on the new parts. A weld whose faces or part are gone stays in the
   list, marked "Weld lost its faces – pick again", and is named in the update report: press **Pick again**.
 - Hidden parts, the X-ray look, fades and the [Slice](#slice) take the weld along. The clash check leaves welds out.
-- The [web 3D model](#web3d) has the beads in their colour (and paint); the ripples and the heat tint are only in
-  renders.
+- The [web 3D model](#web3d-welds) shows the welds as the renders do: the ripples along the bead and the heat tint
+  beside it.
 - In the Client view welds show but cannot be changed.
 
 <a id="weld-copies"></a>
@@ -5144,6 +5144,32 @@ on and 8–10 with it off (Balanced about 1.5–2 against 7), looking into the b
 card **Auto quality** switches Under the sea off at Phone when the page still cannot keep up – a note says so, and
 the settings switch it on again. It adds about 1 kB to the file. On a PC with a graphics card: not measured yet.
 
+<a id="web3d-welds"></a>
+#### Welds on the page
+
+[Welds](#welds) go on the page as they look in your renders:
+
+- **The bead** with its ripples (TIG fine, MAG even, MIG aluminium wide, stick coarse), its colour, its rust and its
+  spatter. A painted weld stays in its paint, the ripples showing through.
+- **The heat tint** beside the bead – stainless steel's straw, purple and blue bands, steel's narrow blue-grey oxide,
+  aluminium's sooty or cleaned band – as a see-through strip over the part. A painted weld's heat zone is under the
+  paint, so it is not on the page (only worn, rusty toes are).
+
+Each weld look is baked once as a short strip that repeats along every weld with that look, so many welds add little
+to the file: the test weldment's 7 welds add about 0.2 MB (1.1 → 1.3 MB) and about no time to the export. The strip
+is as sharp as the **Texture size** allows (at 1024: 16 pixels per mm along the weld), also at Phone quality.
+
+Not on the page: the tint fading out at the open end of a seam (the strip goes on to the end).
+
+<a id="web3d-colours"></a>
+#### The page's colours
+
+The page shows the colours of your renders: it uses the app's own tone curve (Blender's AgX with Medium High
+Contrast, which the renders use), and with the Open sea, the Vessel deck or the Quayside its sun and sky give the parts
+the app's light – also under the sea, where the seabed in the cut-away is lit by the sun. Before, dark warm colours –
+sand, rust, brown paint – came out greyer on the page. A picture as background or light (a 360° photo, a studio look)
+lights the page with its own colour of light.
+
 <a id="web3d-light"></a>
 #### Light
 
@@ -6469,7 +6495,11 @@ the PC. The report page updates itself while it runs and shows which step is bus
 long it should take. In the report the pictures are large, with their size and quality under them, the
 videos come as a contact sheet (eight frames across the video) and the last frame. Under each step it
 says what the step shows and what it does not show. Heavy has its own history: its times are compared
-with your last Heavy run. In its text block you also find the peak memory.
+with your last Heavy run. In its text block you also find the peak memory. The step **Big machine: where the import
+time goes** imports the machine once more and times each stage: the reader's parse, transfer, meshing (with how many
+helper programs, the biggest part and all parts' meshing added up) and cache, then the app's meshes, objects, sorting,
+structure, bounds, surroundings and the first picture of the Solid view. It also says which stages run on one core:
+paste its numbers to the lead – they decide whether the reader is split over more cores.
 
 **To stop a Heavy check** that takes too long: in the app **Help > Cancel Fresing Render PC check**
 (shown only while a check runs), or press **Ctrl+C** in the black window. A picture that is being

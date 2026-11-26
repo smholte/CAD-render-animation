@@ -145,6 +145,144 @@ def heavy_scene(ctx):
     return f"{os.path.getsize(out) / 1e6:.0f} MB STEP file"
 
 
+# the reader's stages in tree.json stats (task 0366): (key, metric name, runs on one core)
+READER_STAGES = (
+    ("seconds_parse", "reader: parse the file", True),
+    ("seconds_transfer", "reader: transfer (shapes, names, colours, tree)", True),
+    ("seconds_material_names", "reader: material names", True),
+    ("seconds_hash", "reader: part keys", True),
+    ("seconds_copy", "reader: copy parts to the helpers", True),
+    ("seconds_mesh", "reader: meshing (wall time)", False),
+    ("seconds_write", "reader: write the cache", True),
+)
+# the Blender side: (module, function, metric name) – each wrapped with a clock while the import runs
+BLENDER_STAGES = (
+    ("logic", "apply_rules", "Blender: sorting"),
+    ("weld_cad", "after_import", "Blender: welds from the file"),
+    ("logic", "rebuild_tree", "Blender: structure"),
+    ("logic", "update_bounds", "Blender: bounds"),
+    ("world", "apply", "Blender: surroundings"),
+)
+
+
+def import_stages(import_fn) -> dict:
+    """Run ``import_fn()`` (an import that ends in ``ops_import.finish_import``) with a clock round each stage of the
+    Blender side; returns {"blender": {metric name: s}, "reader": the root's ``tree.json`` stats, "root": root}.
+    The meshes and objects come from ``build.LAST_TIMES`` (the meshes' time includes reading the cache)."""
+    import importlib
+
+    from ..blender import build
+    clocks: dict = {}
+    saved = []
+    for mod_name, fn_name, key in BLENDER_STAGES:
+        mod = importlib.import_module(f"..blender.{mod_name}", __package__)
+        real = getattr(mod, fn_name)
+
+        def timed(*a, _real=real, _key=key, **k):
+            t = time.perf_counter()
+            try:
+                return _real(*a, **k)
+            finally:
+                clocks[_key] = clocks.get(_key, 0.0) + time.perf_counter() - t
+        saved.append((mod, fn_name, real))
+        setattr(mod, fn_name, timed)
+    try:
+        t0 = time.perf_counter()
+        import_fn()
+        total = time.perf_counter() - t0
+    finally:
+        for mod, fn_name, real in saved:
+            setattr(mod, fn_name, real)
+    import json
+
+    import bpy
+    roots = [o for o in bpy.context.scene.objects if o.get(build.PROP_ROOT)]
+    root = max(roots, key=lambda o: o.get(build.PROP_IMPORTED, 0.0)) if roots else None
+    try:
+        stats = json.loads(root.get("fr_stats", "{}")) if root is not None else {}
+    except ValueError:
+        stats = {}
+    blender = {"Blender: meshes": float(build.LAST_TIMES.get("meshes", 0.0)),
+               "Blender: objects": float(build.LAST_TIMES.get("objects", 0.0))}
+    blender.update(clocks)
+    return {"blender": blender, "reader": stats, "root": root, "total": total}
+
+
+def first_draw(scene, w: int, h: int, out: str, redraws: int = 3) -> tuple:
+    """(first, next) seconds: the model drawn as the Solid view draws it (Workbench) – the first picture after the
+    import (it hands every mesh to the graphics card) and the mean of the next ``redraws``. The PC check runs without
+    a window, so a draw handler in a 3D view never runs: this picture stands in for the view's first frame."""
+    import bpy
+
+    from ..blender import cameras
+    cameras.add_camera(scene, "ISO", name="Heavy first draw")
+    r = scene.render
+    before = (r.engine, r.resolution_x, r.resolution_y, r.resolution_percentage, r.filepath)
+    try:
+        r.engine = "BLENDER_WORKBENCH"
+        scene.display.shading.light = "STUDIO"
+        r.resolution_x, r.resolution_y, r.resolution_percentage = w, h, 100
+        r.filepath = out
+        t0 = time.perf_counter()
+        bpy.ops.render.render(write_still=True)
+        first = time.perf_counter() - t0
+        t0 = time.perf_counter()
+        for _ in range(redraws):
+            bpy.ops.render.render(write_still=False)
+        again = (time.perf_counter() - t0) / max(1, redraws)
+    finally:
+        r.engine, r.resolution_x, r.resolution_y, r.resolution_percentage, r.filepath = before
+    return first, again
+
+
+@line("heavy.import_stages", "Big machine: where the import time goes", "0.2.266", (H,), requires=("heavy.scene",),
+      expected=90,
+      what="Imports the big machine once more from its STEP file (the normal number of helpers) and times every stage: "
+           "the reader's parse, transfer, meshing, cache, then Blender's meshes, objects, sorting, structure, bounds, "
+           "surroundings and the first picture",
+      shows="Which stages of an import use one core on your PC and which use all of them – the lead decides from it "
+            "whether a bigger change to the reader (splitting the transfer over the cores) is worth it",
+      not_shown="A model with real CAD surfaces (fillets, free forms read slower than this machine's planes and "
+                "cylinders) and the 3D view's own first frame on your screen (the check runs without a window: a "
+                "Solid-view picture stands in for it)")
+def heavy_import_stages(ctx):
+    step = _step(ctx)
+    got = import_stages(lambda: ctx.fresh(step, quality="normal", read_again=True))
+    st, bl = got["reader"], got["blender"]
+    if not st:
+        raise RuntimeError("the import wrote no stage times")
+    for key, name, _single in READER_STAGES:
+        if key in st:
+            ctx.metric(name, float(st[key]), "s")
+    helpers = int(st.get("mesh_helpers", 0) or 0)
+    ctx.metric("reader: helpers used", helpers, "")
+    if "seconds_part_total" in st:
+        ctx.metric("reader: part-seconds (all parts' meshing added)", float(st["seconds_part_total"]), "s")
+    if "seconds_biggest_part" in st:
+        ctx.metric("reader: biggest part", float(st["seconds_biggest_part"]), "s")
+    ctx.metric("reader: whole", float(st.get("seconds_total", 0.0)), "s")
+    for name, sec in bl.items():
+        ctx.metric(name, sec, "s")
+    ctx.metric("import, whole", got["total"], "s")
+    z = sizes()
+    drawn = ", first draw not measured here (no graphics card)"
+    if ctx.has_gpu:          # without one, drawing in this program can crash Blender (GitHub's Windows): the rest counts
+        try:
+            first, again = first_draw(ctx.scene_of("heavy.import_stages"), z["w"], z["h"],
+                                      os.path.join(ctx.work, "first_draw.png"))
+            ctx.metric("first draw (Solid view picture)", first, "s")
+            ctx.metric("next draws, each", again, "s")
+            drawn = f", first draw {first:.1f} s"
+        except RuntimeError as exc:
+            print("Fresing Render PC check: first draw not measured:", exc)
+    single = sum(float(st.get(k, 0.0)) for k, _n, s1 in READER_STAGES if s1) + sum(bl.values())
+    ctx.metric("on one core (reader + Blender)", single, "s")
+    _memory(ctx)
+    return (f"on one core {single:.1f} s (parse {float(st.get('seconds_parse', 0.0)):.1f}, transfer "
+            f"{float(st.get('seconds_transfer', 0.0)):.1f}, Blender {sum(bl.values()):.1f}); meshing "
+            f"{float(st.get('seconds_mesh', 0.0)):.1f} s on {helpers} helper{'s' if helpers != 1 else ''}{drawn}")
+
+
 @line("heavy.import", "Big machine: import, build, sort", "0.2.29", (H,), requires=("heavy.scene",), expected=240,
       what="Reads the big STEP file on all cores, builds the objects and sorts the parts; then again from the cache",
       shows="Import speed on all your cores, build and sort time, how much memory the app needs for a big model",

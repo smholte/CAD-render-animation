@@ -396,3 +396,46 @@ def test_cut_charts_splits_long_strips_and_keeps_every_triangle():
     assert len(cut.size) == 6 and cut.size[:, 0].max() <= 15.0 + 2.25 + 1e-9 and len(cut.chart) == n * 2
     assert np.allclose(cut.size[:, 1], 6.0) and cut.uv.min() >= 0.0
     assert core.cut_charts(un, 100.0) is un                            # short enough: untouched
+
+
+# ---------------------------------------------------------------------------
+# task 0369: weld strips
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("pitch", [0.0011, 0.0016, 0.0020, 0.0024])
+def test_weld_strip_holds_an_even_number_of_ripples(pitch):
+    along, w, h = core.weld_strip(pitch, 1024)
+    n = along / pitch
+    assert abs(n - round(n)) < 1e-9 and round(n) % 2 == 0          # repeats, also at half its length
+    assert abs(along - core.WELD_STRIP_M) <= pitch                 # about 64 mm
+    assert (w, h) == (1024, 256)
+    assert core.weld_strip(pitch, 2048)[1] == core.WELD_STRIP_PX   # never more than 1024 px along
+    assert core.weld_strip(pitch, 512)[1:] == (512, 128)
+
+
+def test_seamless_along_repeats_along_u_only():
+    rng = np.random.default_rng(5)
+    t = rng.random((32, 64, 3)).astype(np.float32)
+    t[0] += 5.0                                                     # one edge across: a toe, an outer edge
+    out = core.seamless_along(t)
+    assert out.shape == t.shape
+    # along: the two ends meet as neighbours do inside
+    jump = np.abs(out[:, 0] - out[:, -1]).mean()
+    inner = np.abs(np.diff(out, axis=1)).mean()
+    assert jump <= 1.5 * inner
+    # across nothing is mixed: the bright row stays where it was
+    assert out[0].mean() > out[1:].mean() + 4.0
+    # the middle is the tile itself (no gain, ripples in step keep their strength)
+    mid = slice(16, 48)
+    assert np.allclose(out[:, mid], t[:, mid])
+    # a pattern that already repeats with half the strip's length is left as it is
+    u = np.sin(np.arange(64) * 2 * math.pi / 8.0)[None, :, None].repeat(4, 0)
+    assert np.allclose(core.seamless_along(u), u, atol=1e-6)
+
+
+def test_sampler_wraps_each_way():
+    g = core.Gltf()
+    a = g.sampler(core.REPEAT)
+    b = g.sampler((core.REPEAT, core.CLAMP))
+    assert a != b and g.sampler((core.REPEAT, core.CLAMP)) == b
+    assert g.doc["samplers"][b]["wrapS"] == core.REPEAT and g.doc["samplers"][b]["wrapT"] == core.CLAMP
