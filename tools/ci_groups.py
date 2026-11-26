@@ -48,7 +48,8 @@ SKIPS_ON_GITHUB = {"tests/test_web3d_keys.py", "tests/test_lifting_reach_indepen
                    "tests/test_web3d_film_blender.py",    # task 0279: no browser on the Linux runners
                    "tests/test_flex_avoid_independent.py",   # task 0298: one xfail (the summary counts it as a skip)
                    "tests/test_web3d_lead_blender.py",       # task 0310: no browser on GitHub's Linux (found by 0322)
-                   "tests/test_web_tools.py"}                # no node on GitHub's Linux (task 0368 met it beside 0298's)
+                   "tests/test_web_tools.py",                # no node on GitHub's Linux (task 0368 met it beside 0298's)
+                   "tests/test_compat_projects.py"}          # task 0352: no stored old project yet (an empty parameter set)
 
 
 def load_times(path: str = TIMES) -> dict:
