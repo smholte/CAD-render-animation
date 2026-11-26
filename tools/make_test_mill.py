@@ -253,7 +253,7 @@ def tray():
     low = zd - 40.0                                     # below every point of the floor's underside
 
     def under(dirx):                                    # everything below the floor's plane on one side of the valley
-        n = (dirx * sx, -sy, 1.0)                       # z = zd + sy (y - yd) + sx |x - xd|  ->  n . (p - d) <= 0
+        n = (-dirx * sx, -sy, 1.0)                      # z = zd + sy (y - yd) + sx |x - xd|  ->  n . (p - d) <= 0
         big = g.box(-4000.0, -4000.0, -4000.0, 8000.0, 8000.0, 4000.0)
         return g.xform(big, g.Frame((xd, yd, zd), np.cross((0.0, 1.0, 0.0), n), n))
 

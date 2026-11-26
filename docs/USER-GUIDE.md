@@ -3736,8 +3736,52 @@ of the 4-core test machine): 42.0 s per picture without coolant, 47.1 s with it 
 about 7 %, the wet sheen about 5 %); EEVEE showed no difference. Working out a frame's coolant in the view takes
 about 3.5 ms (with the speed-driven splash of 0.2.200: 3.2–3.6 ms on the 4-core test machine).
 
-Not yet: coolant through the spindle (through the tool), mist or steam in the air, puddles that collect and
-coolant that runs off the table.
+Not yet: coolant through the spindle (through the tool), mist or steam in the air. Coolant that collects in the
+cut and runs off the table: **Liquid on the machine**, next.
+
+<a id="coolant-liquid"></a>
+#### Coolant liquid on the machine
+
+<img class="wide" src="img/coolant_liquid.jpg" alt="The test mill after a pocket and a slot were cut with flood coolant: milky coolant fills the pocket, lies on the table and in its T-slots, and has run off the table's end into the chip tray">
+
+With **Liquid on the machine** ticked (in the Coolant panel, under Draft) the coolant does not vanish when it
+lands: it **fills the pockets and slots** the bit cuts, **spills over the block onto the table**, runs **along the
+T-slots and off the table's ends into the chip tray**, and the tray runs **down its drain**. It moves with the
+machine: when the table stops hard the liquid sloshes, and it is thrown off the spinning tool. After **M9** a
+closed pocket stays full (as on a real machine), the table and the tray run dry, a thin film stays as the wet
+sheen.
+
+1. Set up the CNC machine, **Milling** (4 Motion > Milling: the liquid fills what the bit cuts) and **Coolant**
+   as above.
+2. Tick **Liquid on the machine**. Next to it: how much flows (Flow 0.7 = about 14 l/min, a VMC's flood pump;
+   Flow 1 = 20 l/min).
+3. **Detail**: **Draft** (4 mm squares on the table, 10 mm in the tray) to try things, about 4 times quicker;
+   **Normal** (2 mm and 5 mm) for the final video.
+4. Press **Build & play**. A moment later the app works the liquid out by itself; the panel shows how far
+   ("Working it out: 45 %") and you can keep working. **Cancel** stops it (it then waits until you build again
+   or press **Work out**).
+5. **EEVEE look** (Cycles always shows the liquid milky and see-through): **Clear** (see-through with ray-traced
+   refraction, the closest to Cycles, may look grainy at few samples), **Milky** (smooth at any sample count, the
+   table does not show through) or **Blended** (smooth, the table shows through faintly). Pick the one that looks
+   best on your graphics card; changing it needs no new work-out.
+
+What the liquid lies on is found by itself: the parts that move with the block (the table, clamps, the block
+itself as it is cut) and the parts that stand still under them (the chip tray, the bed). A part named
+**COOLANT DRAIN** is the drain (else the liquid stays in the tray). In the 3D view in Solid shading the liquid is
+a light grey sheet.
+
+The work-out is kept in a folder next to the project (`<project>_liquid`) and used again as long as nothing it
+depends on changed (the program, the model, the coolant or the liquid settings) – opening the project again,
+rendering in the render queue or changing the EEVEE look does not work it out again. Every frame is read from it,
+so a frame always looks the same.
+
+How long it takes, measured on the 4-core test machine with the test mill's 16 s test program (385 frames, the
+whole table wet): Draft about 16 s, Normal about 50 s; on disk about 0.8 MB (Draft) and 2.4 MB (Normal) per second
+of video. A PC with more cores is quicker (the work is shared over all its cores); how long a 10-minute program
+takes on your PC is the PC check's Heavy line "Milling: coolant liquid of a 10-minute program".
+
+Not yet: the 4th and 5th axis (next), chips carried by the liquid, the air blast pushing it out of a pocket,
+liquid in a T-slot's undercut (only what the top shows counts), the web 3D model.
 
 
 <a id="toolpath"></a>

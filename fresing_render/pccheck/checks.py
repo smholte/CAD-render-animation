@@ -755,7 +755,7 @@ def looks_weld_cad(ctx):
            f"render {info['seconds']} s"
 
 
-@line("looks.weld_gap", "Welds from the CAD file: a square groove with a 3 mm root gap is a butt weld", "0.2.263",
+@line("looks.weld_gap", "Welds from the CAD file: a square groove with a 3 mm root gap is a butt weld", "0.2.264",
       what="Two plates in line, 3 mm apart, with a square groove bead in the gap (its cap 7 mm wide) and two more plates "
            "with a flush filler bar: the import gives 1 weld, a butt weld with a 7 mm cap and a 3 mm gap, symbol ‖; the "
            "filler bar is no weld")
@@ -5398,6 +5398,77 @@ def _crane_still_scene(ctx):
     s.background = "COLOR"
     s.out_format = "presentation"
     return scene
+
+
+@line("milling.liquid", "Milling: coolant collects on the machine", "0.2.263",
+      what="The test mill cuts a pocket and an open slot with flood coolant and 'Liquid on the machine' ticked "
+           "(Detail Draft): the liquid is worked out with the helper processes, fills the pocket, runs over the "
+           "table into the chip tray and down the drain; the same frame twice gives the same liquid, an unchanged "
+           "project reads its bake again, a Cycles picture")
+def milling_liquid(ctx):
+    import bpy
+    import numpy as np
+
+    from ..blender import coolant, liquid, machining
+    machining._RUNTIME.clear()
+    liquid.forget()
+    scene = ctx.fresh(MILL)
+    _a, r = liquid.set_up_test_model(scene, os.path.join(ctx.work, "liquid"))
+    _check(not r["warnings"], "; ".join(r["warnings"][:2]))
+    _check(liquid.problem(scene) == "", liquid.problem(scene))
+    t0 = time.time()
+    info = liquid.bake_now(scene)
+    bake = time.time() - t0
+    _check(info is not None and "frames" in info, "the liquid was not worked out")
+    ctx.metric("liquid bake", bake, "s")
+    ctx.metric("liquid per frame", bake * 1000.0 / max(1, info["frames"]), "ms/frame")
+    ctx.metric("liquid helpers", info["helpers"], "")
+    ctx.metric("liquid cells", sum(info["cells"]), "")
+    rd, beds = liquid._open(scene)
+    _check(rd is not None, "the bake cannot be read back")
+    tot = rd.read(rd.frames[-1])[3]
+    on_table = float(rd.read(rd.frames[-1])[0][0].sum()) * beds.geom[0][0] ** 2 * 1e3
+    in_tray = float(rd.read(rd.frames[-1])[0][1].sum()) * beds.geom[1][0] ** 2 * 1e3
+    _check(on_table > 0.01, f"only {on_table:.3f} l on the table")
+    _check(in_tray > 0.01, f"only {in_tray:.3f} l in the chip tray")
+    _check(tot["drained"] > 0.0, "nothing went down the drain")
+    m9 = int(coolant.spans()[-1, 1])
+
+    def drawn(before):
+        scene.frame_set(before)
+        scene.frame_set(m9 - 5)
+        out = []
+        for name in (liquid.OBJ_TABLE, liquid.OBJ_TRAY):
+            me = bpy.data.objects[name].data
+            co = np.empty(len(me.vertices) * 3, np.float32)
+            me.vertices.foreach_get("co", co)
+            out.append(co)
+        return out
+    a1, a2 = drawn(scene.frame_start), drawn(scene.frame_end)
+    _check(len(a1[0]) > 0, "no liquid drawn on the table")
+    _check(all(np.array_equal(x, y) for x, y in zip(a1, a2)), "the same frame shows other liquid after another frame")
+    t0 = time.time()
+    for f in range(m9 - 20, m9):
+        scene.frame_set(f)
+    ctx.metric("liquid shown per frame", (time.time() - t0) * 50.0, "ms/frame")
+    liquid.forget()
+    t0 = time.time()
+    again = liquid.bake_now(scene)
+    _check(again is not None and time.time() - t0 < 0.5 * bake + 1.0, "an unchanged project worked the liquid out again")
+    # a picture: the block, the table's end and the tray
+    from mathutils import Vector
+    scene.frame_set(m9 - 5)
+    cam = bpy.data.cameras.new("PC check liquid")
+    co = bpy.data.objects.new("PC check liquid", cam)
+    scene.collection.objects.link(co)
+    co.location = Vector((0.55, -1.05, 0.55))
+    co.rotation_euler = (Vector((0.05, 0.0, -0.05)) - co.location).to_track_quat("-Z", "Y").to_euler()
+    scene.camera = co
+    scene.fresing.out_resolution = "preview"
+    pic = _cpu_still(ctx, scene, "liquid", "Coolant on the table and in the tray (processor, draft)", model_check=False)
+    ctx.metric("still with the liquid", pic["seconds"], "s")
+    return (f"{info['frames']} frames, {sum(info['cells']):,} cells, {bake:.1f} s with {info['helpers']} helpers; "
+            f"{on_table:.2f} l on the table, {in_tray:.2f} l in the tray, {tot['drained']:.2f} l down the drain")
 
 
 @line("render.gpu", "Still on the graphics card (Cycles, HD)", "0.1.0", (Q, F), requires=("import.crane",),

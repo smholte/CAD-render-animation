@@ -1388,6 +1388,7 @@ elif MODE in ("waycover", "air", "labels", "coolant", "flex_panels", "flex_chain
                 bpy.ops.fresing.cnc_use_workpiece()
             select_only()
             sc.fresing.coolant.enabled = True
+            sc.fresing.coolant.liquid_on = True          # (task 0346: its Detail and EEVEE look show)
             mod("blender.ui")._OPEN_FOLDS = True
         step(lambda: (_cool_setup(), 1.0)[1])
         _grab("panel_4_coolant", [("FRESING_PT_cnc_coolant", False, True)])

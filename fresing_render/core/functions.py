@@ -432,7 +432,7 @@ fn(id="looks.weld_list", short="Weld list", title="Weld list and CSV", family="l
    guide="weld-list", tour=("welds",), pccheck=("looks.weld_symbols",), since="0.2.240")
 fn(id="looks.weld_cad", short="Welds from CAD", title="Welds from the CAD file: solid beads in a STEP become welds",
    family="looks", panel="FRESING_PT_welds", button="fresing.weld_cad_find", guide="welds-from-cad", tour=("welds_cad",),
-   pccheck=("looks.weld_cad", "looks.weld_gap"), since="0.2.251", changed="0.2.263")
+   pccheck=("looks.weld_cad", "looks.weld_gap"), since="0.2.251", changed="0.2.264")
 fn(id="looks.xray", title="X-ray look", family="looks", panel="FRESING_PT_xray", button="fresing.xray_selected",
    guide="xray", tour=("fade",), pccheck=("motion.fade",), since="0.2.59")
 fn(id="looks.cutaway", title="Slice", family="looks", panel="FRESING_PT_cutaway", button="fresing.cut_add",
@@ -584,6 +584,8 @@ fn(id="cnc.air", title="Air blast", family="cnc", panel="FRESING_PT_cnc", fold="
 fn(id="cnc.coolant", title="Coolant", family="cnc", panel="FRESING_PT_cnc_coolant",
    button="fresing.cnc_coolant_nozzle", guide="coolant", tour=("coolant",), pccheck=("milling.coolant",),
    since="0.2.48", changed="0.2.205")
+fn(id="cnc.liquid", title="Coolant liquid on the machine", family="cnc", panel="FRESING_PT_cnc_coolant",
+   prop="liquid_on", guide="coolant-liquid", tour=("liquid",), pccheck=("milling.liquid",), since="0.2.263")
 
 # ----- 4 Motion: milling -----
 fn(id="milling.cut", title="Milling: material disappears where the bit cuts", family="milling",
