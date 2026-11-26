@@ -202,6 +202,7 @@ READING = {
     "troubleshooting", "self-test", "updates-not-arriving", "renders-folder", "panel-gone", "import-problems",
     "render-problems", "lifting-equipment", "lifting", "usage", "remove",
     "cutaway",            # task 0220: the old anchor of the Slice section (old links still land)
+    "web3d-colours",      # task 0369: why the page's colours are the renders' (reading, no function of its own)
 }
 
 
@@ -724,7 +725,7 @@ fn(id="house.toolbox", short="House alone", title="A house from House Planner by
    panel="FRESING_PT_house", button="fresing.toolbox_start", guide="house-toolbox", tour=("house_toolbox",),
    pccheck=("house.toolbox",), since="0.2.173")
 fn(id="web.export", title="Web 3D model", family="web", panel="FRESING_PT_web3d", button="fresing.web3d_export",
-   guide="web3d", tour=("web3d",), pccheck=("web3d.export", "web3d.small"), since="0.2.77", changed="0.2.253",
+   guide="web3d", tour=("web3d",), pccheck=("web3d.export", "web3d.small"), since="0.2.77", changed="0.2.265",
    manual_estimate=("use", 7200, "bake the materials, export a glTF and build a viewer page"))
 fn(id="web.surroundings", title="Web 3D model with surroundings", family="web", panel="FRESING_PT_web3d",
    prop="env_mode", guide="web3d-surroundings", tour=("web3d_env",), pccheck=("web3d.surroundings",),
@@ -737,6 +738,8 @@ fn(id="web.moving", title="Web 3D model: cables, ropes, hoses and tracks move wi
    panel="FRESING_PT_web3d", prop="animation", guide="web3d-moving", pccheck=("web3d.moving",), since="0.2.114", changed="0.2.147")
 fn(id="web.under", title="Web 3D model under the sea: seabed, sea cut-away, camera under water", family="web",
    panel="FRESING_PT_web3d", prop="env_mode", guide="web3d-under", pccheck=("web3d.under",), since="0.2.129")
+fn(id="web.welds", title="Web 3D page: welds with their ripples and heat tint", family="web", panel="FRESING_PT_web3d",
+   button="fresing.web3d_export", guide="web3d-welds", pccheck=("web3d.welds",), since="0.2.265")
 fn(id="web.player", title="Web 3D page: settings, playback, saved views", family="web", panel="FRESING_PT_web3d",
    button="fresing.web3d_export", guide="web3d-player", tour=("web3d",), pccheck=("web3d.export",), since="0.2.112")
 fn(id="web.view_names", title="Web 3D model: View names – camera names or numbered", family="web",
@@ -879,7 +882,7 @@ fn(id="help.blender_all", short="All of Blender", title="Fresing > Show all of B
 fn(id="help.quiet_menus", short="Shorter menus", title="Shorter top-bar menus (File, Render, Window, Help with a "
    "sub-menu Blender) and only the Fresing tab in the side panel outside Full access", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.blender_all", guide="quiet-menus", pccheck=("app.menus",),
-   since="0.2.265", workspaces=("cnc", "offshore", "product", "education", "lifting"))
+   since="0.2.266", workspaces=("cnc", "offshore", "product", "education", "lifting"))
 
 # task 0253: Blender's keys outside Full access, F12 / Ctrl+F12, the right-click menu (study 0222 package B)
 fn(id="help.blender_keys", short="Blender keys", title="Blender's keys that delete or change parts do nothing outside Full "

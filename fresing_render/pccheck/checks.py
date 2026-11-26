@@ -4141,6 +4141,54 @@ def web3d_under(ctx):
     return note + "; the page shows them (Under the sea and Camera under water in its settings)" + env.tries_note(got)
 
 
+@line("web3d.welds", "Web 3D model: welds with their ripples and heat tint", "0.2.265",
+      what="Task 0369: the test weldment with every weld look (painted, as welded with spatter and rust, stainless, "
+           "pickled, aluminium, ground flush) saved as a web 3D model: every bead takes its look baked as a strip "
+           "along the weld – its ripples as a normal picture –, the heat zones go on the page as see-through strips "
+           "with their tint, a painted heat zone that shows nothing stays off; opened in Edge or Chrome without a "
+           "window, the page draws the beads and the heat zones with the app's colours (its tone curve 'app')")
+def web3d_welds(ctx):
+    from ..blender import web3d, welds
+    from ..core import web3d as core
+    from ..core import web3d_env as env
+    scene = ctx.fresh(WELDMENT)
+    welds.set_up_test_model(scene)
+    out = web3d.export(scene, os.path.join(ctx.work, "web3d", "Weldment web 3D.glb"), size=512)
+    with open(out["path"], "rb") as fh:
+        data = fh.read()
+    bad = core.problems(data)
+    _check(not bad, f"the file breaks the glTF rules: {bad[:2]}")
+    doc, _bin = core.read_glb(data)
+    beads = [m for m in doc["materials"] if (m.get("extras") or {}).get("fr_weld") == "bead"]
+    heat = [m for m in doc["materials"] if (m.get("extras") or {}).get("fr_weld") == "heat"]
+    rippled = [m for m in beads if "normalTexture" in m]
+    _check(len(rippled) >= 5, f"{len(rippled)} of {len(beads)} weld looks carry their ripples (at least 5 wanted)")
+    tinted = [m for m in heat if m.get("alphaMode") == "BLEND" and "baseColorTexture" in m["pbrMetallicRoughness"]]
+    _check(len(tinted) >= 5, f"{len(tinted)} heat zones with their tint on the page (at least 5 wanted)")
+    w = out.get("welds") or {}
+    _check(w.get("left_out") == 1, f"the painted weld's heat zone should stay off the page: {w}")
+    ctx.metric("export", out["seconds"], "s")
+    note = (f"{out['text']}; {len(rippled)} weld looks with ripples, {len(tinted)} heat zones, "
+            f"{len(data) / 1e6:.1f} MB")
+    browser = env.find_browser()
+    if not browser:
+        return note + "; no Edge or Chrome on this PC: the page itself was not opened"
+    try:
+        got = env.read_page(out["html"], browser, "auto=0&frames=3", seconds=120)
+    except RuntimeError as exc:
+        return note + f"; the page gave no answer ({exc}); not counted"
+    if got["state"].startswith("error") and re.search(r"webgl|context|swiftshader", got["state"], re.I):
+        return note + "; no WebGL in the browser without a window: not counted"
+    _check(not got["state"].startswith("error"), f"the page reports an error: {got['state']}")
+    _check(got["state"] != "loading", "the page was still loading after a second, longer opening")
+    pl = got.get("player") or {}
+    wp = pl.get("welds") or {}
+    _check(wp.get("beads", 0) >= len(beads) and wp.get("heat", 0) >= len(tinted),
+           f"the page draws {wp} (the file has {len(beads)} weld looks, {len(heat)} heat zones)")
+    _check(pl.get("tone") == "app", f"the page's tone curve is {pl.get('tone')!r}, not the app's")
+    return note + "; the page draws them" + env.tries_note(got)
+
+
 @line("web3d.bake", "Web 3D model with baked light", "0.2.89",
       what="The test mill saved as a web 3D model with Light: Soft light baked, sun live (Bake quality Draft): Cycles "
            "bakes the light on this PC's graphics card when it renders with one; every shown part gets its own baked "
@@ -6052,7 +6100,7 @@ def app_keys(ctx):
 
 @line("app.menus", "Shorter top-bar menus: File, Render, Window and Help hold what the app uses (Blender's help in a "
       "sub-menu Blender); Blender's side-panel tabs Tool, View, Animation, Item, glTF Variants hidden; Blender's key "
-      "settings greyed in the Client view", "0.2.265",
+      "settings greyed in the Client view", "0.2.266",
       what="Checks that Blender's own drawing of File, Render, Window and Help is found (the quiet window can replace "
            "it and an add-on's items stay), what the quiet File / Render / Window menus hold and leave out, the Help "
            "menu's sub-menu Blender, Blender's side-panel tabs (their Python panels hidden, another add-on's tab "

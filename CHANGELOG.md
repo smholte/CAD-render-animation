@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.265 – 26 Nov 2026 – Shorter top-bar menus, only the Fresing tab in the side panel (task 0367)
+## 0.2.266 – 26 Nov 2026 – Shorter top-bar menus, only the Fresing tab in the side panel (task 0367)
 
 - **File** now holds what the app uses: New project, Open…, Open Recent, Revert, Recover, Save, Save As…, Save Copy…,
   **Import STEP…**, **Import mesh model…**, **Import House Planner scene…** and Quit. Blender's Link, Append, Import /
@@ -19,6 +19,19 @@ installer of that version was built from.
   the glTF Variants tab is hidden too. A tab of another add-on you installed still shows.
 - **Fresing Settings > Keys**: "Blender's own key settings" is greyed in the Client view, with the reason in its tooltip.
 - **Fresing > Show all of Blender** (or Workspace > Full access) brings all of Blender's menus and tabs back, as before.
+## 0.2.265 – 26 Nov 2026 – Welds on the 3D page, and the page's colours as in your renders (task 0369)
+
+- **Welds on the web 3D page** now look as in your renders: the ripples along the bead (TIG fine, MAG even, aluminium
+  MIG wide, stick coarse), its colour, rust and spatter, and the heat tint beside it – stainless steel's straw, purple
+  and blue bands, steel's blue-grey oxide, aluminium's band. A painted weld stays in its paint, the ripples showing
+  through. Each weld look is one short picture that repeats along every weld with it: the test weldment's page grew
+  from 1.1 to 1.3 MB.
+- **The page's colours match your renders.** Sand, rust and brown paint came out greyer on the page than in the app.
+  The page now uses the app's own colour curve (AgX with Medium High Contrast, as the renders), and with the Open sea,
+  the Vessel deck or the Quayside the page's sun and sky give the light of the app's sky. The seabed in the sea
+  cut-away measured 133/133/127 on the page and 172/158/138 in the app; now 176/162/141.
+- A studio look or 360° photo lights the page with the colour of its own brightest light (no warm daylight tint).
+
 ## 0.2.264 – 26 Nov 2026 – Projects remember which version saved them (task 0352)
 
 - **A project from a newer Fresing Render opens safely.** Open a project that a newer version saved, and the app says
