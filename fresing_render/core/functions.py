@@ -712,6 +712,14 @@ fn(id="lifting.reeve", short="Reeve the rope", title="The hoist rope in its fall
    family="lifting", panel="FRESING_PT_lifting_equipment", button="fresing.lifting_reeve", guide="lifting-reeve",
    tour=("lifting_rig",), pccheck=("lifting.reeve",), since="0.2.192", workspaces=_LIFT)
 
+fn(id="lifting.path", short="Lift path", title="Lift path: a set-down point, the proposed steps and every check along "
+   "the path with its worst moment", family="lifting", panel="FRESING_PT_lifting_path",
+   button="fresing.lifting_set_down_point", guide="lifting-path", tour=("lifting_path",), pccheck=("lifting.path",),
+   since="0.2.269", workspaces=_LIFT)
+fn(id="lifting.data_box", short="Lift data box", title="Lift data box in renders and videos: load, radius, crane use, "
+   "worst so far", family="lifting", panel="FRESING_PT_lifting_path", prop="data_box", guide="lifting-data-box",
+   tour=("lifting_path",), pccheck=("lifting.path",), since="0.2.269", workspaces=_LIFT)
+
 fn(id="lifting.make", short="Make a crane", title="Make a crane from numbers (type, start from a class, Make)", family="lifting",
    panel="FRESING_PT_lifting_equipment", button="fresing.lifting_make", guide="lifting-make", tour=("lifting_make",),
    pccheck=("lifting.make",), since="0.2.159", workspaces=_LIFT)
@@ -882,7 +890,7 @@ fn(id="help.blender_all", short="All of Blender", title="Fresing > Show all of B
 fn(id="help.quiet_menus", short="Shorter menus", title="Shorter top-bar menus (File, Render, Window, Help with a "
    "sub-menu Blender) and only the Fresing tab in the side panel outside Full access", family="help",
    panel="TOPBAR_MT_fresing", button="fresing.blender_all", guide="quiet-menus", pccheck=("app.menus",),
-   since="0.2.269", workspaces=("cnc", "offshore", "product", "education", "lifting"))
+   since="0.2.270", workspaces=("cnc", "offshore", "product", "education", "lifting"))
 
 # task 0253: Blender's keys outside Full access, F12 / Ctrl+F12, the right-click menu (study 0222 package B)
 fn(id="help.blender_keys", short="Blender keys", title="Blender's keys that delete or change parts do nothing outside Full "

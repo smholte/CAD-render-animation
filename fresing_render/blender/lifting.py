@@ -791,6 +791,11 @@ def readout(scene, crane, load=None) -> LR.Readout | str:
 
 
 def forget() -> None:
+    try:
+        from . import lifting_path              # task 0348: the live rows go with the readout
+        lifting_path.forget()
+    except ImportError:
+        pass
     _READ.clear()
     _SOLID.clear()
     _ITEM.clear()
@@ -1369,9 +1374,13 @@ def register():
         _DRAW["handle"] = bpy.types.SpaceView3D.draw_handler_add(_draw_cog, (), "WINDOW", "POST_PIXEL")
     if _load_post not in bpy.app.handlers.load_post:
         bpy.app.handlers.load_post.append(_load_post)
+    from . import lifting_path                  # task 0348: the use bar beside the hook
+    lifting_path.register()
 
 
 def unregister():
+    from . import lifting_path
+    lifting_path.unregister()
     if _DRAW["handle"] is not None:
         bpy.types.SpaceView3D.draw_handler_remove(_DRAW["handle"], "WINDOW")
         _DRAW["handle"] = None

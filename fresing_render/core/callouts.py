@@ -32,7 +32,10 @@ CORNER_PICTURE_SIZE = 0.28            # a picture in a corner: this part of the 
 # field -> (the key in the cable's numbers, how it is written)
 FIELDS = {"top": ("top", "{:.1f}"), "bottom": ("bottom", "{:.1f}"), "layback": ("layback", "{:.1f}"),
           "angle": ("angle", "{:.0f}"), "depth": ("depth", "{:.0f}"), "speed": ("speed", "{:.1f}"),
-          "laid": ("laid", "{:.0f}"), "hanging": ("hanging", "{:.1f}"), "weight": ("weight", "{:.0f}")}
+          "laid": ("laid", "{:.0f}"), "hanging": ("hanging", "{:.1f}"), "weight": ("weight", "{:.0f}"),
+          # task 0348: the lift data box (a label on a crane's hook block)
+          "load": ("load", "{:.2f}"), "radius": ("radius", "{:.1f}"), "use": ("use", "{:.0f}"),
+          "worst": ("worst", "{}"), "hook": ("hook", "{:.1f}")}
 _FIELD = __import__("re").compile(r"\{([a-z]+)\}")
 MISSING = "–"                          # a field the cable has no number for (yet)
 
@@ -52,6 +55,8 @@ def fill(text: str, values: dict) -> str:
             return m.group(0)
         key, fmt = FIELDS[name]
         v = values.get(key) if values else None
+        if isinstance(v, str):                  # a word (the lift data box's worst status)
+            return v or MISSING
         if v is None or not isinstance(v, (int, float)) or not math.isfinite(float(v)):
             return MISSING
         out = fmt.format(float(v))

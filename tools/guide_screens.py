@@ -74,7 +74,8 @@ Three runs; each writes its pictures to $GUIDE_OUT (default docs/img):
       selected, task 0157).
   lifting_panel   8 Lifting plan (task 0201): the section with Equipment, Load, Hook & capacity (panel_8_lifting*; as
       "panels", the AT-40 beside the test crane, the boom as the load, the hook above it); task 0232: Rigging with the
-      boom on a 2-leg sling, hung (panel_8_lifting_rigging).
+      boom on a 2-leg sling, hung (panel_8_lifting_rigging); task 0348: the boom lifted 4 m aside, the path checked
+      (panel_8_lifting_path).
   people   the example built and rendered at the handshake (people_meet.jpg; Cycles on the processor, as "render").
   operator   the test mill in its enclosure: the operator takes the tool out of the spindle (toolchange_person.jpg) and
       lays it on the trolley (toolchange_person_trolley.jpg), task 0156; Cycles on the processor, as "render".
@@ -1925,9 +1926,9 @@ elif MODE == "lifting_panel":
             p[ax] = lo[ax] + f * (hi[ax] - lo[ax])
             p[2] = hi[2]
             RG.add_point(sc, ld, part, p)
-        ld.leg_length = 2.5
+        ld.leg_length = max(2.5, 0.75 * float((hi - lo)[ax]))      # task 0348: the test crane is 5 x bigger (0259)
         p = L.above_load(sc, ld)
-        p[2] += 1.0
+        p[2] += ld.leg_length - ld.clearance
         L.hook_to(sc, L.active_crane(sc), p, ld)
         with override():
             RG.hang(sc, L.active_crane(sc), ld)
@@ -1937,6 +1938,25 @@ elif MODE == "lifting_panel":
         return 2.5
     step(_rigging_setup)
     step(lambda: (shoot_sidebar("panel_8_lifting_rigging"), 0.5)[1])
+
+    def _path_setup():
+        # task 0348: the boom lifted to a set-down point 4 m beside it, the path checked against 250 kPa on 1.2 m mats
+        L = mod("blender.lifting")
+        LP = mod("blender.lifting_path")
+        sc = bpy.context.scene
+        c = L.active_crane(sc)
+        pl = L.plan(sc)
+        pl.allowable_kpa, pl.mat_size = 250.0, (1.2, 1.2)
+        hook = L.hook_world(sc, c)
+        with override():
+            LP.propose(sc, point=(hook[0] - 1.0, hook[1] + 4.0, 0.0))
+            LP.check(sc)
+        pl.message = ""
+        show_only([("FRESING_PT_lifting_path", False, True)])
+        wiggle()
+        return 2.5
+    step(_path_setup)
+    step(lambda: (shoot_sidebar("panel_8_lifting_path"), 0.5)[1])
 
 elif MODE == "house_panel":
     # task 0114: 5 Scene & Render > House from House Planner with the made-up sample house imported and one moment

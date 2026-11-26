@@ -4515,7 +4515,7 @@ def _check_storm(scene):
 HOUSE_MOMENT = "summer-evening"
 
 
-@tour_set("house", "House from House Planner", "sample-house.hpscene", added="0.2.92", changed="0.2.269")
+@tour_set("house", "House from House Planner", "sample-house.hpscene", added="0.2.92", changed="0.2.270")
 def build_house(b: Build):
     """The made-up sample house: imported, one moment baked small (the package next to the tour), the evening
     shown in the view from the recipe's garden camera."""
@@ -4586,7 +4586,7 @@ def mesh_ring_click(scene):
     return ob, o, d, desc
 
 
-@tour_set("mesh", "Mesh model (glTF)", "test_mesh_crane.glb", added="0.2.99", changed="0.2.269")
+@tour_set("mesh", "Mesh model (glTF)", "test_mesh_crane.glb", added="0.2.99", changed="0.2.270")
 def build_mesh(b: Build):
     """The invented mesh crane (a glTF file: no CAD faces) imported; its 48-sided slewing ring clicked for a joint
     that turns the turret, as a user does it."""
@@ -4762,7 +4762,7 @@ def _skid_load(b: Build):
 
 
 @tour_set("lifting", "Lifting plan – crane, load, hook and rigging", "test_loads.step", added="0.2.156",
-          changed="0.2.192")
+          changed="0.2.269")
 def build_lifting(b: Build):
     """Task 0231: a yard – an IBC on its pallet, a pump skid and a 20 ft container on the quayside – and an AT-40 on four
     crane mats behind the skid; the skid is the load. The camera looks from the other side of the skid, so the
@@ -4796,6 +4796,15 @@ def build_lifting(b: Build):
     _update()
     _camera(b, LIFT_VIEW, "Tour lifting spreader", lens=35.0, points=_lifting_points(sc, LIFT_CONTAINER))
     _shot(b, "@lifting_spreader")
+    # task 0348: the skid lifted onto a set-down point beside it – the proposed steps, the checks along them
+    import numpy as np
+
+    from . import animation
+    pr = _lift_path(sc, check=False)               # the stop's set-up checks it (no Build here: the build's time)
+    _camera(b, LIFT_VIEW, "Tour lifting path", lens=35.0,
+            points=np.vstack([_lifting_points(sc, LIFT_LOAD), _path_points(sc, pr)]))
+    _shot(b, "@lifting_path")
+    animation.clear_keys(sc)
     _lift_rest(sc)
     sc.fresing.lifting.load_index = 0
 
@@ -4856,6 +4865,44 @@ def _hang_one(scene, name: str) -> None:
 
 def _lift_rig(scene) -> None:
     _hang_one(scene, "Pump skid")
+
+
+PATH_DOWN = (-3.5, 2.5, 0.0)        # m: where the skid is set down (clear of the IBC and the crane's mats)
+PATH_GROUND = (200.0, 1.44)         # kPa entered for the yard; the tour's crane mats (m, square)
+
+
+def _lift_path(scene, check: bool = True):
+    """Task 0348: the skid on the hook, the lift to PATH_DOWN proposed and (``check``) checked, the first frame
+    shown, the lift data box on. The proposal."""
+    from . import lifting, lifting_path
+    _hang_one(scene, "Pump skid")
+    L = lifting.plan(scene)
+    L.allowable_kpa, L.mat_size = PATH_GROUND[0], (PATH_GROUND[1], PATH_GROUND[1])
+    pr = lifting_path.propose(scene, point=PATH_DOWN)
+    _check(pr.ok, f"Propose the lift: {pr.reason}")
+    if check:
+        lifting_path.check(scene)
+        scene.frame_set(scene.frame_start)    # a still stop shows the first frame (Go there: its check)
+    L.data_box = True
+    _update()
+    return pr
+
+
+def _path_points(scene, pr) -> list:
+    """The hook's places along the proposed lift (the camera sees the whole path), from the steps' joint values."""
+    import numpy as np
+
+    from . import lifting
+    c = lifting.plan(scene).cranes[0]
+    rig = lifting.rig_of(c)
+    vals = lifting.values(scene, c)
+    pts = []
+    for st in [None] + list(pr.steps):
+        if st is not None:
+            vals.update(st.values)
+        h = lifting.to_world(c, rig.hook(vals))
+        pts += [tuple(h), tuple(h - np.array((0.0, 0.0, 2.0)))]
+    return pts
 
 
 def _lift_spreader(scene) -> None:
@@ -5053,6 +5100,27 @@ def _check_lifting_rig(scene):
     msg = lifting_rig.check_hang(scene, L.cranes[0], ld)
     return (msg + f"; most: leg {near['name']}; " + lifting_rope.check(scene, L.cranes[0]) + "; "
             + _cog_in_view(scene, with_hook=True, load=ld))
+
+
+def _check_lifting_path(scene):
+    from . import callouts, lifting, lifting_path
+    r = lifting_path.result(scene)
+    _check(r is not None and not lifting_path.stale(scene), "the lift path was not checked")
+    ids = [x["id"] for x in r["rows"]]
+    _check(ids[:4] == ["C1", "C10", "SETUP", "C5"] and "C3" in ids and "C4" in ids,
+           f"the checks along the path are {ids}")
+    worst = max(lifting_path.rows(scene), key=lambda x: x.key)
+    lifting_path.go_to(scene, worst.id)
+    there = scene.frame_current + scene.frame_subframe
+    scene.frame_set(scene.frame_start)
+    _check(abs(there - worst.t) < 0.02, f"Go there went to frame {there:.1f}, not the worst moment ({worst.t:.1f})")
+    lab = lifting_path.data_box_label(scene)
+    _check(lab is not None, "no lift data box")
+    rows = callouts.label_text(scene, lab).split("\n")
+    _check(len(rows) == 5 and "–" not in rows[3], f"the lift data box reads {rows}")
+    ld = _lift_loads(scene)["Pump skid"]
+    return (f"{len(ids)} checks, worst {worst.title} {worst.status} at frame {worst.t:.0f}, {r['evaluations']} "
+            f"moments; " + rows[3] + "; " + _cog_in_view(scene, with_hook=True, load=ld))
 
 
 def _check_lifting_spreader(scene):
@@ -5430,6 +5498,15 @@ stop("lifting_spreader", MOTION, "lifting", "Lifting: container on a frame",
      "and shackle (C4); none red.",
      where="8 Lifting plan > Rigging", since="0.2.192", check=_check_lifting_spreader, setup=_lift_spreader)
 
+stop("lifting_path", MOTION, "lifting", "Lifting: lift path and checks",
+     "The pump skid is lifted onto a spot on the quay beside it: 8 Lifting plan > Lift path & checks proposed the "
+     "steps (hoist 2 m clear, slew, luff / telescope, lower) as an animation 'Lift Pump skid' and checked it along the "
+     "whole path. The table lists every check with its worst use, colour and frame – crane use, line pull, set-up "
+     "(beams out, jacks down), outriggers on their 1.44 m mats against 200 kPa, sling legs and shackles; backward "
+     "stability grey (the chart's counterweight). The magnifier of a row (Go there) puts the timeline on its worst "
+     "moment; the lift data box beside the hook block shows the load, the radius, the crane use and the worst status so far; a use bar "
+     "sits beside the hook in the 3D view.",
+     where="8 Lifting plan > Lift path & checks", since="0.2.269", check=_check_lifting_path, setup=_lift_path)
 stop("crane_setup", MOTION, "crane_setup", "Set up a crane: KB-20 rigged",
      "The built-in KB-20's bare STEP made a lifting-plan crane through Set up a crane (8 Lifting plan > Equipment > Set "
      "up a crane… > Knuckle-boom crane): its slew, main boom, knuckle, five extensions, hoist with two hook swings and "

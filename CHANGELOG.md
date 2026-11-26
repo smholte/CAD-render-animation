@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.269 – 26 Nov 2026 – Shorter top-bar menus, only the Fresing tab in the side panel (task 0367)
+## 0.2.270 – 26 Nov 2026 – Shorter top-bar menus, only the Fresing tab in the side panel (task 0367)
 
 - **File** now holds what the app uses: New project, Open…, Open Recent, Revert, Recover, Save, Save As…, Save Copy…,
   **Import STEP…**, **Import mesh model…**, **Import House Planner scene…** and Quit. Blender's Link, Append, Import /
@@ -19,6 +19,22 @@ installer of that version was built from.
   the glTF Variants tab is hidden too. A tab of another add-on you installed still shows.
 - **Fresing Settings > Keys**: "Blender's own key settings" is greyed in the Client view, with the reason in its tooltip.
 - **Fresing > Show all of Blender** (or Workspace > Full access) brings all of Blender's menus and tabs back, as before.
+## 0.2.269 – 26 Nov 2026 – Lifting plan: lift path and the checks along it (task 0348)
+
+- **Lift path & checks** (8 Lifting plan): click a **set-down point** and the app proposes the lift from where the load
+  hangs – hoist clear, slew, luff / telescope (the hook keeps its height), travel for a crawler that cannot reach
+  otherwise, lower – as ordinary steps of an animation "Lift <load>" you can change in 6 Animation. Or use one of your
+  own animations (poses, steps) as the path.
+- **Check along the path**: every check is worked out along the whole lift – crane use, line pull, set-up, outriggers
+  and mats or crawler tracks, backward stability, sling legs and shackles – with each check's **worst moment**, its
+  colour, its frame and a **Go there** button. Grey rows say why they are not checked.
+- **Set-up check**: a crane lifting with its **jacks up** or its beams in narrower than the chart's spread is red.
+  **More counterweight than the chart** is said and checked for backward stability.
+- **Ground**: type the allowable ground pressure (kPa) and the mat size: the outrigger and track pressures are checked.
+- **Live**: a small use bar beside the hook in the 3D view and a "Now" list update as you move a joint or the load,
+  without making the drag slower.
+- **Lift data box**: one tick puts the load, radius, crane use and the worst status so far in renders and videos.
+
 ## 0.2.268 – 26 Nov 2026 – Welds from the CAD file come in much faster; square groove with a gap (task 0368)
 
 - **A welded frame with hundreds of welds imports without the long wait.** 300 welds took about 26–30 s to find and

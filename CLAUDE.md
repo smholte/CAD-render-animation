@@ -321,6 +321,10 @@ fresing_render/            the Blender extension (Python package)
                            tracks, forklift load centre, offshore DAF, upending – each a `Result` with inputs, formula,
                            status ok / amber / red / not_checked; load charts: lookup, validation, units; `Limits`
                            75 % / 90 % / 90 %; the plan's words, never "safe"; SI inside: kg, m, N, Pa)
+                           lifting_path.py (task 0348: the checks at one moment of a lift – `Checks.at(values)`: C1, C10,
+                           Set-up (beams, jacks), C5 / C6 from the file's masses + CoGs (`Supports`), backward stability
+                           above the chart's counterweight, C2–C4 from the hang –; `search` = keys + grid + golden
+                           section → each check's worst moment, `every` = frame by frame; `propose` = the lift's steps)
                            locations.py (task 0272: the kinds of folders the app reads – STEP models … lifting
                            equipment –, levels Company / Department / Mine, the set-up file ``.frsetup`` (a zip:
                            setup.json + content per kind; checks with plain-word refusals, Windows names included),
@@ -1668,6 +1672,8 @@ the release → Delete); the next run on `main` publishes it again.
   (segfault, also in a plain Blender with --factory-startup; task 0332); False worked. Its update needs the area in the
   context: set it inside `context.temp_override(window=, screen=, area=, region=)` (`quiet._set_hud`). A finished
   render's "Frame / Time / Mem" text is the image editor's `overlay.show_text_info`, not its header.
+- `tools/guide_screens.py` draws blank side-panel pictures unless `FRESING_WORKSPACE_START="All functions"` is set in
+  the command (its own `setdefault` comes after the app has picked the start workspace; task 0348).
 - `ci_status.py --wait` judges a commit by its OWN change: for a commit that changes only `TASKS.md` / `tasks/` (a
   report, or a merge of the lead's task files) it prints "No test run for this commit" – even when GitHub DID start a
   run for the push because the push brought code (task 0289: the fast-forward of report + merge to `main` ran in docs
