@@ -58,8 +58,9 @@ def summarize(path: str, title: str = "") -> tuple[str, list[tuple[str, str]], i
                 failed.append((name, " ".join(msg[:3])[:300]))
                 break
         sk = case.find("skipped")
-        if sk is not None and not any(r in (sk.get("message") or "") for r in EXPECTED_SKIPS):
-            skipped += 1
+        xfail = sk is not None and (sk.get("type") or "") == "pytest.xfail"    # task 0367: an expected failure (an
+        if sk is not None and not xfail and not any(r in (sk.get("message") or "") for r in EXPECTED_SKIPS):  # independent
+            skipped += 1                                                        # tester's kept finding) is no skip
         elif sk is not None:
             expected += 1
     passed = total - len(failed) - skipped - expected
