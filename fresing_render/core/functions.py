@@ -725,7 +725,7 @@ fn(id="house.toolbox", short="House alone", title="A house from House Planner by
    panel="FRESING_PT_house", button="fresing.toolbox_start", guide="house-toolbox", tour=("house_toolbox",),
    pccheck=("house.toolbox",), since="0.2.173")
 fn(id="web.export", title="Web 3D model", family="web", panel="FRESING_PT_web3d", button="fresing.web3d_export",
-   guide="web3d", tour=("web3d",), pccheck=("web3d.export", "web3d.small"), since="0.2.77", changed="0.2.264",
+   guide="web3d", tour=("web3d",), pccheck=("web3d.export", "web3d.small"), since="0.2.77", changed="0.2.265",
    manual_estimate=("use", 7200, "bake the materials, export a glTF and build a viewer page"))
 fn(id="web.surroundings", title="Web 3D model with surroundings", family="web", panel="FRESING_PT_web3d",
    prop="env_mode", guide="web3d-surroundings", tour=("web3d_env",), pccheck=("web3d.surroundings",),
@@ -739,7 +739,7 @@ fn(id="web.moving", title="Web 3D model: cables, ropes, hoses and tracks move wi
 fn(id="web.under", title="Web 3D model under the sea: seabed, sea cut-away, camera under water", family="web",
    panel="FRESING_PT_web3d", prop="env_mode", guide="web3d-under", pccheck=("web3d.under",), since="0.2.129")
 fn(id="web.welds", title="Web 3D page: welds with their ripples and heat tint", family="web", panel="FRESING_PT_web3d",
-   button="fresing.web3d_export", guide="web3d-welds", pccheck=("web3d.welds",), since="0.2.264")
+   button="fresing.web3d_export", guide="web3d-welds", pccheck=("web3d.welds",), since="0.2.265")
 fn(id="web.player", title="Web 3D page: settings, playback, saved views", family="web", panel="FRESING_PT_web3d",
    button="fresing.web3d_export", guide="web3d-player", tour=("web3d",), pccheck=("web3d.export",), since="0.2.112")
 fn(id="web.view_names", title="Web 3D model: View names – camera names or numbered", family="web",
@@ -933,6 +933,9 @@ fn(id="help.backups", headline=True, short="Backups", title="Automatic backups e
 fn(id="help.project_names", short="Project names", title="Saving a new project proposes its first model's name; Save "
    "As proposes \"name (1)\", selected to type over", family="help", panel="TOPBAR_MT_file", button="fresing.save",
    guide="saving", pccheck=("files.name",), since="0.2.233")
+fn(id="help.newer_project", short="Newer projects", title="A project saved by a newer Fresing Render opens to look at "
+   "only: a plain message, Save is off, nothing in it is lost", family="help", panel="TOPBAR_MT_file",
+   button="fresing.save", guide="newer-project", pccheck=("project.newer",), since="0.2.264")
 fn(id="help.tools", short="One shortcut", title="One shortcut only: self-test, PC check and the app's Tools folder in Fresing > Tools and checks",
    family="help", panel="TOPBAR_MT_fresing", button="fresing.open_app_folder", guide="tools-and-checks",
    pccheck=("app.tools",), since="0.2.167")

@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.264 – 26 Nov 2026 – Welds on the 3D page, and the page's colours as in your renders (task 0369)
+## 0.2.265 – 26 Nov 2026 – Welds on the 3D page, and the page's colours as in your renders (task 0369)
 
 - **Welds on the web 3D page** now look as in your renders: the ripples along the bead (TIG fine, MAG even, aluminium
   MIG wide, stick coarse), its colour, rust and spatter, and the heat tint beside it – stainless steel's straw, purple
@@ -18,6 +18,17 @@ installer of that version was built from.
   cut-away measured 133/133/127 on the page and 172/158/138 in the app; now 176/162/141.
 - A studio look or 360° photo lights the page with the colour of its own brightest light (no warm daylight tint).
 
+## 0.2.264 – 26 Nov 2026 – Projects remember which version saved them (task 0352)
+
+- **A project from a newer Fresing Render opens safely.** Open a project that a newer version saved, and the app says
+  so plainly: "Saved by Fresing Render 0.2.X, newer than this one. Update the app to work on it – Fresing > Check for
+  updates. Saving is off so nothing in it is lost." You can look at it; Save is off, no automatic backup is made, the
+  render queue and the model update wait. Save As… makes a copy under a new name. If the file is written over anyway
+  (Blender's own "Save changes?" when closing), the file as the newer version saved it is kept next to it first.
+- Behind the scenes, every save now notes the project's format and the version that saved it. From the coming
+  "baseline" version on, this is what keeps every saved project opening, with the same data and the same look, in
+  every later version: each change in what a project stores gets one upgrade step, and test projects check it at
+  every release.
 ## 0.2.263 – 26 Nov 2026 – Coolant that collects on the machine (task 0346)
 
 - **Liquid on the machine** (4 Motion > CNC machine > Coolant, a new tick, off by default): the flood coolant now
