@@ -1,6 +1,6 @@
 # 0369 – 3D page: welds with their ripples and heat tint + dark warm colours as in the app
 
-**Who:** worker · **Status:** done (0.2.263) · **Branch:** `task/0369-welds-colours-3d-page`
+**Who:** worker · **Status:** done (0.2.264) · **Branch:** `task/0369-welds-colours-3d-page`
 **Started by:** lead, 25 Nov 2026 23:5x (owner allowed extra code tasks for the night; open points of 0319 and 0143)
 · **Model:** Opus · effort Medium
 **Area:** Web 3D lane – `blender/web3d.py`, `blender/web3d_env.py`, `core/web3d.py`, `core/web3d_env.py`,
@@ -60,7 +60,7 @@ renders. Dark warm colours (sand, rust, brown paint) on the page are no longer g
 ## Report (filled in by the chat that did the task)
 
 **Chat / date:** Claude Code on the web (Opus, effort Medium), 25–26 Nov 2026. Branch `task/0369-welds-colours-3d-page`,
-released as **0.2.263**. No subagents (the weld bake, the colour fit and the light calibration share one file pair and
+released as **0.2.264**. No subagents (the weld bake, the colour fit and the light calibration share one file pair and
 one measuring script; an independent review was not run – no Windows-only code).
 
 **What changed:**
@@ -92,8 +92,8 @@ one measuring script; an independent review was not run – no Windows-only code
   tint; it now takes the colour of the picture's brightest spot (`env.brightest_colour`, `sky.sun_colour`).
 - Not the cause: the baked tiles' colour space (linear, written as sRGB, read as sRGB – checked) and the water fade
   (inside the box the page subtracts the box from the water path, as the app).
-- PC check line **web3d.welds** (Full, `MIN_LINES_FULL` 161); function `web.welds` (guide `web3d-welds`), `web.export`
-  changed=0.2.263; guide sections "Welds on the page" and "The page's colours" (reading anchor `web3d-colours`), the
+- PC check line **web3d.welds** (Full, `MIN_LINES_FULL` 162); function `web.welds` (guide `web3d-welds`), `web.export`
+  changed=0.2.264; guide sections "Welds on the page" and "The page's colours" (reading anchor `web3d-colours`), the
   Welds chapter's line updated. No tour stop (the page is not in the app; as `web.under` / `web.moving`).
 
 **Tested and measured** (4-core web machine, no graphics card; Cycles 64 samples in the app, headless Chromium with

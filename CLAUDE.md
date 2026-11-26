@@ -330,7 +330,9 @@ fresing_render/            the Blender extension (Python package)
                            profiles; no network import – tested)
                            learning.py (task 0208: the learning list and the quiet "next to learn" – the part ``learning`` of the
                            usage file: list, use days, turned-down ids, rules; no network import – tested)
-                           liquid.py (task 0255: coolant liquid as a shallow-liquid height field – charts riding on their
+                           liquid.py (task 0255: coolant liquid as a shallow-liquid height field (task 0346: ``wave_depth`` caps the
+                           faces' depth for the waves – fewer sub-steps; outflow over a step up limited by the head over
+                           the crest) – charts riding on their
                            carriers, effective gravity per cell, open edges / walls / drains, drops between charts, pours,
                            the spinning tool (thrown drops at ωR, a swirl), a push per cell (air later), velocities out
                            (chips later); tiles: dry ones skipped exactly, still ones held; element-wise windows, so the
@@ -439,6 +441,16 @@ fresing_render/            the Blender extension (Python package)
     decals.py              logos, text and stickers on parts (task 0024): settings on the part's mesh (every copy)
                            or object (one copy), a decal object per copy (child of the part, hidden with it by
                            MAX drivers), packed pictures, model update + templates; ops_decals.py, ui_decals.py
+    liquid.py ops_liquid.py  coolant liquid on the machine (task 0346, solver core/liquid.py): two charts made by rays –
+                           "table" riding with the workpiece's mover (riding parts + the cut block, the block's top read
+                           again from the milling timeline where the tools went, ``_Cut``; changes kept in ``Beds``) and
+                           "tray" of the still parts (``COOLANT DRAIN``'s hole = orifice cells); pours at the tool while
+                           flood flows, the spinning tool; ``steps`` = the bake as a generator (modal job with Cancel in
+                           ops_liquid.py, ``bake_now`` in the background / queue via ``machining.prepare``); cache
+                           ``<project>_liquid/<scene>.frliquid`` + ``.beds.npz`` keyed by ``fingerprint`` (parts' places on
+                           their movers, never the frame's); drawing ``show`` (sheets + drops, own frame_change_pre
+                           handler), material with a Cycles and an EEVEE output (``liquid_eevee``); ``set_up_test_model``
+                           = tests, PC check, tour set "liquid"
     callouts.py            labels pointing at parts (task 0025): point on a part, projected per frame, boxes placed;
                            ops_callouts.py, ui_callouts.py (5 Scene & Render > Labels, 6 Animation > Pictures, Music);
                            the strips for labels, picture cards and music are made in video.py
