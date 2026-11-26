@@ -4789,8 +4789,9 @@ def build_lifting(b: Build):
     import numpy as np
 
     from . import animation
-    _lift_path(sc)
-    _camera(b, LIFT_VIEW, "Tour lifting path", lens=35.0, points=np.vstack([_lifting_points(sc, LIFT_LOAD), _path_points(sc)]))
+    pr = _lift_path(sc, check=False)               # the stop's set-up checks it (no Build here: the build's time)
+    _camera(b, LIFT_VIEW, "Tour lifting path", lens=35.0,
+            points=np.vstack([_lifting_points(sc, LIFT_LOAD), _path_points(sc, pr)]))
     _shot(b, "@lifting_path")
     animation.clear_keys(sc)
     _lift_rest(sc)
@@ -4859,33 +4860,36 @@ PATH_DOWN = (-3.5, 2.5, 0.0)        # m: where the skid is set down (clear of th
 PATH_GROUND = (200.0, 1.44)         # kPa entered for the yard; the tour's crane mats (m, square)
 
 
-def _lift_path(scene) -> None:
-    """Task 0348: the skid on the hook, the lift to PATH_DOWN proposed and checked, the worst moment shown, the lift
-    data box on."""
+def _lift_path(scene, check: bool = True):
+    """Task 0348: the skid on the hook, the lift to PATH_DOWN proposed and (``check``) checked, the first frame
+    shown, the lift data box on. The proposal."""
     from . import lifting, lifting_path
     _hang_one(scene, "Pump skid")
     L = lifting.plan(scene)
     L.allowable_kpa, L.mat_size = PATH_GROUND[0], (PATH_GROUND[1], PATH_GROUND[1])
     pr = lifting_path.propose(scene, point=PATH_DOWN)
     _check(pr.ok, f"Propose the lift: {pr.reason}")
-    out = lifting_path.check(scene)
-    scene.frame_set(scene.frame_start)        # a still stop shows the first frame (Go there: its check)
+    if check:
+        lifting_path.check(scene)
+        scene.frame_set(scene.frame_start)    # a still stop shows the first frame (Go there: its check)
     L.data_box = True
     _update()
-    return out
+    return pr
 
 
-def _path_points(scene) -> list:
-    """The hook's places along the lift (the camera sees the whole path)."""
+def _path_points(scene, pr) -> list:
+    """The hook's places along the proposed lift (the camera sees the whole path), from the steps' joint values."""
     import numpy as np
 
-    from . import lifting, lifting_path
+    from . import lifting
     c = lifting.plan(scene).cranes[0]
-    at, _keys, (f0, f1) = lifting_path.reader(scene, c)
     rig = lifting.rig_of(c)
+    vals = lifting.values(scene, c)
     pts = []
-    for f in np.linspace(f0, f1, 12):
-        h = lifting.to_world(c, rig.hook(at(float(f))))
+    for st in [None] + list(pr.steps):
+        if st is not None:
+            vals.update(st.values)
+        h = lifting.to_world(c, rig.hook(vals))
         pts += [tuple(h), tuple(h - np.array((0.0, 0.0, 2.0)))]
     return pts
 
