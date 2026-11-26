@@ -755,7 +755,7 @@ def looks_weld_cad(ctx):
            f"render {info['seconds']} s"
 
 
-@line("looks.weld_gap", "Welds from the CAD file: a square groove with a 3 mm root gap is a butt weld", "0.2.999",
+@line("looks.weld_gap", "Welds from the CAD file: a square groove with a 3 mm root gap is a butt weld", "0.2.263",
       what="Two plates in line, 3 mm apart, with a square groove bead in the gap (its cap 7 mm wide) and two more plates "
            "with a flush filler bar: the import gives 1 weld, a butt weld with a 7 mm cap and a 3 mm gap, symbol ‖; the "
            "filler bar is no weld")

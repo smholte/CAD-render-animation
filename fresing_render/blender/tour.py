@@ -1132,7 +1132,7 @@ def _round_face(ob) -> int:
     return -1
 
 
-@tour_set("welds", "Welds", "test_weldment.step", added="0.2.231", changed="0.2.999")
+@tour_set("welds", "Welds", "test_weldment.step", added="0.2.231", changed="0.2.263")
 def build_welds(b: Build):
     import bpy
 
