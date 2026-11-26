@@ -141,11 +141,16 @@ an independent tester (subagent) for `core/lifting_path.py` from this brief.
 - **Search vs every frame** (AT-40 skid lift, 814 frames): 198 moments in 175 ms vs 814 frames in 710 ms, same worst
   values (PC-check line on the web machine: 212 ms vs 736 ms).
 - **Drag** (set_value + view-layer update, 8 ms between mouse moves, medians of 5 × 40 steps): 9.71 ms without the plan,
-  9.85 ms with path + data box + bar (+1.4 %); the plan's own work 0.145 ms per step (1.5 %). Live rows cost ~1.4 ms
-  each, so they run on redraw only, at most 5× a second.
+  9.85 ms with path + data box + bar (+1.4 %); the plan's own work 0.145 ms per step (1.5 %). After 0326's faster drag
+  was merged: 9.09 → 9.46 ms (+4 %), the plan's own work 0.163 ms (1.8 %). Live rows cost ~1.4 ms each, so they run on
+  redraw only, at most 5× a second.
 - Old project: a 0.2.192 lifting project (AT-40 + skid hung) opened and proposed / checked once here; the test and its
   file were taken out again under the lead's new baseline rule (CLAUDE.md 6, 25 Nov 22:4x: no new old-project tests).
-- GitHub: see below. Subagents: one independent tester (worktree); no code written by subagents.
+- GitHub: 9 full runs. 1 real failure (the tour's rule: a still stop shows its first frame – fixed), 1 tour-build time
+  budget 241 s / 240 s on a runner flagged slow (the Lifting set's build made 0.2 s lighter, green after), and 6 lost
+  version races in the night (0.2.260 → 0.2.269: 0325, 0327, 0326, 0346, 0352, 0369, 0366, 0354, 0368 released
+  first; each a merge + renumber + new full run). Green run 45759756830 fast-forwarded to `main`.
+- Subagents: one independent tester (worktree, 86 tests); no code written by subagents.
 
 **Pictures for the owner** (`tasks/0348_page/`): `1_checks_table.png` (the panel), `2_red_moment.png` (an 8.5 t skid:
 the timeline at the outriggers' red moment, the data box "Over entered limit"), `3_data_box.png` (the 6 t lift, data box
