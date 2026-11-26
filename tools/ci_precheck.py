@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import glob
 import json
 import os
 import re
@@ -223,6 +224,40 @@ def check_functions() -> list[str]:
     """The function list (task 0124): every tour stop, Full PC-check line and guide section named, every entry linked."""
     from fresing_render.core import functions
     return [f"function list: {p}" for p in functions.problems(**functions.read_repo(ROOT))]
+
+
+def check_compat(root: str = ROOT) -> list[str]:
+    """Task 0352: the upgrade chain is sound, and from the baseline on every format number from the baseline to FORMAT
+    has its kept test project (tests/data/compat/format_<n>/summary.json) and its chain step."""
+    from fresing_render.core import compat
+    problems = [f"core/compat.py: {p}" for p in compat.chain_problems()]
+    kept = os.path.join(root, "tests", "data", "compat")
+    for d in sorted(glob.glob(os.path.join(kept, "format_*"))):
+        n = os.path.basename(d)[len("format_"):]
+        if not n.isdigit() or int(n) > compat.FORMAT:
+            problems.append(f"tests/data/compat/{os.path.basename(d)}/ is above FORMAT ({compat.FORMAT}) or not a "
+                            "number: a kept test project is never above the app's format")
+    if compat.BASELINE_FORMAT is not None:
+        for n in range(compat.BASELINE_FORMAT, compat.FORMAT + 1):
+            d = os.path.join(kept, f"format_{n}")
+            how = ("run tools/make_compat_project.py tests/data/compat in the version that raised it and commit the "
+                   "folder (tests/data/compat/README.md)")
+            try:
+                with open(os.path.join(d, "summary.json"), encoding="utf-8") as fh:
+                    summary = json.load(fh)
+            except (OSError, ValueError):
+                problems.append(f"FORMAT is {compat.FORMAT} but tests/data/compat/format_{n}/summary.json is missing "
+                                f"or unreadable: {how}")
+                continue
+            if summary.get("format") != n:
+                problems.append(f"tests/data/compat/format_{n}/summary.json says format {summary.get('format')!r}: "
+                                f"{how}")
+            names = list((summary.get("projects") or {}))
+            lost = [x for x in names if not os.path.isfile(os.path.join(d, f"{x}.blend"))]
+            if not names or lost:
+                problems.append(f"tests/data/compat/format_{n}/ lacks its projects ({', '.join(lost) or 'none'}): "
+                                f"{how}")
+    return problems
 
 
 def check_tour_versions(version: str, *, raised: bool, main_ref: str = "origin/main") -> tuple[list[str], list[str]]:
@@ -570,6 +605,7 @@ def main(argv=None) -> int:
     problems += check_counts()
     problems += check_groups()
     problems += check_functions()
+    problems += check_compat()
     version = init_version(read(INIT))
     p, n = check_tour_versions(version, raised=on_main or version != (version_at(base) if base else main_v))
     problems += p

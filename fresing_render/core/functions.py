@@ -432,7 +432,7 @@ fn(id="looks.weld_list", short="Weld list", title="Weld list and CSV", family="l
    guide="weld-list", tour=("welds",), pccheck=("looks.weld_symbols",), since="0.2.240")
 fn(id="looks.weld_cad", short="Welds from CAD", title="Welds from the CAD file: solid beads in a STEP become welds",
    family="looks", panel="FRESING_PT_welds", button="fresing.weld_cad_find", guide="welds-from-cad", tour=("welds_cad",),
-   pccheck=("looks.weld_cad", "looks.weld_gap"), since="0.2.251", changed="0.2.264")
+   pccheck=("looks.weld_cad", "looks.weld_gap"), since="0.2.251", changed="0.2.265")
 fn(id="looks.xray", title="X-ray look", family="looks", panel="FRESING_PT_xray", button="fresing.xray_selected",
    guide="xray", tour=("fade",), pccheck=("motion.fade",), since="0.2.59")
 fn(id="looks.cutaway", title="Slice", family="looks", panel="FRESING_PT_cutaway", button="fresing.cut_add",
@@ -930,6 +930,9 @@ fn(id="help.backups", headline=True, short="Backups", title="Automatic backups e
 fn(id="help.project_names", short="Project names", title="Saving a new project proposes its first model's name; Save "
    "As proposes \"name (1)\", selected to type over", family="help", panel="TOPBAR_MT_file", button="fresing.save",
    guide="saving", pccheck=("files.name",), since="0.2.233")
+fn(id="help.newer_project", short="Newer projects", title="A project saved by a newer Fresing Render opens to look at "
+   "only: a plain message, Save is off, nothing in it is lost", family="help", panel="TOPBAR_MT_file",
+   button="fresing.save", guide="newer-project", pccheck=("project.newer",), since="0.2.264")
 fn(id="help.tools", short="One shortcut", title="One shortcut only: self-test, PC check and the app's Tools folder in Fresing > Tools and checks",
    family="help", panel="TOPBAR_MT_fresing", button="fresing.open_app_folder", guide="tools-and-checks",
    pccheck=("app.tools",), since="0.2.167")

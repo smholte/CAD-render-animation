@@ -6419,6 +6419,16 @@ graphics built into the processor, for the window (the 3D view, Live preview) an
 The self-test line "Graphics card used" and the PC check line `pc.gpu` say which GPU drew the window at the app's last
 start and which renders; the PC check's report names both at its top.
 
+<a id="newer-project"></a>
+### Projects from a newer version
+
+A project saved by a newer Fresing Render than the one on this PC opens to look at only, with the message "Saved by
+Fresing Render 0.2.X, newer than this one (0.2.Y). Update the app to work on it – Fresing > Check for updates. Saving
+is off so nothing in it is lost." **Save** is refused, no automatic backup is made and the render queue and model
+update wait; **Save As…** makes a copy under a new name. Should the file be written over anyway (Blender's own "Save
+changes?" when closing), the file as the newer version saved it is kept next to it first, as
+"<name> (Fresing Render 0.2.X).blend". Update the app (Fresing > Check for updates) and open the project again.
+
 <a id="self-test"></a>
 ### The self-test
 
