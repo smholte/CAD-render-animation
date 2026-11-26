@@ -6507,7 +6507,11 @@ the PC. The report page updates itself while it runs and shows which step is bus
 long it should take. In the report the pictures are large, with their size and quality under them, the
 videos come as a contact sheet (eight frames across the video) and the last frame. Under each step it
 says what the step shows and what it does not show. Heavy has its own history: its times are compared
-with your last Heavy run. In its text block you also find the peak memory.
+with your last Heavy run. In its text block you also find the peak memory. The step **Big machine: where the import
+time goes** imports the machine once more and times each stage: the reader's parse, transfer, meshing (with how many
+helper programs, the biggest part and all parts' meshing added up) and cache, then the app's meshes, objects, sorting,
+structure, bounds, surroundings and the first picture of the Solid view. It also says which stages run on one core:
+paste its numbers to the lead – they decide whether the reader is split over more cores.
 
 **To stop a Heavy check** that takes too long: in the app **Help > Cancel Fresing Render PC check**
 (shown only while a check runs), or press **Ctrl+C** in the black window. A picture that is being

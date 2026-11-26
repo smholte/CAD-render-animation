@@ -104,20 +104,26 @@ def logical_parent(ob):
 
 
 def _new_mesh(name: str, pos: np.ndarray, nrm: np.ndarray, tri: np.ndarray) -> bpy.types.Mesh:
+    """A triangle mesh. Points and corners go straight into the attributes "position" and ".corner_vert" (task 0366:
+    about 6 x faster than ``vertices.foreach_set("co")`` / ``loops.foreach_set("vertex_index")``, same mesh)."""
     me = bpy.data.meshes.new(name)
     n_v = len(pos)
     n_t = len(tri)
     me.vertices.add(n_v)
-    me.vertices.foreach_set("co", pos.reshape(-1))
+    if n_v:                                    # (an empty mesh has no "position" yet)
+        me.attributes["position"].data.foreach_set("vector",
+                                                   np.ascontiguousarray(pos, dtype=np.float32).reshape(-1))
     me.loops.add(n_t * 3)
-    me.loops.foreach_set("vertex_index", tri.reshape(-1))
-    me.polygons.add(n_t)
+    if n_t:
+        me.attributes[".corner_vert"].data.foreach_set("value",
+                                                       np.ascontiguousarray(tri, dtype=np.int32).reshape(-1))
+    me.polygons.add(n_t)                       # (its loop starts are not set by add: below)
     me.polygons.foreach_set("loop_start", np.arange(0, n_t * 3, 3, dtype=np.int32))
     me.update(calc_edges=True)
     if nrm is not None and len(nrm) == n_v:
         try:
             attr = me.attributes.new("custom_normal", "FLOAT_VECTOR", "POINT")
-            attr.data.foreach_set("vector", nrm.reshape(-1))
+            attr.data.foreach_set("vector", np.ascontiguousarray(nrm, dtype=np.float32).reshape(-1))
         except Exception:
             # older Blender: classic custom split normals
             me.normals_split_custom_set_from_vertices([tuple(v) for v in nrm])
@@ -500,27 +506,45 @@ def without_scenery(objs) -> list:
 
 def world_bounds(objs) -> tuple:
     """(min, max) world-space corners of the given mesh objects (fast, uses bound boxes). Scenery objects count only
-    when nothing else is given (``without_scenery``, task 0166)."""
+    when nothing else is given (``without_scenery``, task 0166).
+
+    Task 0366: in NumPy – each mesh's box is read once (copies share it; an object with modifiers has its own), and
+    every box is turned into the world at once: the world box of a box with centre c and half-size e under a matrix
+    (R, t) is R c + t ± |R| e, the same as turning its 8 corners."""
     objs = without_scenery(objs)
-    mins = np.array([np.inf] * 3)
-    maxs = np.array([-np.inf] * 3)
+    boxes: dict = {}
+    lo_hi: list = []
+    mats: list = []
     for ob in objs:
         if ob.type != "MESH" or ob.data is None:
             continue
-        mw = np.array(ob.matrix_world)
-        if ob.get(BOUNDS_CAD) and len(ob.data.vertices):
-            # drawn somewhere else than its CAD shape and changing per frame (a cable into the sea, a CPS set riding
-            # on it, task 0081): the model's size is measured by the CAD shape
-            co = np.empty(len(ob.data.vertices) * 3)
-            ob.data.vertices.foreach_get("co", co)
-            co = co.reshape(-1, 3)
-            lo, hi = co.min(axis=0), co.max(axis=0)
-            bb = np.array([[x, y, z, 1.0] for x in (lo[0], hi[0]) for y in (lo[1], hi[1]) for z in (lo[2], hi[2])])
-        else:
-            bb = np.array([list(c) + [1.0] for c in ob.bound_box])
-        w = (mw @ bb.T).T[:, :3]
-        mins = np.minimum(mins, w.min(axis=0))
-        maxs = np.maximum(maxs, w.max(axis=0))
-    if not np.isfinite(mins).all():
+        me = ob.data
+        cad = bool(ob.get(BOUNDS_CAD)) and len(me.vertices) > 0
+        key = (me.as_pointer(), True) if cad else (me.as_pointer(), False) if not ob.modifiers else None
+        box = boxes.get(key) if key is not None else None
+        if box is None:
+            if cad:
+                # drawn somewhere else than its CAD shape and changing per frame (a cable into the sea, a CPS set
+                # riding on it, task 0081): the model's size is measured by the CAD shape
+                co = np.empty(len(me.vertices) * 3, dtype=np.float32)
+                me.vertices.foreach_get("co", co)
+                co = co.reshape(-1, 3).astype(np.float64)
+            else:
+                co = np.array(ob.bound_box, dtype=np.float64).reshape(-1, 3)
+            box = (co.min(axis=0), co.max(axis=0))
+            if key is not None:
+                boxes[key] = box
+        lo_hi.append(box)
+        mats.append(ob.matrix_world)
+    if not mats:
+        return np.zeros(3), np.ones(3)
+    m = np.array(mats, dtype=np.float64).reshape(-1, 4, 4)
+    lo = np.array([b[0] for b in lo_hi])
+    hi = np.array([b[1] for b in lo_hi])
+    centre = np.einsum("nij,nj->ni", m[:, :3, :3], (lo + hi) / 2) + m[:, :3, 3]
+    half = np.einsum("nij,nj->ni", np.abs(m[:, :3, :3]), (hi - lo) / 2)
+    mins = (centre - half).min(axis=0)
+    maxs = (centre + half).max(axis=0)
+    if not (np.isfinite(mins).all() and np.isfinite(maxs).all()):
         return np.zeros(3), np.ones(3)
     return mins, maxs
