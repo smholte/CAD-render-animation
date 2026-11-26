@@ -6100,7 +6100,7 @@ def app_keys(ctx):
 
 @line("app.menus", "Shorter top-bar menus: File, Render, Window and Help hold what the app uses (Blender's help in a "
       "sub-menu Blender); Blender's side-panel tabs Tool, View, Animation, Item, glTF Variants hidden; Blender's key "
-      "settings greyed in the Client view", "0.2.267",
+      "settings greyed in the Client view", "0.2.268",
       what="Checks that Blender's own drawing of File, Render, Window and Help is found (the quiet window can replace "
            "it and an add-on's items stay), what the quiet File / Render / Window menus hold and leave out, the Help "
            "menu's sub-menu Blender, Blender's side-panel tabs (their Python panels hidden, another add-on's tab "
