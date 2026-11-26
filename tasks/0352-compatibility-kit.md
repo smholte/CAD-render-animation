@@ -1,6 +1,6 @@
 # 0352 – Compatibility kit: a format number on every project, one upgrade chain, test projects that later versions must open
 
-**Who:** worker · **Status:** running · **Branch:** `task/0352-compatibility-kit`
+**Who:** worker · **Status:** done (0.2.264) · **Branch:** `task/0352-compatibility-kit`
 **Started by:** lead, 25 Nov 2026 23:5x (owner 25 Nov 22:4x–22:5x: strict backward compatibility from the baseline) ·
 **Model:** Opus · effort High · Claude Code on the web, environment "CAD-render-animation" · **independent review** (a
 helper agent that did not write the code tries to break it – section 2, "Subagents")
@@ -369,7 +369,7 @@ All paths are under `fresing_render/blender/`. Kinds: **a** = upgrades stored da
   datablock counts (false alarm); the precheck too lenient. **All fixed**; its tests are kept in
   `tests/test_compat_review.py` (two rewritten to the decided rules: once per file, stop at a failure). Left as they
   are: a step raising SystemExit / KeyboardInterrupt is not caught (on purpose).
-- GitHub runs: see below.
+- GitHub runs: 4 full runs of the branch. 45720095808 was green at 0.2.262 (31.8 min). Then 0326 took 0.2.262: merge, renumber to 0.2.263 (45726619116, cancelled once 0346 took 0.2.263). Renumbered to 0.2.264: 45733772878 green (56.6 min; GitHub was busy). `main` fast-forwarded to that commit (reuse run). No real failure, only version clashes.
 
 **Open points / follow-up tasks:**
 - **The baseline:** the lead sets `BASELINE_FORMAT` and commits `tests/data/compat/format_<n>/` (README step 2) the
