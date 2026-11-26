@@ -300,3 +300,56 @@ def test_placed_parts_in_a_grid(tmp_path):
         bead = beads(it)[0]
         assert (bead.matrix_world.translation - a).length < 1e-6
     assert len(cells) == 4
+
+
+# ---------------------------------------------------------------------------
+# task 0368: the square groove with a root gap; the same welds with and without helper processes
+# ---------------------------------------------------------------------------
+
+GAP = os.path.join(DATA, "test_weldment_gap_inventor.step")
+GAP_UNNAMED = os.path.join(DATA, "test_weldment_gap_unnamed.step")
+
+
+@pytest.mark.parametrize("path,how", [(GAP, "name"), (GAP_UNNAMED, "shape")])
+def test_square_groove_import(path, how):
+    sc = fresh(path)
+    its = list(welds.items(sc))
+    assert len(its) == 1                                   # the flush filler bar is no weld
+    it = its[0]
+    assert it.from_cad and it.cad_how == how and it.cad_kind == "BUTT" and it.kind == "BUTT"
+    assert it.butt_width == pytest.approx(0.007, abs=0.0005) and it.cad_gap == pytest.approx(0.003, abs=1e-4)
+    assert "square groove, gap 3 mm" in weld_cad.describe(it)
+    assert weld_symbols.symbol_of(it, 1).glyph == core_symbols.SQUARE_BUTT
+    assert len(beads(it)) == 1 and len(heat(it)) == 1 and len(heat(it)[0].data.polygons) > 0
+    weld_cad.set_shape(sc, welds.find_item(sc, it.key), False)          # the app's bead on its seam works too
+    it = welds.find_item(sc, it.key)
+    assert not it.lost and len(beads(it)[0].data.polygons) > 0
+
+
+def _weld_meshes(sc):
+    out = []
+    for it in sorted(welds.items(sc), key=lambda x: x.name):
+        for ob in sorted(welds.objects_of(it), key=lambda o: o.name):
+            me = ob.data
+            co = np.zeros(len(me.vertices) * 3)
+            me.vertices.foreach_get("co", co)
+            uv = np.zeros(len(me.loops) * 2)
+            me.uv_layers[0].data.foreach_get("uv", uv)
+            out.append((ob.name, co.tobytes(), uv.tobytes()))
+    return out
+
+
+def test_helpers_make_the_same_welds_as_the_master_alone(tmp_path, monkeypatch):
+    """The heavy frame (12 welds) imported with helper processes and without: the same welds, bit for bit."""
+    from fresing_render.core import weld_pool
+    path = str(tmp_path / "grid.step")
+    root, mats = maker.heavy_beads(4)
+    maker.write_cad_step(root, path, mats)
+    monkeypatch.setattr(weld_pool, "MIN_JOBS", 1)
+    got = {}
+    for n in ("0", "2"):
+        monkeypatch.setenv("FRESING_WELD_HELPERS", n)
+        sc = fresh(path)
+        assert weld_cad.LAST["helpers"] == int(n), weld_cad.LAST
+        got[n] = (weld_cad.table(sc), _weld_meshes(sc))
+    assert got["0"] == got["2"] and len(got["0"][0]) == 12

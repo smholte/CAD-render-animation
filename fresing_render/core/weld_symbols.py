@@ -62,6 +62,7 @@ class Weld:
     kind: str = "AUTO"              # AUTO (as found) / FILLET / BUTT
     size: float = 0.005             # fillet: the throat a
     thickness: float = 0.0          # the thinner plate (m; 0 = not known): square or V butt
+    square: bool = False            # task 0368: known to be a square groove (from the CAD file: plates with a root gap)
     seams: list = field(default_factory=list)      # [Seam] – the ticked ones
     intermittent: bool = False
     piece: float = 0.05
@@ -144,7 +145,7 @@ def symbol(weld: Weld) -> Symbol | None:
     if kind == "FILLET":
         glyph, other, size = FILLET, FILLET_OTHER, f"a{_mm(weld.size)}"
     else:
-        square = 0.0 < weld.thickness * 1000.0 <= SQUARE_UP_TO_MM
+        square = weld.square or 0.0 < weld.thickness * 1000.0 <= SQUARE_UP_TO_MM
         glyph, other, size = (SQUARE_BUTT, SQUARE_BUTT, "") if square else (V_BUTT_OTHER, V_BUTT, "")
     length = ""
     if weld.intermittent:

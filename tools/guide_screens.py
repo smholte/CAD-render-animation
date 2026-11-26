@@ -1332,6 +1332,7 @@ elif MODE in ("waycover", "air", "labels", "coolant", "flex_panels", "flex_chain
         # task 0319: 3 Looks > Welds on the test weldment, every joint welded, the stainless weld round the post chosen
         def _welds_setup():
             sc = bpy.context.scene
+            mod("blender.workspaces").use_all(sc)    # task 0368: the project's workspace hid the panel (empty picture)
             with override():
                 keys = mod("blender.welds").set_up_test_model(sc)
             st = sc.fresing_welds
@@ -1349,6 +1350,7 @@ elif MODE in ("waycover", "air", "labels", "coolant", "flex_panels", "flex_chain
         # the unequal-leg weld at the stiffener chosen, the fold "From the CAD file" open
         def _weld_cad_setup():
             sc = bpy.context.scene
+            mod("blender.workspaces").use_all(sc)    # task 0368: the project's workspace hid the panel (empty picture)
             st = sc.fresing_welds
             st.index = next(i for i, it in enumerate(st.items) if "STIFFENER" in it.name)
             mod("blender.ui")._OPEN_FOLDS = True
