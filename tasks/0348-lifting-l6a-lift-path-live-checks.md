@@ -1,6 +1,6 @@
 # 0348 – Lifting L6a: the lift path and live checks with the worst moment
 
-**Who:** worker · **Status:** done (0.2.262) · **Branch:** `task/0348-lifting-l6a-lift-path`
+**Who:** worker · **Status:** done (0.2.263) · **Branch:** `task/0348-lifting-l6a-lift-path`
 **Started by:** lead, 25 Nov 2026 (Lifting lane: L1 0182 … L5 0232 → **L6a** → L6b = 0349 → L7 printed plan) ·
 **Model:** Opus · effort High · Claude Code on the web, environment "CAD-render-animation"
 **Area:** Lifting lane – new `blender/lifting_path.py` and `core/lifting_path.py` (pure Python: steps, evaluation along
@@ -102,7 +102,7 @@ an independent tester (subagent) for `core/lifting_path.py` from this brief.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web (Opus · High), 25 Nov 2026 · released as **0.2.262**
+**Chat / date:** Claude Code on the web (Opus · High), 25 Nov 2026 · released as **0.2.263**
 
 **What changed:**
 - `core/lifting_path.py` (new, no Blender): `Checks.at(values)` = one row per check at one moment – C1 crane use
@@ -124,7 +124,7 @@ an independent tester (subagent) for `core/lifting_path.py` from this brief.
   Go there. `ui_lifting.py`: sub-panel **Lift path & checks** (`core/places.py`). `props.py` (additive): `FRLifting.path_*`,
   `set_down`, `allowable_kpa`, `mat_size`, `data_box`. `lifting.py`: registers / forgets the new module.
 - PC-check line `lifting.path` (Full; MIN_LINES_FULL 161), tour stop `lifting_path` in the Lifting set (MIN_LINES_TOUR /
-  MIN_CHECKS tour 120; set `changed` 0.2.262, versions re-recorded), function entries `lifting.path`, `lifting.data_box`,
+  MIN_CHECKS tour 120; set `changed` 0.2.263, versions re-recorded), function entries `lifting.path`, `lifting.data_box`,
   guide section "Lift path & checks" + `panel_8_lifting_path.png`, CHANGELOG. `tools/guide_screens.py`: the lifting
   mode's rigging step was broken since the test crane got 5× bigger (legs too short) – fixed, plus the path picture.
 

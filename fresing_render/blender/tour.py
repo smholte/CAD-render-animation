@@ -4710,7 +4710,7 @@ def _skid_load(b: Build):
 
 
 @tour_set("lifting", "Lifting plan – crane, load, hook and rigging", "test_loads.step", added="0.2.156",
-          changed="0.2.262")
+          changed="0.2.263")
 def build_lifting(b: Build):
     """Task 0231: a yard – an IBC on its pallet, a pump skid and a 20 ft container on the quayside – and an AT-40 on four
     crane mats behind the skid; the skid is the load. The camera looks from the other side of the skid, so the
@@ -5450,7 +5450,7 @@ stop("lifting_path", MOTION, "lifting", "Lifting: lift path and checks",
      "stability grey (the chart's counterweight). The magnifier of a row (Go there) puts the timeline on its worst "
      "moment; the lift data box beside the hook block shows the load, the radius, the crane use and the worst status so far; a use bar "
      "sits beside the hook in the 3D view.",
-     where="8 Lifting plan > Lift path & checks", since="0.2.262", check=_check_lifting_path, setup=_lift_path)
+     where="8 Lifting plan > Lift path & checks", since="0.2.263", check=_check_lifting_path, setup=_lift_path)
 stop("crane_setup", MOTION, "crane_setup", "Set up a crane: KB-20 rigged",
      "The built-in KB-20's bare STEP made a lifting-plan crane through Set up a crane (8 Lifting plan > Equipment > Set "
      "up a crane… > Knuckle-boom crane): its slew, main boom, knuckle, five extensions, hoist with two hook swings and "
