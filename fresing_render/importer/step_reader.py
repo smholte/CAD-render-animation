@@ -679,7 +679,8 @@ def _exit_with_parent(parent_pid: int) -> None:
 
 def _mesh_job(occ, mid: int, blob: bytes, face_colours, lin_rel: float, ang: float, facets: dict | None = None,
               standard: bool = False):
-    """Mesh one part sent as binary BRep. Returns (mid, result, axes, axis_faces, error, face starts)."""
+    """Mesh one part sent as binary BRep. Returns (mid, result, axes, axis_faces, error, face starts, seconds)."""
+    t0 = time.perf_counter()
     if os.environ.get("FRESING_TEST_CRASH_PART") == str(mid):
         os._exit(3)                                  # tests: a helper that dies on one part
     try:
@@ -692,8 +693,8 @@ def _mesh_job(occ, mid: int, blob: bytes, face_colours, lin_rel: float, ang: flo
         res = _mesh_shape(occ, shape, lin_rel, ang, face_colours, axes=axes, face_starts=starts, facets=facets,
                           standard=standard)
     except Exception as exc:
-        return mid, None, [], [], str(exc) or exc.__class__.__name__, []
-    return mid, res, axes.axes, axes.faces, None, starts
+        return mid, None, [], [], str(exc) or exc.__class__.__name__, [], time.perf_counter() - t0
+    return mid, res, axes.axes, axes.faces, None, starts, time.perf_counter() - t0
 
 
 def _no_crash_dialog() -> None:
@@ -996,6 +997,7 @@ def _read_step(path: str, out_dir: str, quality: str, helpers: "_Helpers | None"
     status = reader.ReadFile(path)
     if status != occ["IFSelect_RetDone"]:
         raise RuntimeError(f"Could not read STEP file (status {status})")
+    t_parse = time.time() - t0                 # task 0366: the stages for the PC check's "where the import time goes"
     emit("transfer", 25, "Building assembly structure")
     if not reader.Transfer(doc):
         raise RuntimeError("STEP transfer failed")
@@ -1080,6 +1082,7 @@ def _read_step(path: str, out_dir: str, quality: str, helpers: "_Helpers | None"
             node["mesh"] = mesh_index[entry]
         return idx
 
+    t_tree = time.time()
     free = occ["Sequence_TDF_Label"]()
     stool.GetFreeShapes(free)
     root_counts: dict = {}
@@ -1088,6 +1091,7 @@ def _read_step(path: str, out_dir: str, quality: str, helpers: "_Helpers | None"
         loc = occ["XCAFDoc_ShapeTool"].GetLocation_s(lab)
         add_node(lab, -1, loc.Transformation(), None, root_counts)
 
+    t_tree = time.time() - t_tree
     n_parts = sum(1 for n in nodes if n["kind"] == "part")
     n_unique = len(mesh_labels)
     emit("structure", 30, f"{n_unique} unique part{'s' if n_unique != 1 else ''}, "
@@ -1145,9 +1149,13 @@ def _read_step(path: str, out_dir: str, quality: str, helpers: "_Helpers | None"
         if reused:
             emit("mesh", 30 + 65 * len(reused) / total, f"{len(reused)} of {total} parts unchanged: kept")
 
+    part_seconds: list = []                     # task 0366: how long each part took to mesh (in a helper or here)
+
     def store(reply) -> None:
         mid, res, ax, af, err = reply[:5]
         results[mid] = (res, ax, af, err, reply[5] if len(reply) > 5 else [])
+        if len(reply) > 6:
+            part_seconds.append(float(reply[6]))
         counter[0] += 1
         done = counter[0]
         if done % 10 == 1 or done == total:
@@ -1191,12 +1199,13 @@ def _read_step(path: str, out_dir: str, quality: str, helpers: "_Helpers | None"
     for mid in pending:
         axes = _Axes()
         starts: list = []
+        tp = time.perf_counter()
         try:
             res = _mesh_shape(occ, shapes[mid], lin_rel, ang, face_colours[mid], axes=axes, face_starts=starts,
                               facets=facets, standard=standard[mid])
-            store((mid, res, axes.axes, axes.faces, None, starts))
+            store((mid, res, axes.axes, axes.faces, None, starts, time.perf_counter() - tp))
         except Exception as exc:  # keep going, report the part
-            store((mid, None, [], [], str(exc), []))
+            store((mid, None, [], [], str(exc), [], time.perf_counter() - tp))
 
     for mid in range(len(mesh_labels)):
         res, ax, af, err, starts = results[mid]
@@ -1241,7 +1250,9 @@ def _read_step(path: str, out_dir: str, quality: str, helpers: "_Helpers | None"
         node.pop("inherited_color", None)
 
     emit("write", 96, "Writing cache")
+    tw = time.time()
     np.savez(os.path.join(out_dir, "meshes.npz"), **arrays)
+    t_write = time.time() - tw
     info = {
         "version": CACHE_VERSION,
         "source": os.path.abspath(path),
@@ -1256,12 +1267,18 @@ def _read_step(path: str, out_dir: str, quality: str, helpers: "_Helpers | None"
             "placed_parts": n_parts,
             "triangles_unique": int(tri_total),
             "seconds_read": round(t_read, 1),
+            "seconds_parse": round(t_parse, 2),             # task 0366: ReadFile (one core)
+            "seconds_transfer": round(t_read - t_parse, 2),  # Transfer: shapes, names, colours, tree (one core)
+            "seconds_tree": round(t_tree, 2),               # the walk over the tree: nodes, colours (one core)
             "seconds_material_names": round(t_meta, 2),
             "parts_with_material": sum(1 for n in nodes if n["kind"] == "part" and n.get("material")),
             "seconds_mesh": round(t_mesh, 1),
             "mesh_helpers": used_helpers,
             "seconds_copy": round(t_copy, 1),
             "seconds_hash": round(t_hash, 1),
+            "seconds_part_total": round(sum(part_seconds), 2),     # task 0366: every part's own meshing time added
+            "seconds_biggest_part": round(max(part_seconds, default=0.0), 3),
+            "seconds_write": round(t_write, 2),             # meshes.npz
             "parts_reused": len(reused),
             "seconds_total": round(time.time() - t0, 1),
         },

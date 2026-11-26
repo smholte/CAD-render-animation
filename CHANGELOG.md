@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.266 – 26 Nov 2026 – Lifting plan: lift path and the checks along it (task 0348)
+## 0.2.267 – 26 Nov 2026 – Lifting plan: lift path and the checks along it (task 0348)
 
 - **Lift path & checks** (8 Lifting plan): click a **set-down point** and the app proposes the lift from where the load
   hangs – hoist clear, slew, luff / telescope (the hook keeps its height), travel for a crawler that cannot reach
@@ -20,6 +20,17 @@ installer of that version was built from.
 - **Live**: a small use bar beside the hook in the 3D view and a "Now" list update as you move a joint or the load,
   without making the drag slower.
 - **Lift data box**: one tick puts the load, radius, crane use and the worst status so far in renders and videos.
+
+## 0.2.266 – 26 Nov 2026 – A big model is built faster after its import (task 0366)
+
+- After the STEP file is read, the app builds the model about **5 seconds faster** on a big machine (2,400 unique /
+  12,000 placed parts: 40.7 s instead of 45.7 s on the 4-core test machine): the part meshes are written in one go
+  (2.7 s quicker) and sorting gives each group's look to its parts in one pass instead of one pass per group (1.5 s
+  quicker). Every import gains (a model update only a little: it already keeps the unchanged parts); the model is exactly the same as before (a test compares
+  every point, face, normal, UV, group and material).
+- New in the PC check's **Heavy** mode: **Big machine: where the import time goes** – times every stage of an import
+  (reading, transfer, meshing on the helper programs, the app's build, sorting, the first picture) and says which
+  stages run on one core. Please paste its numbers to the lead: they decide the next speed-up of the reader.
 
 ## 0.2.265 – 26 Nov 2026 – Welds on the 3D page, and the page's colours as in your renders (task 0369)
 
