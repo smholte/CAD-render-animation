@@ -1,6 +1,6 @@
 # 0326 – Faster joint drag with many parts
 
-**Who:** worker · **Status:** running · **Branch:** `task/0326-faster-joint-drag`
+**Who:** worker · **Status:** done (0.2.262) · **Branch:** `task/0326-faster-joint-drag`
 **Started by:** lead, 25 Nov 2026 (0315's slow place 3, the owner's Stress run on his PC) · **Model:** Opus · effort High
 **Area:** Motion lane – `blender/joints.py`, `blender/handlers.py` (what runs after a joint moves), and the per-move
 hooks they call (hover, cables that follow, live clash, lead motions' "moved by") only where the profile points; their tests,
@@ -75,13 +75,19 @@ the `stress.build` line, saved once and re-opened for each measurement):
 - **What is left is Blender's own:** any scene update on this model costs ~15 ms, whatever moves – moving one lone empty
   costs 17 ms, the slew of 224 parts 14–16 ms. Playback of the built animation is the same 14 ms per frame. What would
   help further: fewer objects (e.g. the many bolts as instances of one object per subassembly) – not in this task.
-- The interactive drag in 4 Motion > Joints sets the property through Blender's slider, which already tagged only
-  transform + data: it was not slowed by this; poses, lead motions and the PC check line were.
+- The interactive drag in 4 Motion > Joints sets the property through Blender's own slider, which (by Blender's
+  source, not measured in the window) tags only transform + data already; poses, lead motions' slider and the PC check
+  line went through `set_value` and got the bare tag.
 - New `tests/test_joint_drag.py` (4 tests; 3 failed before the fix): the drag tags the motion's transform and not its
   shading; parts and a coupled follower move right among 1,500 bystander objects; the click handler and vessel motion
   skip their work. Locally: couplings, table couplings, batches, stacks, mechanisms, lead motions, cylinders, hoses,
-  moving cables, rollers, tracks, drums – 219 passed; tree cache, vessel motion, blender, motion fixes, phase 2, hover:
-  see below.
+  moving cables, rollers, tracks, drums – 219 passed; tree cache, vessel motion, blender, motion fixes, phase 2, hover –
+  123 passed.
+- **GitHub: 4 full runs**, the code unchanged after the first: run 1 green (45698874061); runs 2–4 only because other
+  tasks took my version number meanwhile (0332 → 0.2.258, 0333 → 0.2.259, 0325 / 0327 → 0.2.260 / 0.2.261). Run 3
+  failed once in `test_update_reuse.py::…[decals]` (fast update 4 decal faces instead of 2); the same file set of that
+  job passed here (816 passed) and in runs 1, 2, 4, so the failed job was re-run once (green). Possibly a flaky case of
+  0324's test – worth a look if it fails again. Run 4 (45719812003) green; `main` fast-forwarded to it.
 - The owner's re-check: **PC check > Stress – the line "Stress model: dragging a joint"**: was 51.4 ms per step on his PC
   (0.2.257); expected about 10–12 ms (scaled by the 4.5x measured here), target ≤ about 16 ms.
 
