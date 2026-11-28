@@ -1,0 +1,128 @@
+name: Release an assets pack
+
+# Task 0356 (study 0344 1.6, the session route was refused): builds a Fresing assets pack from the PRIVATE working files
+# (smholte/fresing-assets-src, made by the owner when the first set starts – task 0365), checks it with the public
+# checks and publishes it as the PRE-RELEASE assets-<version> of this repository: FresingAssets-<version>.zip,
+# LICENSE-ASSETS.txt and assets.json. By hand only (Actions → "Release an assets pack" → Run workflow), from main,
+# never on a push or a pull request.
+# Privacy: the working files are cloned with a READ-ONLY deploy key (the one secret, ASSETS_SRC_DEPLOY_KEY – the
+# owner's steps: docs/ASSETS-RELEASE.md) into the runner's temp folder; nothing of them goes into a log (no `set -x`,
+# no listing, no cat) or an artifact (there is none); only the built zip and its licence leave the runner. The pack
+# itself is public by design. The tag assets-* starts no test run (tests.yml tags-ignore).
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "The pack version to build and publish, e.g. 1.0.0 (a version is never published twice)"
+        required: true
+        type: string
+      changes:
+        description: "One line on what is new (shown in the app under Updates), e.g. New paints and coatings"
+        required: true
+        type: string
+      ref:
+        description: "Branch or commit of fresing-assets-src to build (default: main)"
+        required: false
+        default: main
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: assets-release
+  cancel-in-progress: false
+
+env:
+  PYTHONUNBUFFERED: "1"
+  PYTHONUTF8: "1"
+
+jobs:
+  release:
+    name: Build, check and publish assets ${{ inputs.version }}
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: write                  # only this: create the pre-release and its files
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: The version (a new one, like 1.0.0)
+        env:
+          V: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [[ "$V" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::version '$V' is not like 1.0.0"; exit 1; }
+          if gh api "repos/$GITHUB_REPOSITORY/releases/tags/assets-$V" >/dev/null 2>&1; then
+            echo "::error::assets-$V exists already – a pack version is never published twice: take $V + 1 patch"; exit 1
+          fi
+
+      - uses: actions/setup-python@v7
+        id: py
+        with:
+          python-version: "3.13"
+
+      - name: Python packages from the cache (the test suite's venv)
+        id: cache-venv
+        uses: actions/cache@v6
+        with:
+          path: ~/venv
+          key: venv-${{ runner.os }}-py${{ steps.py.outputs.python-version }}-${{ hashFiles('tools/requirements-dev.txt') }}
+
+      - name: Install packages (only when not cached)
+        if: steps.cache-venv.outputs.cache-hit != 'true'
+        run: |
+          python -m venv ~/venv
+          ~/venv/bin/python -m pip install -q -r tools/requirements-dev.txt
+
+      - name: The private working files (read-only deploy key; nothing of them is printed)
+        env:
+          KEY: ${{ secrets.ASSETS_SRC_DEPLOY_KEY }}
+          REF: ${{ inputs.ref }}
+        run: |
+          [ -n "$KEY" ] || { echo "::error::the secret ASSETS_SRC_DEPLOY_KEY is not set (docs/ASSETS-RELEASE.md)"; exit 1; }
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/assets_src && chmod 600 ~/.ssh/assets_src
+          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/assets_src -o IdentitiesOnly=yes"
+          git clone -q --no-tags git@github.com:smholte/fresing-assets-src.git "$RUNNER_TEMP/src"
+          git -C "$RUNNER_TEMP/src" checkout -q "$REF"
+          rm -f ~/.ssh/assets_src
+          echo "working files at $(git -C "$RUNNER_TEMP/src" rev-parse --short HEAD)"
+
+      - name: Build the pack (the private repository's tools/build_pack.py, task 0365)
+        env:
+          V: ${{ inputs.version }}
+        run: |
+          ~/venv/bin/python "$RUNNER_TEMP/src/tools/build_pack.py" --version "$V" --out "$RUNNER_TEMP/out" > "$RUNNER_TEMP/build.log" 2>&1 \
+            || { echo "::error::the build failed (its log stays on the runner: it may name working files)"; tail -n 5 "$RUNNER_TEMP/build.log" | cut -c1-200; exit 1; }
+          test -f "$RUNNER_TEMP/out/FresingAssets-$V.zip"
+
+      - name: The public pack checks (tools/assets_check.py)
+        env:
+          V: ${{ inputs.version }}
+        run: |
+          rm -rf "$RUNNER_TEMP/src"                               # the working files are not needed any more
+          ~/venv/bin/python tools/assets_check.py "$RUNNER_TEMP/out/FresingAssets-$V.zip" | tee -a "$GITHUB_STEP_SUMMARY"
+          mkdir -p "$RUNNER_TEMP/pack" && unzip -q "$RUNNER_TEMP/out/FresingAssets-$V.zip" -d "$RUNNER_TEMP/pack"
+          FRESING_ASSETS_REAL="$RUNNER_TEMP/pack/Fresing Assets" ~/venv/bin/python -m pytest tests/real_pack -q -rfE -p no:cacheprovider
+
+      - name: Publish the pre-release assets-${{ inputs.version }}
+        env:
+          V: ${{ inputs.version }}
+          CHANGES: ${{ inputs.changes }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd "$RUNNER_TEMP/out"
+          cp "$RUNNER_TEMP/pack/Fresing Assets/LICENSE-ASSETS.txt" LICENSE-ASSETS.txt
+          ~/venv/bin/python "$GITHUB_WORKSPACE/tools/assets_check.py" --listing "FresingAssets-$V.zip" --changes "$CHANGES" > assets.json
+          body="Fresing assets pack $V – data for the app, not an app version. Licence: LICENSE-ASSETS.txt (free for private use, education and non-profits; companies need a licence). The app offers it only once an app release names it."
+          id=$(gh api -X POST "repos/$GITHUB_REPOSITORY/releases" -f tag_name="assets-$V" -f target_commitish="$GITHUB_SHA" \
+                 -f name="Fresing assets pack $V – data for the app, not an app version" -f body="$body" -F prerelease=true --jq .id)
+          for f in "FresingAssets-$V.zip" LICENSE-ASSETS.txt assets.json; do
+            gh api -X POST "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$id/assets?name=$f" \
+              -H "Content-Type: application/octet-stream" --input "$f" --jq .browser_download_url
+          done
+          echo "### Published assets-$V (pre-release) – check it with \"Check an assets pack\", then move the pin" >> "$GITHUB_STEP_SUMMARY"

@@ -4,6 +4,7 @@
         [--app-version 0.2.270] [--blender <blender>] [--no-render] [--no-blender]
     ~/venv/bin/python tools/assets_check.py --pin installer/assets_pin.json     # CI: the pin as key=value lines
     ~/venv/bin/python tools/assets_check.py --fetch assets-1.0.0 [--into <folder>]   # a published release's zip
+    ~/venv/bin/python tools/assets_check.py --listing FresingAssets-1.0.0.zip [--changes "…"]   # its assets.json
 
 ONE set of pack checks, all in the public repository (owner's pick 12: no private CI): the worker runs this in its
 session before it uploads a pack, GitHub's "Real pack" job (tests.yml) and the by-hand workflow "Check an assets
@@ -788,6 +789,22 @@ def fetch(tag: str, into: str, get=_get) -> tuple[str, list[str]]:
     return path, problems
 
 
+def listing(zip_path: str, changes: str = "") -> dict:
+    """``assets.json`` for a pack zip (study 0344 1.3): what a release carries beside the zip and what every app release
+    copies from the pin. Read from the zip's own pack.json."""
+    import hashlib
+    with zipfile.ZipFile(zip_path) as zf:
+        head = json.loads(zf.read(f"{ap.FOLDER}/{ap.PACK_JSON}").decode("utf-8-sig"))
+    with open(zip_path, "rb") as f:
+        data = f.read()
+    v = head["version"]
+    name = os.path.basename(zip_path)
+    return {"format": "fresing-assets-listing", "version": v, "file": name,
+            "url": f"https://github.com/{REPO}/releases/download/{TAG_PREFIX}{v}/{name}",
+            "sha256": hashlib.sha256(data).hexdigest(), "bytes": len(data), "app_min": head.get("app_min", ""),
+            "licence_id": head.get("licence_id", ""), "changes": changes}
+
+
 # ---------------------------------------------------------------------------------------------- main
 
 def check(target: str, version: str = "", blender: str = "", render: bool = True, use_blender: bool = True) -> Report:
@@ -825,7 +842,12 @@ def main(argv=None) -> int:
     a.add_argument("--pin", default="", help="check the pin file and print it as key=value lines")
     a.add_argument("--fetch", default="", help="a pack's release tag (assets-1.0.0): download its zip, then check it")
     a.add_argument("--into", default="", help="with --fetch: the folder for the zip (default: a temporary one)")
+    a.add_argument("--listing", default="", help="print assets.json for this pack zip (the release job)")
+    a.add_argument("--changes", default="", help="with --listing: one line on what is new")
     args = a.parse_args(argv)
+    if args.listing:
+        print(json.dumps(listing(args.listing, args.changes), indent=1))
+        return 0
     if args.fetch:
         into = args.into or tempfile.mkdtemp(prefix="assets_fetch_")
         path, problems = fetch(args.fetch, into)

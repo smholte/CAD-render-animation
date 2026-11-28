@@ -616,3 +616,17 @@ def test_fetch_takes_the_releases_zip_and_checks_its_listing(pack, tmp_path):
     assert any("no LICENSE-ASSETS.txt" in p for p in problems)
     assert any("assets.json says sha256" in p for p in problems)
     assert ac.fetch("v0.2.270", str(tmp_path), get)[1][0].startswith("release: 'v0.2.270' is not a pack's tag")
+
+
+def test_listing_names_the_zip_its_size_and_sha256(pack, tmp_path):
+    z = tmp_path / "FresingAssets-1.0.0.zip"
+    shutil.make_archive(str(z)[:-4], "zip", pack.parent, ap.FOLDER)
+    got = ac.listing(str(z), "New paints")
+    data = z.read_bytes()
+    assert got["version"] == "1.0.0" and got["file"] == z.name and got["bytes"] == len(data)
+    assert got["sha256"] == hashlib.sha256(data).hexdigest() and got["changes"] == "New paints"
+    assert got["url"].endswith("/releases/download/assets-1.0.0/FresingAssets-1.0.0.zip")
+    pin = tmp_path / "pin.json"                                # a pin made from it passes --pin (0358 writes the pin)
+    pin.write_text(json.dumps({**{k: got[k] for k in ("version", "file", "url", "sha256", "bytes", "licence_id")},
+                               "tag": "assets-1.0.0"}))
+    assert ac.read_pin(str(pin))[1] == []
