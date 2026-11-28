@@ -1,6 +1,6 @@
 # 0380 – Bug and friction hunt round 9 (findings only): 0.2.247–0.2.270 used together
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0380-bug-hunt-9` (task file + report only,
+**Who:** worker · **Status:** running · **Branch:** `task/0380-bug-hunt-9` (task file + report only,
 `[skip ci]`) · **Started by:** lead, 28 Nov 2026 · **Model:** Opus · effort High
 **Area:** none – findings only, no code. Work on the **tag `v0.2.270`**, not on `main` (other tasks merge meanwhile).
 
