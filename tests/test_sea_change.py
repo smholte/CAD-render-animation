@@ -170,3 +170,38 @@ def test_meshes_made_from_arrays_are_the_same(scene):
     n, rings = surroundings._sea_rings(True, 300.0)
     assert len(me.polygons) == n + n * (len(rings) - 1) and len(me.vertices) == 1 + n * len(rings)
     assert all(len(me.polygons[i].vertices) == 3 for i in range(n)) and len(me.polygons[n].vertices) == 4
+
+
+def _spray():
+    return [g for g in bpy.data.node_groups if g.get("fr_env") == "spray"]
+
+
+@pytest.mark.parametrize("detailed", [False, True])
+def test_the_spray_is_kept_at_a_sea_change_and_equals_a_fresh_build(scene, detailed):
+    """Task 0375 (0202's open point): the spray group (weather, Beaufort >= 5.5) was made new at each sea change
+    (~0.5 s of ~1 s on this vessel). It keeps its nodes now, node for node what a fresh build gives; without spray it
+    goes."""
+    s = scene.fresing
+    s.env_detail = "DETAILED" if detailed else "SIMPLE"
+    s.sea_moving = True
+    s.sea_state = "WIND"
+    s.weather.enabled = True
+    s.weather.spray = True
+    s.weather.wind = 7.0
+    _apply(scene)
+    first = _spray()
+    assert len(first) == 1
+    for w in (7.5, 8.5, 8.0):
+        s.weather.wind = w
+        _apply(scene)
+        assert _spray() == first and first[0].get("fr_replayed"), w
+        assert _env("spray")[0].modifiers["Spray"].node_group == first[0]
+    kept = _structure(first[0])
+    for g in _spray():
+        bpy.data.node_groups.remove(g)
+    surroundings.root_object()["fr_key"] = ""
+    _apply(scene)
+    assert not _spray()[0].get("fr_replayed") and _structure(_spray()[0]) == kept
+    s.weather.spray = False
+    _apply(scene)
+    assert not _spray() and not _env("spray")
