@@ -1,6 +1,6 @@
 # 0372 – Weld check after import: one parent → children map (28–33 s → under 1 s on big models)
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0372-weld-check-speed`
+**Who:** worker · **Status:** running · **Branch:** `task/0372-weld-check-speed`
 **Started by:** lead, 28 Nov 2026 (0366's first open point) · **Model:** Opus · effort Medium · Claude Code on the web,
 environment "CAD-render-animation"
 **Area:** Welds lane – `blender/weld_cad.py` (`_parts_of` and every caller), the same kind of walk in `welds.py` /
