@@ -1,6 +1,6 @@
 # 0347 – Coolant liquid B2: 4th axis, 5-axis trunnion, the "Coolant liquid" tour set, the lost wet sheen
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0347-coolant-liquid-b2`
+**Who:** worker · **Status:** running · **Branch:** `ccr-f71b2999-erailu`
 **Started by:** lead, 28 Nov 2026 (0346's "What B2 (0347) needs"; TASKS.md "Problems found": coolant sheen) ·
 **Model:** Opus · effort High
 **Area:** Machining lane – `blender/liquid.py`, `core/liquid*.py`, `ops_liquid.py`, `coolant.py` (row E only),
