@@ -35,10 +35,23 @@ owns the lines it names). Whoever merges second updates its branch to `main`; ve
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 28 Nov 2026
 
-**What changed:**
+**What changed:** (A) the splash's welcome / What's new / set-up box wraps its lines at 50 characters and the buttons
+are "Open the Learning hub" (own row) + "Later" + "Don't show again": nothing is cut off with "…" any more. The box
+already sat below the Fresing picture; the real problem was the cut-off text. (B) `editors._drawn` (the 3D view's draw
+handler) notes the windows and the screen each shows; a change (new main window, another workspace) asks for the
+tidy-up (`editors.request`, from a timer). (C) the presence keymap also takes ~80 keyboard keys (letters, digits, F-keys,
+arrows, Enter, Tab, Space …): they only mark presence, always pass on to Blender, nothing is stored or sent.
+Version 0.2.274.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, Blender 5.2.3 under xvfb): splash pictures made before and after at
+1920 x 1080 and 2560 x 1440 (after: all lines whole at both). Unit tests: `test_editors.py` (new window / workspace
+asks for a tidy-up), `test_settings_blender.py` (key list, a key marks presence at the same mouse spot),
+`test_start.py` (box width). `ui_test_start.py` run at both widths: 77 / 75 checks passed. Not tried: a real
+Window > New Main Window and a real key press in a running app (no way to open a second window with simulated
+events here) – the draw-handler logic is tested with a changed window list only.
 
-**Open points / follow-up tasks:**
+**Open points / follow-up tasks:** none for the code. **Owner's check:** Fresing > Welcome (or a new settings folder),
+look at the start picture: the box should read whole. Then Window > New Main Window: its right-hand Blender column
+should disappear by itself.
