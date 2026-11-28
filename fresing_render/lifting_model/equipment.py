@@ -209,14 +209,15 @@ def data(name, cogs: dict, step: str | None = None, cls_word: str | None = None)
     missing = sorted(set(m) - set(cogs))
     if missing:
         raise ValueError(f"{name}: no centre of gravity for {', '.join(missing)}")
+    cog = {g: [round(float(v), 3) for v in cogs[g]] for g in m}
     d = {
         "format": FORMAT, "format_version": FORMAT_VERSION,
         "kind": C.KINDS[c.kind], "class": cls_word or c.name, "name": c.name,
         "units": {"mass": "t", "length": "m"},
         "mass": m,
-        "cog": {g: [round(float(v), 3) for v in cogs[g]] for g in m},
+        "cog": cog,
         "rig": rig(name, step),
-        "charts": K.charts_of(c),
+        "charts": K.charts_of(c, cog),            # from the file's own centres of gravity (0349)
         "hook_blocks": hook_blocks(name),
         "limits": limits(name),
         "reeving": reeving(name),

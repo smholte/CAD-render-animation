@@ -24,20 +24,31 @@ def _t(kg: float) -> str:
     return f"{t:.2f} t" if t < 100 else f"{t:.1f} t"
 
 
+def picture_key(path: str) -> str:
+    """The cache key of a picture: its path with its change time and size (task 0349: keyed on the path alone, a
+    crane made again with Replace showed its old picture until Blender was restarted)."""
+    try:
+        st = os.stat(path)
+    except OSError:
+        return ""
+    return f"{path}|{st.st_mtime_ns}|{st.st_size}"
+
+
 def _icon_of(path: str) -> int:
-    """The item's picture as an icon (loaded once)."""
+    """The item's picture as an icon (loaded once per version of the file)."""
     if not path or not os.path.isfile(path):
         return 0
     if _PREVIEWS["coll"] is None:
         import bpy.utils.previews
         _PREVIEWS["coll"] = bpy.utils.previews.new()
     coll = _PREVIEWS["coll"]
-    if path not in coll:
+    key = picture_key(path)
+    if key not in coll:
         try:
-            coll.load(path, path, "IMAGE")
+            coll.load(key, path, "IMAGE", force_reload=True)
         except Exception:  # noqa: BLE001
             return 0
-    return coll[path].icon_id
+    return coll[key].icon_id
 
 
 def _ok(context) -> bool:

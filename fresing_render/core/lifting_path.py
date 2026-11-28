@@ -30,9 +30,10 @@ RANK = {lifting.OK: 0, lifting.NOT_CHECKED: 1, lifting.AMBER: 2, lifting.RED: 3}
 BACK_RESERVE = 0.15        # share of the base the unloaded crane's CoG keeps inside it (lifting_model.charts, the makers)
 JACK_TOL = 0.02            # share of a jack's run: a jack this close to its down end counts as down
 BEAM_TOL = 0.001           # m: beams this close to the chart's spread count as out to it
-ORDER = ("C1", "C10", "SETUP", "C5", "C6", "BACK", "C2", "C3", "C4")
+ORDER = ("C1", "C10", "SETUP", "C5", "C6", "BACK", "CLR", "C2", "C3", "C4")
 TITLES = {"C1": "Crane use", "C10": "Line pull", "SETUP": "Set-up", "C5": "Outriggers", "C6": "Tracks",
-          "BACK": "Back stability", "C2": "Sling legs", "C3": "Sling legs", "C4": "Shackles, gear"}
+          "BACK": "Back stability", "CLR": "Clearance", "C2": "Sling legs", "C3": "Sling legs",
+          "C4": "Shackles, gear"}
 
 
 def _pct(u) -> str:
@@ -305,6 +306,7 @@ class Plan:
     allowable_pa: float | None = None    # the ground's allowable pressure (entered)
     mat: tuple | None = None             # (w, l) m of a mat under each outrigger pad; None = the pad
     line_pull: object = None             # gross kg -> lifting.Result (C10), or None
+    clearance: object = None             # joint values -> Row (task 0349, lifting_zones.Clearance.row), or None
     limits: lifting.Limits = field(default_factory=lambda: lifting.DEFAULT_LIMITS)
 
 
@@ -346,6 +348,11 @@ class Checks:
         rows.append(self._c1(ro))
         rows.append(self._c10(ro.gross))
         rows += self._supports(values, ro)
+        if p.clearance is not None:
+            try:
+                rows.append(p.clearance(values))
+            except Exception as exc:  # noqa: BLE001 - a broken mesh: grey with the reason
+                rows.append(grey("CLR", str(exc).rstrip(".").lower()))
         rows += self._rigging()
         return rows
 

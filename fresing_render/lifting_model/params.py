@@ -473,6 +473,10 @@ _GEOMETRY = (
                                                  "the boom's foot: the counterweight further back or a shorter base "
                                                  "section."),
     ("overlap", "axles_fit", "The axles do not fit on the carrier: fewer axles or smaller wheels."),
+    ("front axles push", "axles_fit", "The front axles leave no room for the front outriggers well ahead of the slew "
+                                      "axis: fewer axles or smaller wheels."),
+    ("rear outriggers stand", "pads_apart", "The rear outriggers stand too close behind the slew axis: the pads "
+                                            "further apart (front to rear)."),
     ("no cylinder fits", "cylinder_fit", "No luffing cylinder fits for this boom angle range: a smaller range or "
                                          "other boom sizes."),
 )
