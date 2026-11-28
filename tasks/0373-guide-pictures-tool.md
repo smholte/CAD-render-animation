@@ -1,6 +1,6 @@
 # 0373 – Guide pictures: the per-panel modes stop making blank / wrong pictures; Coolant and Spools pictures redone
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0373-guide-pictures-tool`
+**Who:** worker · **Status:** done · **Branch:** `task/0373-guide-pictures-tool`
 **Started by:** lead, 28 Nov 2026 (open points of 0346, 0348, 0368) · **Model:** Sonnet · effort Medium
 **Area:** Docs lane – `tools/guide_screens.py` (its start-up / mode set-up: you own it this weekend), the pictures it
 makes in `docs/img/`, the guide text only where a picture changes, its tests. **Not:** app code (`fresing_render/`).
@@ -51,10 +51,32 @@ owns the lines it names). Whoever merges second updates its branch to `main`; ve
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (Sonnet), 28 Nov 2026
 
-**What changed:**
+**What changed:** Root cause: `os.environ.setdefault("FRESING_WORKSPACE_START", ...)` in `tools/guide_screens.py` runs after
+Blender has started, and the app picks its start workspace in its own load handler – so a fresh settings folder started in
+Essentials (blank panels, Blender's Item tab). Fix in one place: `all_functions()` (= `workspaces.use_all`) runs in `_start`
+and again after the import, so no mode needs a variable. New check `picture_problem()`: a side-panel picture is refused (and
+the old file kept) when no Fresing panel was drawn since `show_only()` (Item tab / hidden panel), or the picture is tiny or
+nearly empty; `GUIDE_KEEP_WRONG=1` saves it anyway, the run's log ends with "PICTURES REFUSED: …". Test:
+`tests/test_guide_screens_check.py`. 14 pictures remade.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, real Blender 5.2.3 under xvfb, fresh settings folder from `web_install_app.py`, no extra variables):
+every per-panel mode ran: coolant, air, waycover, flex_panels, flex_chains_panel, cables_panel, spools_panel, tracks_panel,
+sea_panel, vessel_work_panel, welds_panel, weld_cad_panel, lifting_panel, house_panel, people_panel, labels, clash,
+toolchange, doublearm, toolpath, rotary, panels – all OK, none refused. Picture table (new vs. file in `docs/img`):
+* **Was wrong, remade:** panel_4_coolant (liquid rows), panel_6_gcode_coolant, panel_6_gcode_air, panel_6_gcode_toolchange,
+  panel_6_gcode, panel_6_clash, view_clash, panel_4_cnc, panel_4_milling, panel_4_toolchange_atc, panel_8_lifting_hook,
+  panel_8_lifting_path, panel_cable_sea, view_waycover.
+* **OK (spools, welds, welds_cad, panel_top_tabs):** same or only a few thousand antialiased pixels apart (spools was already right).
+* **Same panels, tiny pixel differences only** (~2–5 thousand px): not replaced, to keep the commit small.
+* **Not changed, not checked by eye:** the "panels" run's pictures with larger differences (panel_1_imported_models, panel_5_web3d,
+  panel_6_back_to_cad, panel_6_camera_path, panel_6_product_video, panel_7_queue, panel_3_rule_sets, sidebar_sections) –
+  they probably show newer content; a lane that owns those sections should remake them.
+* **tour:** `panel_tour` is refused – its stops moved to the left panel (task 0260); the picture is stale and my
+  left-region grab came out empty. The old file stays.
+* 0367 (Item / Tool / View tabs hidden): no problem found in the tool.
+Two GitHub runs (lane run green).
 
-**Open points / follow-up tasks:**
+**Open points / follow-up tasks:** `panel_tour.png` needs the left (toolbar) region grabbed properly; the "panels"-mode
+pictures listed above should be looked at by the lane that owns them. No app code, version or guide text changed.
