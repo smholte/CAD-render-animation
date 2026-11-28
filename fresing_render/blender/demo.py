@@ -1165,10 +1165,30 @@ def result_path(folder: str) -> str:
     return os.path.join(folder, "Make demo result.json")
 
 
+def _line(text: str) -> None:
+    """A line of the build's log (``Make demo log.txt``), written out at once – the log's last line is the last thing
+    that happened (task 0371: the owner's log ended ten stages before the failure)."""
+    try:
+        sys.stdout.flush()
+        os.write(sys.stdout.fileno(), (text.rstrip("\n") + "\n").encode("utf-8", "replace"))
+    except (OSError, ValueError, AttributeError):
+        print(text, flush=True)
+
+
+def _line_buffered() -> None:
+    """Everything else printed to the log (Blender's and the app's own lines) goes out line by line too."""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(line_buffering=True, write_through=True)
+        except (AttributeError, ValueError, OSError):
+            pass
+
+
 def build_main(folder: str = "", small: bool = False, kit: str = "") -> int:
     """Entry point of the background Blender ``launcher.py -- demobuild [folder] [small] [--kit <id>]`` (task 0228:
     ``--kit``: an added demo kit's demo; ``folder`` is then its ``kit_folder``)."""
     from .. import __version__
+    _line_buffered()
     folder = folder or (kit_folder(default_folder(), kit) if kit else default_folder())
     os.makedirs(folder, exist_ok=True)
     t0 = time.time()
@@ -1181,11 +1201,11 @@ def build_main(folder: str = "", small: bool = False, kit: str = "") -> int:
         if why:
             res = {"version": __version__, "finished": False, "error": why, "kit": kit}
             _write_json(result_path(folder), res)
-            print(f"Demo project: {json.dumps(res)}", flush=True)
+            _line(f"Demo project: {json.dumps(res)}")
             return 1
 
     def progress(stage_title, text, done, total):
-        print(f"{stage_title}: {text}" if text and text != stage_title else stage_title, flush=True)
+        _line(f"{stage_title}: {text}" if text and text != stage_title else stage_title)
 
     res = {"version": __version__, "finished": False}
     try:
@@ -1198,10 +1218,10 @@ def build_main(folder: str = "", small: bool = False, kit: str = "") -> int:
         code = 2
     except Exception as exc:  # noqa: BLE001 - said in the result and the log
         import traceback
-        print(traceback.format_exc(), flush=True)
+        _line(traceback.format_exc())
         res.update(error=f"{type(exc).__name__}: {exc}")
         code = 1
     _write_json(result_path(folder), res)
-    print(f"Demo project: {json.dumps(res)[:1500]}", flush=True)
+    _line(f"Demo project: {json.dumps(res)[:1500]}")
     return code
 from . import demo_park  # noqa: E402,F401  (task 0166: registers the wind park's stages)

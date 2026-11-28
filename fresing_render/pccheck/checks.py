@@ -7371,6 +7371,65 @@ def demo_kit(ctx):
     return f"test kit made in {time.time() - t0:.0f} s, its joint moves the box"
 
 
+@line("demo.cancel", "Demo project: Cancel stops every program of the build", "0.2.274",
+      what="Starts the STEP reader on a test model from a program that then ends at once, as a cancelled demo build "
+           "leaves it, inside the group Make demo project… keeps its build in (a job object on Windows): the group "
+           "still runs, Cancel's stop ends the reader and its helpers, and nothing of it runs afterwards; a whole read "
+           "inside such a group finishes as usual")
+def demo_cancel(ctx):
+    import subprocess
+
+    from ..core import proctree
+    from ..importer import runner
+    app_parent = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    package = os.path.basename(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    model = os.path.join(DATA, "test_crane_b.step")
+    work = os.path.join(ctx.work, "Demo cancel é")
+    os.makedirs(work, exist_ok=True)
+    env = dict(os.environ, FRESING_IMPORT_WORKERS="2")
+    for var in ("PYTHONHOME", "PYTHONSTARTUP", "PYTHONUSERBASE"):
+        env.pop(var, None)
+
+    def script(name: str, wait: bool) -> str:
+        return ("import importlib, os, sys, time\n"
+                f"sys.path.insert(0, {app_parent!r})\n"
+                f"runner = importlib.import_module({package!r} + '.importer.runner')\n"
+                f"job = runner.ImportJob({model!r}, 'fine', {os.path.join(work, name)!r})\n"
+                "job.start()\n"
+                + ("while not job.poll():\n    time.sleep(0.1)\n"
+                   f"open({os.path.join(work, name + '.txt')!r}, 'w').write(job.error or 'ok')\n" if wait else
+                   "time.sleep(1.0)\nos._exit(0)\n"))
+
+    t0 = time.time()
+    left = proctree.Tree([runner.python_executable(), "-c", script("left", False)], env=env,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        left.proc.wait(timeout=120)
+        _check(left.alive(), "the reader was not counted as part of the build after the build's own program ended")
+        left.kill()
+        _check(left.wait(30), "the reader or a helper was still running 30 s after Cancel's stop")
+    finally:
+        left.kill()
+        left.close()
+    stop = time.time() - t0
+    whole = proctree.Tree([runner.python_executable(), "-c", script("whole", True)], env=env,
+                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        whole.proc.wait(timeout=300)
+        _check(whole.wait(30), "a program of a finished read was still running 30 s later")
+    finally:
+        whole.kill()
+        whole.close()
+    try:
+        with open(os.path.join(work, "whole.txt"), encoding="utf-8") as fh:
+            said = fh.read()
+    except OSError:
+        said = "no answer"
+    _check(said == "ok", f"a read inside the build's group failed: {said[:200]}")
+    ctx.metric("stop", stop, "s")
+    return f"a reader left running was stopped ({stop:.1f} s); a whole read inside the group finished"
+
+
 @line("updates.check", "Update check", "0.2.16", what="The update address answers (nothing is installed)")
 def updates_check(ctx):
     import bpy

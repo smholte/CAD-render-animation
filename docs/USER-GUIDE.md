@@ -6312,7 +6312,10 @@ general sizes.
 1. **Help > Make demo project…**, pick **Vessel in a wind park**, then **Make it**. It is made in the background in a
    minute or two; the bottom line of the window shows how far ("Writing the model 1/3", "Importing", "Joints 10/13",
    "Animation"). You can keep working.
-2. To stop it: **Help > Cancel demo project**. Nothing is left behind.
+2. To stop it: **Help > Cancel demo project**. Nothing is left behind. The bottom line says "Stopping the demo
+   project …" until every program the build had started has ended (a few seconds); then **Make it** works again, as
+   often as you like. If a model cannot be read, the message names its file, and the folder keeps "Make demo log.txt"
+   with what happened, line by line.
 3. When it is ready a small window says so: click **Open demo project**. Later: **Help > Open demo project**. Save
    your own project first: changes that are not saved are lost when another project opens.
 

@@ -8,15 +8,19 @@ Make starts a background Blender (``pccheck/launcher.py -- demobuild <folder>``)
 bar shows its stage ("Writing the model 2/2", "Importing", "Joints 120/422", "Animation"). Cancel asks the build to
 stop and, if it does not within a few seconds (it is inside the import or the model maker), stops it and every
 program it started; either way the half-made demo folder is deleted.
+
+Task 0371: the build and every program it starts are one ``core/proctree.Tree`` (a job object on Windows, a process
+group elsewhere). When the build's Blender has ended – finished, failed, cancelled, or stopped by Cancel – whatever of
+its tree is left is stopped too, and the build counts as running (Make it refused, "Stopping …") until **nothing** of
+it runs any more. So a new Make it never starts next to a reader or helper of the last one that is still ending.
 """
 
 from __future__ import annotations
 
+import itertools
 import json
 import os
-import signal
 import subprocess
-import sys
 import time
 
 import bpy
@@ -24,9 +28,12 @@ from bpy.props import BoolProperty, EnumProperty, StringProperty
 
 from . import demo
 
-_BUILD: dict = {}           # the running build: {"proc", "folder", "version", "log", "fh", "cancel_at", "title", "kit"}
+_BUILD: dict = {}           # the running build: {"proc", "tree", "folder", "version", "log", "fh", "cancel_at",
+                            # "title", "kit", "op", "ended_at", "left_running"}
 PUBLIC_ID = "APP"           # the app's own demo in the Make list (kit ids are lower-case slugs)
 CANCEL_WAIT = 4.0           # s: how long Cancel lets the build stop by itself before it is stopped
+_RUNS = itertools.count(1)  # which Make it owns the build (a modal of an earlier one stops looking)
+END_WAIT = 60.0             # s: how long the app waits for the rest of an ended build's programs to end
 
 
 def _version() -> str:
@@ -35,6 +42,13 @@ def _version() -> str:
 
 
 def running() -> bool:
+    """A build runs, or a program of the last one is still ending (task 0371: Make it waits for both)."""
+    tree = _BUILD.get("tree")
+    if tree is not None:
+        try:
+            return tree.alive()
+        except Exception:  # noqa: BLE001 - a question that failed: the build's own program decides
+            pass
     proc = _BUILD.get("proc")
     return proc is not None and proc.poll() is None
 
@@ -42,7 +56,7 @@ def running() -> bool:
 def progress_text() -> str:
     if not running():
         return ""
-    if _BUILD.get("cancel_at"):
+    if _BUILD.get("cancel_at") or _BUILD.get("ended_at"):
         return "Stopping the demo project …"
     p = demo.read_progress(_BUILD["folder"], _BUILD["version"])
     stage, text = p.get("stage", ""), p.get("text", "")
@@ -84,16 +98,8 @@ def _which_items(self, context):
 
 def kill_tree(pid: int) -> None:
     """Stop a program and every program it started (the model maker, the STEP reader's helpers)."""
-    if not pid:
-        return
-    try:
-        if sys.platform == "win32":
-            subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)], capture_output=True, timeout=30,
-                           creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-        else:
-            os.killpg(os.getpgid(pid), signal.SIGKILL)
-    except (OSError, subprocess.SubprocessError):
-        pass
+    from ..core import proctree
+    proctree.kill_pid_tree(pid)
 
 
 def _read_result(folder: str) -> dict:
@@ -120,10 +126,11 @@ class FRESING_OT_demo_make(bpy.types.Operator):
     in_place: BoolProperty(default=False, options={"HIDDEN", "SKIP_SAVE"})   # tests: build in this Blender
 
     _timer = None
+    _run = 0
 
     def invoke(self, context, event):
         if running():
-            self.report({"WARNING"}, "The demo project is being made: wait for it, or Help > Cancel demo project")
+            self.report({"WARNING"}, _busy_text())
             return {"CANCELLED"}
         self.folder = self.folder or demo.default_folder()
         from . import form_window
@@ -180,6 +187,9 @@ class FRESING_OT_demo_make(bpy.types.Operator):
                 self.report({"ERROR"}, why)
                 return {"CANCELLED"}
         kit_title = title if info is not None else ""
+        if running() and not (self.in_place or bpy.app.background):
+            self.report({"WARNING"}, _busy_text())
+            return {"CANCELLED"}
         if self.in_place or bpy.app.background:
             try:
                 out = demo.build_project(folder, version, kit=info)
@@ -204,20 +214,24 @@ class FRESING_OT_demo_make(bpy.types.Operator):
             except OSError:
                 pass
         log = os.path.join(folder, "Make demo log.txt")
-        kwargs = {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0)} if sys.platform == "win32" \
-            else {"start_new_session": True}
+        from ..core import proctree
         try:
             fh = open(log, "w", encoding="utf-8", errors="replace")
             cmd = [exe, "--background", "--python", pc_ops.LAUNCHER, "--", "demobuild", folder]
             if info is not None:
                 cmd += ["--kit", info.id]                                      # task 0228
-            proc = subprocess.Popen(cmd, cwd=os.path.dirname(exe), stdout=fh, stderr=subprocess.STDOUT, **kwargs)
+            tree = proctree.Tree(cmd, cwd=os.path.dirname(exe), stdout=fh, stderr=subprocess.STDOUT)
         except OSError as exc:
             self.report({"ERROR"}, f"Could not start making the demo project: {exc}")
             return {"CANCELLED"}
+        try:
+            _BUILD["fh"].close()                     # an earlier build whose modal has not looked yet
+        except (KeyError, OSError):
+            pass
         _BUILD.clear()
-        _BUILD.update(proc=proc, folder=folder, version=version, log=log, fh=fh, started=time.time(),
-                      title=kit_title, kit=info.id if info is not None else "")
+        self._run = next(_RUNS)
+        _BUILD.update(op=self._run, proc=tree.proc, tree=tree, folder=folder, version=version, log=log, fh=fh,
+                      started=time.time(), title=kit_title, kit=info.id if info is not None else "")
         self._timer = context.window_manager.event_timer_add(0.5, window=context.window)
         context.window_manager.modal_handler_add(self)
         self.report({"INFO"}, "Making the demo project in the background (a few minutes)")
@@ -226,13 +240,10 @@ class FRESING_OT_demo_make(bpy.types.Operator):
     def modal(self, context, event):
         if event.type != "TIMER":
             return {"PASS_THROUGH"}
-        proc = _BUILD.get("proc")
-        if proc is not None and proc.poll() is None:
-            cancel_at = _BUILD.get("cancel_at")
-            if cancel_at and time.time() - cancel_at > CANCEL_WAIT:
-                kill_tree(proc.pid)
-                p = demo.read_progress(_BUILD["folder"], _BUILD["version"])
-                kill_tree(int(p.get("helper") or 0))
+        if _BUILD.get("op") != getattr(self, "_run", None):
+            context.window_manager.event_timer_remove(self._timer)          # a newer Make it owns the build now
+            return {"FINISHED"}
+        if not end_step():
             context.workspace.status_text_set(progress_text())
             _redraw(context)
             return {"PASS_THROUGH"}
@@ -246,7 +257,13 @@ class FRESING_OT_demo_make(bpy.types.Operator):
         except (KeyError, OSError):
             pass
         log = _BUILD.get("log", "")
+        left_running = _BUILD.get("left_running", "")
+        tree = _BUILD.get("tree")
+        if tree is not None:
+            tree.close()
         _BUILD.clear()
+        if left_running:
+            print(f"Fresing Render: {left_running}")
         res = _read_result(folder)
         if res.get("finished") and demo.exists(folder, version, title):
             _ready_popup(context, demo.project_path(folder, version, title))
@@ -261,6 +278,43 @@ class FRESING_OT_demo_make(bpy.types.Operator):
         self.report({"ERROR"}, f"The demo project could not be made ({why[:200]}). Nothing was left behind "
                                f"except its log: {log}")
         return {"FINISHED"}
+
+
+def _busy_text() -> str:
+    if _BUILD.get("cancel_at") or _BUILD.get("ended_at"):
+        return "The last demo project is still stopping: Make it again in a moment"
+    return "The demo project is being made: wait for it, or Help > Cancel demo project"
+
+
+def end_step(now: float | None = None) -> bool:
+    """One look at the running build (the modal's timer, tests): stops it once Cancel waited ``CANCEL_WAIT``; once its
+    Blender has ended, stops whatever of its tree is left (a maker, a reader, helpers – task 0371) and waits for all of
+    it to end, at most ``END_WAIT``. True when nothing of the build runs any more (or the wait is over)."""
+    now = time.time() if now is None else now
+    tree, proc = _BUILD.get("tree"), _BUILD.get("proc")
+    if proc is None:
+        return True
+    if proc.poll() is None:
+        cancel_at = _BUILD.get("cancel_at")
+        if cancel_at and now - cancel_at > CANCEL_WAIT:
+            if tree is not None:
+                tree.kill()
+            else:
+                kill_tree(proc.pid)
+        return False
+    if tree is None:
+        return True
+    if not _BUILD.get("ended_at"):
+        _BUILD["ended_at"] = now
+        tree.kill()                                  # anything the build left running is stopped, finished or not
+    if not tree.alive():
+        return True
+    if now - _BUILD["ended_at"] > END_WAIT:
+        _BUILD["left_running"] = (f"a program of the last demo build was still ending {END_WAIT:.0f} s after it "
+                                  f"stopped (Task Manager shows it)")
+        return True
+    tree.kill()
+    return False
 
 
 def _redraw(context) -> None:

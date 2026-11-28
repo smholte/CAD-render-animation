@@ -181,8 +181,17 @@ def check_open(path: str = "") -> None:
     STATE["ran"], STATE["failed"] = run_chain()
 
 
+def data_readable() -> bool:
+    """Blender's data can be read now: not while add-ons are switched on at start or in a load (task 0371: there
+    ``bpy.data`` is a ``_RestrictData`` without ``filepath``, which printed "the project's format could not be read"
+    twice at every start). Our ``load_post`` handler looks at the project once its data is there."""
+    return isinstance(getattr(bpy, "data", None), bpy.types.BlendData)
+
+
 @persistent
 def _on_load(filepath=None, *_args):
+    if not data_readable():
+        return
     try:
         check_open(filepath if isinstance(filepath, str) else "")
     except Exception as exc:  # noqa: BLE001 - the project opens whatever happens here
@@ -501,6 +510,8 @@ def _front(names=("load_post", "save_pre", "save_post", "load_pre")) -> None:
 
 def register():
     _front()
+    if not data_readable():
+        return                                 # the load that follows runs _on_load, first
     try:                                       # switched on with a project open (the app template does it during a
         check_open(bpy.data.filepath)          # load, behind our place in load_post): look at it now
     except Exception as exc:  # noqa: BLE001

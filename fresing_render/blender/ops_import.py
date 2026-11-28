@@ -15,6 +15,16 @@ from . import build, cameras, logic, prefs, render, world
 _ACTIVE_JOB: ImportJob | None = None
 
 
+def log_line(text: str) -> None:
+    """A line in a background run's log (the demo build's "Make demo log.txt"), out at once (task 0371)."""
+    import sys
+    try:
+        sys.stdout.flush()
+        os.write(sys.stdout.fileno(), f"Fresing Render: {text}\n".encode("utf-8", "replace"))
+    except (OSError, ValueError, AttributeError):
+        print(f"Fresing Render: {text}", flush=True)
+
+
 def cache_root() -> str:
     if _ROOT_OVERRIDE:
         os.makedirs(_ROOT_OVERRIDE[0], exist_ok=True)
@@ -300,8 +310,11 @@ class FRESING_OT_import_step(bpy.types.Operator, ImportHelper):
         wm = context.window_manager
         if bpy.app.background or context.window is None:  # no UI: wait for the job
             import time
+            log_line(f"reading {os.path.basename(path)} ({self.quality})")
             while not job.poll():
                 time.sleep(0.2)
+            if job.error:
+                log_line(f"Import failed: {job.error}")
             return self._finish(context)
         self._timer = wm.event_timer_add(0.25, window=context.window)
         wm.modal_handler_add(self)
@@ -577,8 +590,11 @@ class FRESING_OT_import_mesh(bpy.types.Operator, ImportHelper):
         wm = context.window_manager
         if bpy.app.background or context.window is None:
             import time
+            log_line(f"reading {os.path.basename(path)}")
             while not job.poll():
                 time.sleep(0.2)
+            if job.error:
+                log_line(f"Import failed: {job.error}")
             return self._finish(context)
         self._timer = wm.event_timer_add(0.25, window=context.window)
         wm.modal_handler_add(self)

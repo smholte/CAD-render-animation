@@ -5,6 +5,20 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.274 – 28 Nov 2026 – Demo project: Make it again after Cancel works every time (task 0371)
+
+- **Cancel, then Make it again** (Help > Make demo project…, the app's own demo and demo kits): Cancel now stops the
+  demo build and every program it had started – the model maker, the STEP reader and its helpers – and **Make it**
+  waits until all of them have really ended (the bottom line says "Stopping the demo project …" for a few seconds).
+  Before, a new build could start while programs of the cancelled one were still ending – the most likely cause of
+  a reader crash seen once after Cancel.
+- **When a model cannot be read**, the message names its file and says what happened in plain words ("Reader stopped
+  while reading demo_park.step (crashed: access violation, code 0xC0000005)") instead of only a number.
+- **"Make demo log.txt"** gets every line at once, so its last line is the last thing that happened; each model read
+  has its own line.
+- The two lines "the project's format could not be read: '_RestrictData' …" no longer appear at every start (a
+  project whose format really cannot be read still says so).
+
 ## 0.2.273 – 28 Nov 2026 – Groundwork for the Fresing assets pack: looks kept inside the project (task 0355)
 
 - No visible change. Under the hood the app can now bring a look from the Fresing assets pack into a project as the

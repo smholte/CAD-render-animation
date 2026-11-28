@@ -254,6 +254,46 @@ def test_cancel_leaves_nothing(made, tmp_path, monkeypatch):
     bpy.ops.wm.open_mainfile(filepath=made["out"]["path"])
 
 
+def test_cancel_at_the_import_then_make_it_again(made, tmp_path, monkeypatch):
+    """Task 0371: Make it → Cancel while the model is imported → Make it again, twice: each new build is made in the
+    same folder, from nothing, and no STEP reader of a cancelled build is left running."""
+    folder = str(tmp_path / "again")
+
+    def copy_model(d):
+        os.makedirs(d.model_dir, exist_ok=True)
+        for f in os.listdir(made["models"]):
+            shutil.copy(os.path.join(made["models"], f), d.model_dir)
+    monkeypatch.setattr(demo, "_run_maker", copy_model)
+
+    def press_cancel(stage, text, done, total):
+        if text == "Importing":
+            with open(demo.cancel_path(folder, VERSION), "w", encoding="utf-8") as fh:
+                fh.write("cancel\n")
+
+    def readers():
+        out = []
+        for name in os.listdir("/proc") if os.path.isdir("/proc") else ():
+            try:
+                with open(f"/proc/{name}/cmdline", "rb") as fh:
+                    cmd = fh.read()
+                with open(f"/proc/{name}/stat", encoding="ascii", errors="replace") as fh:
+                    st = fh.read()
+            except OSError:
+                continue
+            if b"step_reader.py" in cmd and st[st.rfind(")") + 2:].split()[0] not in ("Z", "X") \
+                    and folder.encode() in cmd:
+                out.append(int(name))
+        return out
+    for _ in range(2):
+        with pytest.raises(demo.Cancelled):
+            demo.build_project(folder, VERSION, small=True, progress=press_cancel, only=("model", "looks"))
+        assert not os.path.exists(demo.project_dir(folder, VERSION))
+        assert readers() == []
+        out = demo.build_project(folder, VERSION, small=True, only=("model", "looks"))
+        assert os.path.isfile(out["path"]) and demo.exists(folder, VERSION)
+    bpy.ops.wm.open_mainfile(filepath=made["out"]["path"])
+
+
 def test_a_failure_leaves_nothing(made, tmp_path, monkeypatch):
     folder = str(tmp_path / "fails")
 

@@ -295,3 +295,35 @@ def test_summary_reads_the_choices_and_leaves_out_derived_data(fresh):
     assert "last_message" not in settings and "tree" not in settings and "model_count" not in settings
     assert settings["out_folder"] == "C:/renders"
     assert "fresing_measure" in s["scenes"][sc.name]["settings"]
+
+
+def test_no_format_line_while_blender_data_cannot_be_read(app, capsys, monkeypatch):
+    """Task 0371: switched on at start (Blender's data restricted: a ``_RestrictData`` without ``filepath``) the format
+    check printed "the project's format could not be read" twice at every start. Now it waits for the load; a format
+    that really cannot be read still prints."""
+    import types
+
+    from fresing_render.blender import compat
+
+    class _RestrictData:                               # what bpy.data is while add-ons are switched on
+        pass
+
+    restricted = types.SimpleNamespace(data=_RestrictData(), types=bpy.types, app=bpy.app)
+    called = []
+    monkeypatch.setattr(compat, "check_open", lambda *a: called.append(a))
+    monkeypatch.setattr(compat, "bpy", restricted)
+    assert not compat.data_readable()
+    compat.register()
+    compat._on_load("")
+    assert called == []
+    assert "could not be read" not in capsys.readouterr().out
+    monkeypatch.setattr(compat, "bpy", bpy)
+    assert compat.data_readable()
+
+    def broken(*_a):
+        raise ValueError("the stamp is not a number")
+    monkeypatch.setattr(compat, "check_open", broken)
+    compat.register()
+    compat._on_load("")
+    out = capsys.readouterr().out
+    assert out.count("the project's format could not be read: the stamp is not a number") == 2

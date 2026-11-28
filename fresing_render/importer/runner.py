@@ -5,6 +5,10 @@ No bpy here, so it can be tested on its own.
 Each job writes into a folder of its own (``<cache>.partial-<pid>-<n>``, bug hunt 0118 row 14: two imports of the
 same new file started within a second shared one ``.partial`` folder) and renames it into place when it is done; when
 another import put the same cache in place first, that one is used and this job's folder is removed.
+
+Task 0371: the folder's name also carries a random part, so a job never shares it with one of another program that got
+the same process number (Windows hands numbers out again quickly), and a reader that stops says which file it was
+reading and what its exit code means ("crashed: access violation, 0xC0000005").
 """
 
 from __future__ import annotations
@@ -14,6 +18,7 @@ import itertools
 import json
 import os
 import queue
+import secrets
 import shutil
 import subprocess
 import sys
@@ -133,7 +138,7 @@ class ImportJob:
         self.converter = converter
         self.quality = quality
         self.cache_dir = cache_dir_for(step_path, quality, cache_root, self.options or None)
-        self.tmp_dir = f"{self.cache_dir}.partial-{os.getpid()}-{next(_JOB_NUMBER)}"
+        self.tmp_dir = f"{self.cache_dir}.partial-{os.getpid()}-{next(_JOB_NUMBER)}-{secrets.token_hex(4)}"
         self.proc: subprocess.Popen | None = None
         self.events: "queue.Queue[dict]" = queue.Queue()
         self.stderr_lines: list[str] = []
@@ -232,7 +237,7 @@ class ImportJob:
             self._drain()
             if self.proc.returncode != 0 and not self.error:
                 tail = "\n".join(self.stderr_lines[-5:])
-                self.error = f"Reader stopped (code {self.proc.returncode}). {tail}".strip()
+                self.error = f"{stop_text(self.proc.returncode, self.step_path)} {tail}".strip()
             if not self.error:
                 self._move_into_place()
         finally:
@@ -303,6 +308,45 @@ class ImportJob:
         self.error = "Cancelled"
         self.done = True
         shutil.rmtree(self.tmp_dir, ignore_errors=True)
+
+
+_CODES = {
+    0xC0000005: "crashed: access violation",
+    0xC00000FD: "crashed: stack overflow",
+    0xC0000017: "ran out of memory",
+    0xC000012D: "ran out of memory (the page file is full)",
+    0xC0000409: "crashed: stack buffer overrun",
+    0xC000001D: "crashed: illegal instruction",
+    0xC0000374: "crashed: heap corruption",
+    0xC000013A: "was stopped (Ctrl+C or the PC shutting down)",
+    0x40010004: "was stopped by Windows",
+}
+
+
+def code_text(code: int) -> str:
+    """A reader's exit code in words: Windows crash codes (3221225477 = 0xC0000005, also given as -1073741819), a
+    signal on Linux / macOS (-9 = stopped, SIGKILL), else the number."""
+    if code < 0 and -code < 128:
+        import signal as _signal
+        try:
+            name = _signal.Signals(-code).name
+        except ValueError:
+            name = f"signal {-code}"
+        what = {"SIGKILL": "was stopped (out of memory, or another program)", "SIGSEGV": "crashed: access violation",
+                "SIGABRT": "crashed (abort)", "SIGBUS": "crashed: bus error"}.get(name, "was stopped")
+        return f"{what}, {name}"
+    big = code & 0xFFFFFFFF
+    if big in _CODES:
+        return f"{_CODES[big]}, code 0x{big:08X}"
+    if big >= 0xC0000000:
+        return f"crashed, code 0x{big:08X}"
+    return f"code {code}"
+
+
+def stop_text(code: int, path: str) -> str:
+    """'Reader stopped while reading demo_park.step (crashed: access violation, code 0xC0000005).' – the file's name
+    only, never a path inside the user's folders."""
+    return f"Reader stopped while reading {os.path.basename(path)} ({code_text(code)})."
 
 
 def prune_old_caches(cache_root: str) -> int:

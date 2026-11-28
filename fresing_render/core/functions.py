@@ -860,7 +860,8 @@ fn(id="help.pc_check", title="PC check", family="help", panel="TOPBAR_MT_help", 
 fn(id="help.tour", title="Learning hub", family="help", panel="TOPBAR_MT_help", button="fresing.tour_make",
    guide="tour", pccheck=("tour.make",), since="0.2.47", changed="0.2.212")
 fn(id="help.demo", title="Demo project: Vessel in a wind park", family="help", panel="TOPBAR_MT_help",
-   button="fresing.demo_make", guide="demo", tour=("demo",), since="0.2.68", changed="0.2.188")
+   button="fresing.demo_make", guide="demo", tour=("demo",), pccheck=("demo.cancel",), since="0.2.68",
+   changed="0.2.188")
 fn(id="help.demo_kits", title="Demo kits: add a demo project from a zip, make it, remove it", family="help",
    panel="TOPBAR_MT_help", button="fresing.demo_kit_add", guide="demo-kits", pccheck=("demo.kit",), since="0.2.178",
    workspaces=_WORK + ("lifting",))          # not in the Client view: a kit is code that runs in the app
