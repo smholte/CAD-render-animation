@@ -119,7 +119,7 @@ def _points(key, verts, tris):
     if got is None:
         if len(_POINTS) > 4000:
             _POINTS.clear()
-        got = Z.surface_points(verts, tris)
+        got = Z.sample(verts, tris)
         _POINTS[key] = got
     return got
 
@@ -130,6 +130,7 @@ class BVHObstacles:
 
     def __init__(self, parts):
         from mathutils.bvhtree import BVHTree
+        self.parts = list(parts)
         self.names, verts, polys, owner, lo, hi = [], [], [], [], [], []
         n = 0
         allv = [np.asarray(v, float) for _nm, v, _t in parts]
@@ -156,11 +157,26 @@ class BVHObstacles:
         if self.tree is None:
             return d, who
         f = self.tree.find_nearest
+        hit, cos, nrms = [], [], []
         for i, p in enumerate(pts):
-            co, _n, idx, dist = f(Vector(p), need)
+            co, nrm, idx, dist = f(Vector(p), need)
             if co is not None:
                 d[i], who[i] = dist, self.owner[idx]
+                hit.append(i)
+                cos.append(co)
+                nrms.append(nrm)
+        if hit:                                         # behind the nearest face, straight below it: inside (0 m)
+            gap = pts[hit] - np.array(cos)
+            n = np.array(nrms)
+            g = np.linalg.norm(gap, axis=1)
+            nn = np.linalg.norm(n, axis=1)
+            inside = (g > 1e-9) & (nn > 1e-12) & (np.einsum("ij,ij->i", gap, n) < -Z.FACING * g * nn)
+            d[np.array(hit)[inside]] = 0.0
         return d, who
+
+    def without(self, drop):
+        keep = [k for k in range(len(self.parts)) if k not in drop]
+        return BVHObstacles([self.parts[k] for k in keep]), np.array(keep, np.int64)
 
 
 def _mkey(ob, extra) -> tuple:
@@ -213,13 +229,18 @@ def obstacle_objects(scene, crane, load, moving) -> list:
             continue
         if ob.get(RIGGING_TAG) is not None and load is None:
             continue
-        if ob.name.startswith("FR ") and ob.get(ENV_TAG) is None and ob.get(build.PROP_KIND) != "part" \
-                and ob.get("fr_prop") is None:
+        if _helper(ob):
             continue
         if len(ob.data.polygons) == 0:
             continue
         out.append(ob)
     return out
+
+
+def _helper(ob) -> bool:
+    """An object the app draws for itself (a rope on a drum, cable shapes): not a part, a prop or surroundings."""
+    return (ob.name.startswith("FR ") and ob.get(ENV_TAG) is None and ob.get(build.PROP_KIND) != "part"
+            and ob.get("fr_prop") is None)
 
 
 def fingerprint(scene, crane, load) -> tuple:
@@ -229,11 +250,11 @@ def fingerprint(scene, crane, load) -> tuple:
     L = lifting.plan(scene)
     obs = []
     for ob in scene.objects:
-        if ob.get(build.PROP_KIND) == "joint":
-            continue
-        t = ob.matrix_basis.translation
-        obs.append((ob.name, round(t.x, 4), round(t.y, 4), round(t.z, 4), ob.hide_viewport, ob.hide_get(),
-                    len(ob.data.vertices) if ob.type == "MESH" else -1))
+        if ob.get(build.PROP_KIND) == "joint" or (ob.type != "MESH" and ob.parent is not None) or _helper(ob):
+            continue                     # joints' and cylinders' empties turn with the crane: meshes and roots count;
+                                         # the app's own drawn helpers (the rope on the drum) are no obstacles
+        m = tuple(round(x, 5) for row in ob.matrix_basis for x in row)     # turned or scaled in place counts too
+        obs.append((ob.name, m, ob.hide_viewport, ob.hide_get(), len(ob.data.vertices) if ob.type == "MESH" else -1))
     rk = (load.name, load.rig_state, load.hung_on) if load is not None else None
     return (crane.name, round(float(L.clearance_m), 4), rk, hash(tuple(obs)),
             tuple(np.round(np.array(crane.root.matrix_world), 5).ravel()))
@@ -259,9 +280,12 @@ def clearance_for(scene, crane, load) -> Z.Clearance:
             continue
         G = motion(jn, vals)
         w = _world(ob, v)
-        pw = _points(("body", _mkey(ob, None)), w, t)       # on the surface, world, as it stands now
+        pw, sp = _points(("body", _mkey(ob, None)), w, t)   # on the surface, world, as it stands now
+        if not len(pw):
+            continue
         z = (pw - G[:3, 3]) @ G[:3, :3]                     # into the joint's frame at zero (G is rigid)
-        bodies.append(Z.Body(str(ob.get(build.PROP_NAME, ob.name)), kind, jn, z, z.min(axis=0), z.max(axis=0)))
+        bodies.append(Z.Body(str(ob.get(build.PROP_NAME, ob.name)), kind, jn, z, z.min(axis=0), z.max(axis=0),
+                             spacing=sp))
     # only what the lift can come near: within the moving parts' reach of the slew axis (+ the search distance)
     centre = lifting.to_world(crane, rig.slew_centre(vals))
     reach = 0.0

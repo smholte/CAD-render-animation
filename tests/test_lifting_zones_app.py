@@ -102,7 +102,7 @@ def test_clearance_to_a_wall_beside_the_hook_block():
     truth = min(_mesh_box_distance(o, wlo, whi) for o, k, _j in LZ.moving_objects(sc, c, ld) if k == "crane")
     assert truth <= gap + 1e-6
     got = float(row.value.split()[0])
-    assert got <= truth + 0.01 and got > truth - 0.15, (got, truth, row.words)
+    assert truth - 1e-3 <= got <= truth + 0.035, (got, truth, row.words)     # the true gap, or up to ~3 cm more
     assert "SITE WALL" in row.words and row.status == core.RED                     # 0.8 m < 3.05 m needed
     BL.plan(sc).clearance_m = 0.15                    # now the slings (0.25 m away) are not near enough to leave out
     row = _live(sc, LP)["CLR"]

@@ -86,11 +86,11 @@ def test_what_the_load_stands_on_does_not_count_for_it():
     c.leave_out_touching([{"J": 0.0, "K": 5.0}])
     wall = Z.Clearance([load], _obst(("WALL", (1.5, 0, 0), (2, 1, 1))), _slide, required=2.0)
     wall.leave_out_touching([{"J": 0.0}])
-    assert wall.ignore == {} and wall.ends["SKID"][0][1] == {"WALL"}   # near, not touching: only near the pick
+    assert wall.ignore == {} and wall.ends[0][0][1] == {0}   # near, not touching: only near the pick
     assert wall.nearest({"J": 0.0}).distance >= Z.FAR / 2
     assert wall.nearest({"J": -1.9}).distance >= Z.FAR / 2              # still within 2 m of the pick
     assert wall.nearest({"J": -2.1}).distance == pytest.approx(2.6, abs=1e-6)   # moved away: it counts again
-    assert c.ignore == {"SKID": {"FLOOR"}}                       # the boom does not stand on it: it still counts
+    assert c.ignore == {0: {0}}                                    # the skid on the floor; the boom: it still counts
     assert c.nearest({"J": 0.0, "K": 5.0}).body == "BOOM"
 
 
@@ -240,3 +240,15 @@ def test_groups_hold_their_points():
 
 def test_nice_steps():
     assert [Z.nice(x) for x in (0.7, 1.0, 1.9, 2.0, 4.99, 7.0, 13.0, 160.0)] == [0.5, 1, 1, 2, 2, 5, 10, 100]
+
+
+def test_a_part_pushed_into_an_obstacle_reads_zero():
+    """A box 0.1 m into a wall: its points behind the wall's face (straight below it) read 0 m – red, never the gap to
+    the far side; beside a sharp edge the face's own side is not trusted (the clash check's rule)."""
+    c = Z.Clearance([_body("BOOM", (0, 0, 0), (1, 1, 1))], _obst(("WALL", (3, -2, -2), (6, 3, 3))), _slide,
+                    required=1.0)
+    n = c.nearest({"J": 2.1})
+    assert n.distance == 0.0 and c.row({"J": 2.1}).status == lifting.RED
+    assert Z.behind(np.array([-0.1, 0, 0]), np.array([1.0, 0, 0]))
+    assert not Z.behind(np.array([-0.1, 0.1, 0]), np.array([1.0, 0, 0]))     # not straight below: not trusted
+    assert not Z.behind(np.array([0.1, 0, 0]), np.array([1.0, 0, 0]))

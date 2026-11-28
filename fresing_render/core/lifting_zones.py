@@ -43,8 +43,10 @@ REQUIRED_SOURCE = "OSHA 29 CFR 1926.1408, Table A: 10 ft (3.05 m) from power lin
 MARGIN_DEFAULT = 1.0               # m round the exclusion zone (the user's choice, no guideline)
 NEED = 1.1                         # distances are searched out to this share past the amber border
 SPACING = 0.05                     # m between a moving part's surface points
-MOST_POINTS = 20000                # surface points of one part at most
-GROUP = 0.3                        # m: a moving part's points are looked at in cubes this big first
+MOST_POINTS = 20000                # about this many surface points of one part at most (more: wider apart)
+FACING = 0.999                     # a point straight below an obstacle's face, behind it: inside the obstacle
+GROUP = 0.15                       # m: a moving part's points are looked at in cubes this big first …
+TOP_GROUP = 1.0                    # … and those cubes in cubes this big before
 FAR = 1e9
 TOUCH = 0.05                       # m: the load "stands on" what is this close at the lift's start or end
 
@@ -73,10 +75,37 @@ class Body:
     reps: np.ndarray = None
     radius: np.ndarray = None
     start: np.ndarray = None
+    spacing: float = 0.05              # m between its points (wider on a very large part: ``sample``)
+    top: tuple = None                  # the groups grouped again in ``TOP_GROUP`` cubes: (reps, radius, members, start)
 
     def __post_init__(self):
         if self.reps is None:
             self.points, self.reps, self.radius, self.start = grouped(self.points)
+        if self.top is None:
+            self.top = regrouped(self.reps, self.radius)
+
+
+def regrouped(reps, radius, size: float = None) -> tuple:
+    """Groups of groups: (one group point of each, how far its groups' points reach from it, the groups' numbers
+    sorted by bigger group, where each bigger group starts)."""
+    size = TOP_GROUP if size is None else size
+    r = np.asarray(reps, float)
+    if not len(r):
+        return np.zeros((0, 3)), np.zeros(0), np.zeros(0, np.int64), np.zeros(1, np.int64)
+    key = np.floor(r / size).astype(np.int64)
+    order = np.lexsort((key[:, 2], key[:, 1], key[:, 0]))
+    k = key[order]
+    new = np.ones(len(order), bool)
+    new[1:] = np.any(k[1:] != k[:-1], axis=1)
+    start = np.r_[np.flatnonzero(new), len(order)]
+    top_reps, top_rad = [], []
+    for a, b in zip(start[:-1], start[1:]):
+        mem = order[a:b]
+        mid = r[mem].mean(axis=0)
+        rep = r[mem[int(np.argmin(np.linalg.norm(r[mem] - mid, axis=1)))]]
+        top_reps.append(rep)
+        top_rad.append(float(np.max(np.linalg.norm(r[mem] - rep, axis=1) + np.asarray(radius)[mem])))
+    return np.array(top_reps), np.array(top_rad), order, start
 
 
 def grouped(points, size: float = None):
@@ -111,24 +140,56 @@ def grouped(points, size: float = None):
     return p, reps, radius, start
 
 
-def surface_points(verts, tris, spacing: float = None, most: int = None) -> np.ndarray:
-    """Points on a mesh's surface: its corners and points spread over its triangles ``spacing`` apart (at most
-    ``most``, evenly picked)."""
+def _subdivide(tri: np.ndarray, longest: float, rounds: int = 12) -> np.ndarray:
+    """Triangles (N, 3, 3) cut in four (at their edges' middles) until no edge is longer than ``longest``."""
+    for _k in range(rounds):
+        e = np.linalg.norm(tri - np.roll(tri, -1, axis=1), axis=2).max(axis=1)
+        big = e > longest
+        if not big.any():
+            break
+        t = tri[big]
+        a, b, c = t[:, 0], t[:, 1], t[:, 2]
+        ab, bc, ca = (a + b) / 2, (b + c) / 2, (c + a) / 2
+        four = np.concatenate([np.stack(x, axis=1) for x in ((a, ab, ca), (ab, b, bc), (ca, bc, c), (ab, bc, ca))])
+        tri = np.concatenate([tri[~big], four])
+    return tri
+
+
+def sample(verts, tris, spacing: float = None, most: int = None) -> tuple:
+    """(points on a mesh's surface, the spacing used): its corners and points spread over its faces ``spacing`` apart
+    – every face, a long or a wide one, cut first so that its points really lie that close (task 0349's tester: a
+    30 m boom's faces got points 0.47 m apart). A part so large that it would need more than ``most`` points gets them
+    wider apart (``spacing`` grows with the square root of its area). Faces with a corner that is not a number are
+    left out."""
     spacing = SPACING if spacing is None else spacing
     most = MOST_POINTS if most is None else most
     v = np.asarray(verts, float)
     t = np.asarray(tris, np.int64).reshape(-1, 3)
-    if not len(t):
-        return v
-    pts, _w = clash.triangle_points(v[t], spacing, max_split=64)
-    return clash.thin_out(np.unique(np.round(pts, 6), axis=0), most)
+    if not len(v):
+        return np.zeros((0, 3)), spacing
+    if not len(t):                                   # points only: the corners themselves
+        return v[np.all(np.isfinite(v), axis=1)], spacing
+    tri = v[t]
+    tri = tri[np.all(np.isfinite(tri), axis=(1, 2))]
+    if not len(tri):
+        return np.zeros((0, 3)), spacing
+    area = 0.5 * float(np.sum(np.linalg.norm(np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0]), axis=1)))
+    s = max(spacing, math.sqrt(2.5 * area / max(most, 1)))
+    tri = _subdivide(tri, 16.0 * s)
+    pts, _w = clash.triangle_points(tri, s, max_split=16)
+    return pts, s
+
+
+def surface_points(verts, tris, spacing: float = None, most: int = None) -> np.ndarray:
+    """The points of ``sample``."""
+    return sample(verts, tris, spacing, most)[0]
 
 
 def body(name: str, kind: str, joint, verts, tris) -> Body:
-    pts = surface_points(verts, tris)
+    pts, sp = sample(verts, tris)
     if not len(pts):
         raise ValueError("a part without triangles")
-    return Body(name, kind, joint, pts, pts.min(axis=0), pts.max(axis=0))
+    return Body(name, kind, joint, pts, pts.min(axis=0), pts.max(axis=0), spacing=sp)
 
 
 class Triangles:
@@ -138,6 +199,7 @@ class Triangles:
 
     def __init__(self, parts):
         """``parts`` [(name, verts (N, 3) world m, tris (T, 3))]."""
+        self.parts = list(parts)
         self.names, tri, owner = [], [], []
         for k, (name, v, t) in enumerate(parts):
             v, t = np.asarray(v, float), np.asarray(t, np.int64).reshape(-1, 3)
@@ -163,8 +225,22 @@ class Triangles:
             dd = np.linalg.norm(q - p, axis=1)
             k = int(np.argmin(dd))
             if dd[k] <= need:
-                d[i], who[i] = dd[k], self.owner[near[k]]
+                t = self.tri[near[k]]
+                n = np.cross(t[1] - t[0], t[2] - t[0])
+                d[i], who[i] = (0.0 if behind(p - q[k], n) else dd[k]), self.owner[near[k]]
         return d, who
+
+    def without(self, drop):
+        """The same obstacles less those with the indices ``drop``: (``Triangles``, their indices here)."""
+        keep = [k for k in range(len(self.parts)) if k not in drop]
+        return Triangles([self.parts[k] for k in keep]), np.array(keep, np.int64)
+
+
+def behind(gap, normal) -> bool:
+    """A point ``gap`` from the nearest point of a face (``normal``: its outward side) lies inside the obstacle: straight
+    below the face, behind it (the clash check's rule – beside a sharp edge the nearest face can point away)."""
+    g, n = float(np.linalg.norm(gap)), float(np.linalg.norm(normal))
+    return g > 1e-9 and n > 1e-12 and float(np.dot(gap, normal)) < -FACING * g * n
 
 
 @dataclass
@@ -174,6 +250,7 @@ class Nearest:
     obstacle: str = ""
     kind: str = ""
     points: tuple = ()                 # (the body's point, world) – where the gap is
+    spacing: float = 0.05              # m between that body's points
 
 
 class Clearance:
@@ -189,8 +266,9 @@ class Clearance:
         self.motion = motion
         self.required = max(float(required), 1e-3)
         self.limits = limits
-        self.ignore: dict = {}             # body name -> {obstacle names} (what the load stands on: always)
-        self.ends: dict = {}               # body name -> [(where it was, {obstacle names})] (near the pick, the set-down)
+        self.ignore: dict = {}             # body index -> {obstacle indices} (what the load stands on: always)
+        self.ends: dict = {}               # body index -> [(where it was, {obstacle indices})] (near the pick, set-down)
+        self._subs: dict = {}              # frozenset of left-out obstacle indices -> (obstacles without them, indices)
         self.need = NEED * self.required / max(limits.crane, 1e-3)
 
     def _mats(self, values) -> dict:
@@ -211,95 +289,140 @@ class Clearance:
             keep |= np.einsum("ij,ij->i", gp, gp) <= r2
         return keep
 
-    def _lookup(self, ob, pts, need, skip):
-        d, who = ob.nearest(pts, need)
-        if skip:
-            bad = np.array([w >= 0 and ob.names[w] in skip for w in who])
-            d = np.where(bad, np.inf, d)
-        return d, who
+    def _without(self, skip):
+        """(the obstacles less ``skip`` – a nearer left-out one must not hide the rest –, their original indices)."""
+        if not skip:
+            return self.obstacles, None
+        key = frozenset(skip)
+        got = self._subs.get(key)
+        if got is None:
+            got = self.obstacles.without(key)
+            if len(self._subs) > 64:
+                self._subs.clear()
+            self._subs[key] = got
+        return got
 
     def distances(self, values, need: float | None = None) -> list:
-        """[(distance m, body, obstacle index, the body's point)]: each body's nearest obstacle when it comes within
-        ``need`` (default: the amber border, a little wider). First every body's group points (each a surface point);
-        then only the groups that can hold a nearer point – a group's points lie within its radius – point by point.
-        The answer is the same as looking at every point."""
+        """[(distance m, body, obstacle index, the body's point)] of the bodies that can be the nearest one within
+        ``need`` (default: the amber border, a little wider) – each with its own nearest; ``nearest`` takes the
+        smallest. First every body's group points (each a surface point); then only the groups that can hold a nearer
+        point – a group's points lie within its radius – point by point. The answer is the same as looking at every
+        point."""
         need = self.need if need is None else need
-        ob = self.obstacles
-        if ob is None or not len(ob.names):
+        if self.obstacles is None or not len(self.obstacles.names):
             return []
         mats = self._mats(values)
-        first = []
-        best = math.inf
-        for b in self.bodies:
+        import heapq
+        heap: list = []                                  # (lower bound, level, body number, group)
+        bodies: list = []
+        top = need                                       # the nearest found so far (group points are surface points)
+        for i, b in enumerate(self.bodies):
             M = mats[b.joint]
-            rmax = float(b.radius.max()) if len(b.radius) else 0.0
+            ob, back = self._without(self._skip(i, M))
+            if not len(ob.names):
+                continue
             blo, bhi = _moved_box(M, b.lo, b.hi)
             g = np.maximum(0.0, np.maximum(ob.lo - bhi, blo - ob.hi))
             near = np.einsum("ij,ij->i", g, g) <= need * need
-            skip = self._skip(b, M)
-            if skip:
-                near &= np.array([n not in skip for n in ob.names])
             if not near.any():
                 continue
-            reps = b.reps @ M[:3, :3].T + M[:3, 3]
-            keep = np.flatnonzero(self._boxes_near(ob, reps, need + b.radius, near))
+            treps, trad, _members, _st = b.top
+            tw = treps @ M[:3, :3].T + M[:3, 3]
+            keep = np.flatnonzero(self._boxes_near(ob, tw, need + trad, near))
             if not len(keep):
                 continue
-            d, who = self._lookup(ob, reps[keep], need + rmax, skip)
-            first.append((b, M, keep, d, who, skip))
-            if len(d):
-                best = min(best, float(np.min(d)))
-        out = []
-        lim = min(best, need)
-        for b, M, keep, d, who, skip in first:
-            cand = keep[d - b.radius[keep] <= lim]
-            if not len(cand):
+            d, _who = ob.nearest(tw[keep], need + float(trad[keep].max()))
+            n = len(bodies)
+            bodies.append((b, M, ob, back))
+            if len(d) and np.isfinite(d).any():
+                top = min(top, float(np.nanmin(np.where(np.isfinite(d), d, np.inf))))
+            for k, lb in zip(keep, d - trad[keep]):
+                if lb <= top:
+                    heapq.heappush(heap, (float(lb), 1, n, int(k)))
+        found: dict = {}                                 # body number -> (distance, obstacle index, point)
+        while heap:
+            lb, level, n, k = heapq.heappop(heap)
+            if lb > top:
+                break
+            b, M, ob, back = bodies[n]
+            if level == 1:                               # a bigger group: its groups
+                _tr, _trad, members, st = b.top
+                grp = members[st[k]:st[k + 1]]
+                gw = b.reps[grp] @ M[:3, :3].T + M[:3, 3]
+                d, _w = ob.nearest(gw, top + float(b.radius[grp].max()) + 1e-3)
+                if np.isfinite(d).any():
+                    top = min(top, float(np.min(d)))
+                for gk, g_lb in zip(grp, d - b.radius[grp]):
+                    if g_lb <= top:
+                        heapq.heappush(heap, (float(g_lb), 0, n, int(gk)))
                 continue
-            idx = np.concatenate([np.arange(b.start[k], b.start[k + 1]) for k in cand])
-            pts = b.points[idx] @ M[:3, :3].T + M[:3, 3]
-            dd, ww = self._lookup(ob, pts, lim + 1e-3, skip)
+            pts = b.points[b.start[k]:b.start[k + 1]] @ M[:3, :3].T + M[:3, 3]
+            dd, ww = ob.nearest(pts, top + 1e-3)
             i = int(np.argmin(dd))
             if math.isfinite(dd[i]) and dd[i] <= need:
-                out.append((float(dd[i]), b, int(ww[i]), pts[i]))
-        return out
+                w = int(ww[i]) if back is None else int(back[ww[i]])
+                if n not in found or dd[i] < found[n][0]:
+                    found[n] = (float(dd[i]), w, pts[i])
+                top = min(top, float(dd[i]))
+        return [(dist, bodies[n][0], w, p) for n, (dist, w, p) in found.items()]
 
     def nearest(self, values) -> Nearest:
         got = self.distances(values)
         if not got:
             return Nearest(FAR)
         d, b, k, p = min(got, key=lambda x: x[0])
-        return Nearest(d, b.name, self.obstacles.names[k], b.kind, (tuple(map(float, p)),))
+        return Nearest(d, b.name, self.obstacles.names[k], b.kind, (tuple(map(float, p)),), b.spacing)
 
-    def _skip(self, b, M) -> set:
-        """What does not count for body ``b`` where ``M`` puts it: what it stands on, and what it was nearer than the
-        clearance needed at the pick or the set-down while it is still within that distance of where it was."""
-        out = set(self.ignore.get(b.name, ()))
-        for where, names in self.ends.get(b.name, ()):
+    def _skip(self, i: int, M) -> set:
+        """The obstacles (indices) that do not count for body ``i`` where ``M`` puts it: what it stands on, and what it
+        was nearer than the clearance needed at the pick or the set-down while it is still within that distance of
+        where it was there."""
+        out = set(self.ignore.get(i, ()))
+        for where, ks in self.ends.get(i, ()):
             if float(np.linalg.norm(M[:3, 3] - where)) < self.required:
-                out |= names
+                out |= ks
         return out
 
     def leave_out_touching(self, moments, kinds=("load", "rigging")) -> None:
         """The ends of the lift (``moments``: joint values at the pick and the set-down): what the load and its
         rigging touch there does not count for them; what they are nearer to than the clearance needed (the wall
-        beside the pick) counts again once they have moved that far from there."""
+        beside the pick) counts again once they have moved that far from there. By obstacle, not by name (names
+        repeat: two pallets)."""
         ob = self.obstacles
         if ob is None or not len(ob.names):
             return
         for values in moments:
             mats = self._mats(values)
-            for b in self.bodies:
+            for i, b in enumerate(self.bodies):
                 if b.kind not in kinds:
                     continue
                 M = mats[b.joint]
-                pts = b.points @ M[:3, :3].T + M[:3, 3]
-                d, who = ob.nearest(pts, self.required)
-                near = {ob.names[int(w)] for w in who[d < self.required]}
-                touch = {ob.names[int(w)] for w in who[d <= TOUCH]}
+                reps = b.reps @ M[:3, :3].T + M[:3, 3]           # only the groups that can come that near
+                dr, _w = ob.nearest(reps, self.required + float(b.radius.max(initial=0.0)))
+                grp = np.flatnonzero(dr - b.radius < self.required)
+                if not len(grp):
+                    continue
+                idx = np.concatenate([np.arange(b.start[k], b.start[k + 1]) for k in grp])
+                pts = b.points[idx] @ M[:3, :3].T + M[:3, 3]
+                near: set = set()
+                touch: set = set()
+                left = set()
+                for _round in range(len(ob.names)):          # every obstacle near it, not only the nearest one
+                    sub, back = self._without(left)
+                    if not len(sub.names):
+                        break
+                    d, who = sub.nearest(pts, self.required)
+                    hit = who[d < self.required]
+                    if not len(hit):
+                        break
+                    ks = {int(w) if back is None else int(back[w]) for w in hit}
+                    near |= ks
+                    touch |= {int(w) if back is None else int(back[w]) for w in who[d <= TOUCH]}
+                    left |= ks
                 if touch:
-                    self.ignore.setdefault(b.name, set()).update(touch)
+                    self.ignore.setdefault(i, set()).update(touch)
                 if near - touch:
-                    self.ends.setdefault(b.name, []).append((M[:3, 3].copy(), near - touch))
+                    self.ends.setdefault(i, []).append((M[:3, 3].copy(), near - touch))
 
     def row(self, values) -> P.Row:
         n = self.nearest(values)
@@ -320,6 +443,8 @@ class Clearance:
         who = {"load": "the load", "rigging": "the rigging"}.get(n.kind, n.body)
         row.words = (f"Clearance {d:.2f} m: {who} ({n.body}) to {n.obstacle}, {req:.2f} m needed – "
                      f"{P._limit_words(row.status, self.limits.crane)}.")
+        if n.spacing > SPACING * 1.01:
+            row.words += f" (A large part: measured to about {0.6 * n.spacing * 100:.0f} cm.)"
         return row
 
 
@@ -407,7 +532,11 @@ def hull(points) -> list:
     return lower[:-1] + upper[:-1]
 
 
-def circle(c, r: float, n: int = 48) -> list:
+def circle(c, r: float, n: int = 48, outside: bool = False) -> list:
+    """``n`` points round a circle; ``outside``: the polygon round it (its edges touch the circle: it holds the whole
+    circle – the exclusion zone never falls short of a radius)."""
+    if outside:
+        r = r / math.cos(math.pi / n)
     return [(c[0] + r * math.cos(2 * math.pi * k / n), c[1] + r * math.sin(2 * math.pi * k / n)) for k in range(n)]
 
 
@@ -416,16 +545,16 @@ def exclusion_zone(slew_centre, tail: float, supports, path, load_r: float, marg
     """The ground outline round the lift (m, the plan's x-y): the tail swing circle round ``slew_centre`` (``tail``:
     the furthest point of what slews from its axis), the corners of the outriggers / tracks (``supports``), the
     hook's path widened by the load's radius, all widened by ``margin``; convex, counter-clockwise."""
-    pts = list(circle(slew_centre, max(tail, 0.0), n)) if tail > 0 else [tuple(slew_centre)]
+    pts = list(circle(slew_centre, max(tail, 0.0), n, outside=True)) if tail > 0 else [tuple(slew_centre)]
     pts += [tuple(p) for p in supports]
     for p in path:
-        pts += circle(p, max(load_r, 0.0), 12) if load_r > 0 else [tuple(p)]
+        pts += circle(p, max(load_r, 0.0), 12, outside=True) if load_r > 0 else [tuple(p)]
     h = hull(pts)
     if margin <= 0:
         return h
     grown = []
     for p in h:
-        grown += circle(p, margin, n)
+        grown += circle(p, margin, n, outside=True)
     return hull(grown)
 
 
