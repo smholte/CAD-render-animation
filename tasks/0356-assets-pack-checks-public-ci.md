@@ -158,7 +158,11 @@ workflow's own token starts a run is moot (GITHUB_TOKEN starts none, and `assets
   `--blender`). `tests/test_assets_check.py` 51 passed in ~35 s; `test_ci_tools.py` 69 passed.
 - GitHub: run 46137032967 (6472daf, full, 29 min, green, "real assets pack" skipped – no pin); then the merge of main
   (only task files) fast-forwarded to `main` (f2fdf08; its run 46139353485 docs mode, green); run 46139572716 of 2aeaff1
-  (release route, full, 34 min, green, "real assets pack" skipped). 2 full runs, no red one; nothing needed a re-run.
+  (release route, full, 34 min, green, "real assets pack" skipped). After merging main (0374): run 46142341316 failed
+  once in 0374's new `test_cable_lay_0374_independent.py::test_KNOWN_FAULT_a_coil_read_from_a_coarse_faceted_tube_…`
+  (11.6 mm deviation against its 6.5 mm bound; passes on this Xeon and passed on 0374's own run) – green on a re-run of
+  that job: a processor-dependent number in 0374's test, not this task's code (for the lead: a follow-up for the cable
+  lane). Then main moved again (0372): one more full run of the merge – see TASKS.md / the last run on main.
 - No job uses the private repository or a secret except `assets-release.yml` (by hand, never run yet).
 
 **Open points / follow-up tasks:**
