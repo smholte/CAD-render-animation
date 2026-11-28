@@ -1,6 +1,6 @@
 # 0356 – Assets pack P5: the pack checks in the public repository (no private CI)
 
-**Who:** worker · **Status:** running · **Branch:** `task/0356-assets-pack-checks`
+**Who:** worker · **Status:** done 28 Nov · **Branch:** `task/0356-assets-pack-checks`
 **Started by:** lead, 25 Nov 2026 23:3x (0344's P5; owner's picks 23:17, pick 12) · **Model:** Opus · effort Medium ·
 Claude Code on the web, environment "CAD-render-animation"
 **Area:** Quality & delivery lane – new `tools/assets_check.py` (+ its tests), new by-hand workflow
@@ -88,7 +88,7 @@ its makers (0365); real looks; licence texts. Never the owner's files; never his
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web, 28 Nov 2026 · no version raised (tools / CI task, `[full run]` commits)
+**Chat / date:** Claude Code on the web, 28 Nov 2026 (report final) · no version raised (tools / CI task, `[full run]` commits)
 
 **What changed:**
 - **`tools/assets_check.py`** (new) – the one set of pack checks, on a pack folder or `FresingAssets-<v>.zip`:
@@ -157,7 +157,8 @@ workflow's own token starts a run is moot (GITHUB_TOKEN starts none, and `assets
 - Test pack 1.0.0 (23 files, 3.5 MB): every check incl. 7 renders in **3 s** (bpy module) / 6 s (real Blender
   `--blender`). `tests/test_assets_check.py` 51 passed in ~35 s; `test_ci_tools.py` 69 passed.
 - GitHub: run 46137032967 (6472daf, full, 29 min, green, "real assets pack" skipped – no pin); then the merge of main
-  (only task files) fast-forwarded to `main` (f2fdf08); run of 2aeaff1 (release route): see the last line.
+  (only task files) fast-forwarded to `main` (f2fdf08; its run 46139353485 docs mode, green); run 46139572716 of 2aeaff1
+  (release route, full, 34 min, green, "real assets pack" skipped). 2 full runs, no red one; nothing needed a re-run.
 - No job uses the private repository or a secret except `assets-release.yml` (by hand, never run yet).
 
 **Open points / follow-up tasks:**
