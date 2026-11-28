@@ -5,6 +5,12 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.274 – 28 Nov 2026 – Start and windows: the welcome fits the splash, a new window is tidied, keys count as work (task 0377)
+
+- The welcome box on the start picture no longer cuts off its text and buttons: the lines wrap and the buttons fit.
+- A new main window (Window > New Main Window) or another Blender workspace is tidied at once, not at the next load.
+- Typing shortcuts counts as working in My usage, also without moving the mouse (stays on your PC).
+
 ## 0.2.273 – 28 Nov 2026 – Groundwork for the Fresing assets pack: looks kept inside the project (task 0355)
 
 - No visible change. Under the hood the app can now bring a look from the Fresing assets pack into a project as the
