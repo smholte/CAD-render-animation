@@ -30,6 +30,7 @@ import time
 import numpy as np
 
 from . import web3d
+from .outputs import PAGE_FORMAT
 
 THREE_VERSION = "0.180.0"
 THREE_FILE = "three-viewer.min.js"
@@ -316,7 +317,7 @@ def settings(choice: dict, model_min, model_max, sea: dict | None = None, vessel
     el, az = angles_of(sky["sun"])
     sky["elevation"], sky["azimuth"] = el, az
     out = {
-        "v": 1,
+        "v": PAGE_FORMAT,              # task 0353: the page's format number (core/outputs.py)
         "quality": q,
         "auto": bool(choice.get("auto", True)),
         "levels": {k: {n: v for n, v in QUALITY[k].items() if n not in ("sky", "light")} for k in LEVELS},

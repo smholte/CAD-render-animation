@@ -5,6 +5,17 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.274 – 28 Nov 2026 – The 3D page and the House files say which format they are (task 0353)
+
+Nothing changes for you today – this is groundwork so that later versions, and the coming Fresing Viewer, can open
+what an older or newer version made.
+- The exported 3D page and the model inside it now carry a format number. A page made by a newer Fresing Render shows
+  what it can and says once: "Made by a newer Fresing Render – update to open it fully." Pages without a number
+  (all earlier ones) open as before.
+- A house from House Planner (or a bake going back) of another format version is refused or noted with a plain line;
+  the Toolbox inbox passes that line on. Tests for older / same / newer on every output.
+- The rules are written down for the Viewer in `docs/OUTPUT-FORMATS.md`.
+
 ## 0.2.273 – 28 Nov 2026 – Groundwork for the Fresing assets pack: looks kept inside the project (task 0355)
 
 - No visible change. Under the hood the app can now bring a look from the Fresing assets pack into a project as the

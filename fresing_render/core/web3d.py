@@ -21,6 +21,7 @@ import zlib
 import numpy as np
 
 from . import meshopt, web3d_keys
+from . import outputs as _outputs
 
 TILE_M = 0.2                       # one texture tile covers this square of a part (metres)
 SIZES = (512, 1024, 2048)          # Texture size choices (pixels per tile side)
@@ -467,7 +468,8 @@ class Gltf:
     def __init__(self, generator: str = "Fresing Render", compress: bool = False):
         self.compress = bool(compress)
         self._fallback = 0                     # bytes of the data-less second buffer (compressed views' raw size)
-        self.doc: dict = {"asset": {"version": "2.0", "generator": generator}, "scene": 0, "scenes": [{"nodes": []}],
+        self.doc: dict = {"asset": {"version": "2.0", "generator": generator,
+                                   "extras": {_outputs.GLB_KEY: _outputs.PAGE_FORMAT}}, "scene": 0, "scenes": [{"nodes": []}],
                           "nodes": [], "meshes": [], "materials": [], "accessors": [], "bufferViews": [],
                           "buffers": [], "images": [], "textures": [], "samplers": []}
         self._bin = bytearray()

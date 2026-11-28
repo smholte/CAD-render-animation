@@ -182,6 +182,40 @@ def test_a_house_that_cannot_be_read_fails_and_leaves_the_project(tmp_path, monk
     assert _state(sc) == before
 
 
+def _house_version(tmp: Path, version: str) -> Path:
+    """The sample house with another format version in its scene.json (task 0353)."""
+    import json
+    import zipfile
+    out = tmp / f"house-{version}.hpscene"
+    with zipfile.ZipFile(HOUSE) as zin, zipfile.ZipFile(out, "w", zipfile.ZIP_STORED) as zout:
+        for info in zin.infolist():
+            data = zin.read(info.filename)
+            if info.filename == "scene.json":
+                doc = json.loads(data)
+                doc["version"] = version
+                data = json.dumps(doc).encode()
+            zout.writestr(info, data)
+    return out
+
+
+def test_a_house_of_a_newer_or_older_format_says_so_plainly(tmp_path):
+    """Task 0353: the inbox hands the format's plain refusal on in the job's status; the project stays as it was."""
+    sc = _project()
+    before = _state(sc)
+    for version, words in (("2.0", "was made by a newer House Planner (format 2.0). Update Fresing Render to read it."),
+                           ("0.9", "was made by an older House Planner (format 0.9)")):
+        root = _folder(tmp_path / version)
+        ib = ti.use_folder(root, keep=tmp_path / version / "kept", timer=False, samples=4, photo_samples=4, quick=True)
+        jid = tb.send(root, HP, tb.ME, "bake-house", [_house_version(tmp_path, version)], title="Format test",
+                      ret="import-bake")
+        ti.look()
+        with bpy.context.temp_override(scene=sc):
+            ti.start(bpy.context, jid)
+        st = _status(root, jid)
+        assert st["state"] == "failed" and words in st["text"], st
+        assert _state(sc) == before
+
+
 def test_a_busy_app_keeps_the_house_waiting(tmp_path):
     sc = _project()
     rt = ops_house.runtime(sc)

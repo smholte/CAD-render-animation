@@ -41,6 +41,22 @@
                                turning: false, sunLive: false, sunHour: 13, sunWhy: '', listeners: [],
                                beforeDraw: [],     // task 0135: the part tools' work before each picture
                                afterDraw: [] };    // task 0252: the Film's labels, drawn over each picture
+  // task 0353: the page's format number (core/outputs.py, docs/OUTPUT-FORMATS.md). This code reads up to READS; an older
+  // or missing number is read as it is, a newer one shows what it can and says so once, in the same words as
+  // ``outputs.newer()``. The model's own number (asset.extras.fresing_format) is judged when it is parsed.
+  var READS = 1;
+  var NEWER = 'Made by a newer Fresing Render \u2013 update to open it fully.';
+  function fmtNumber(v) { return v == null ? 1 : (typeof v === 'number' && isFinite(v) && v >= 1 && Math.floor(v) === v) ? v : null; }
+  function fmtJudge(v) { var n = fmtNumber(v); return n === null ? 'bad' : n < READS ? 'older' : n === READS ? 'same' : 'newer'; }
+  page.format = fmtNumber(ST.v) || 1;
+  page.formatState = fmtJudge(ST.v);
+  page.newerText = page.formatState === 'newer' ? NEWER : '';
+  function judgeModel(gltf) {            // the model's number: the page keeps the highest of the two
+    var ex = gltf && gltf.asset && gltf.asset.extras, n = fmtNumber(ex && ex.fresing_format);
+    if (n && n > page.format) page.format = n;
+    page.formatState = fmtJudge(page.format);
+    if (page.formatState === 'newer') page.newerText = NEWER;
+  }
   // what the visitor chose last time on this page (fr_player.js writes it; the link's own choices come first)
   var PREF_KEY = 'fresing-player:' + (location.pathname || document.title);
   var PREF = {};
@@ -78,7 +94,8 @@
                                      under: page.underState ? page.underState() : null,
                                      film: page.filmState ? page.filmState() : null,
                                      lead: page.leadState ? page.leadState() : null,
-                                     welds: page.welds || null, tone: page.tone || null });
+                                     welds: page.welds || null, tone: page.tone || null,
+                                     format: page.format, formatState: page.formatState, newer: page.newerText });
   }
   page.mark = mark;
   window.addEventListener('error', function (e) { page.errors.push(String(e.message || e)); mark(); });
@@ -2660,6 +2677,7 @@
     setLevel(level);
     applyItems(true);
     firstView();
+    if (page.newerText) note(page.newerText, 12);             // task 0353: a page of a newer format, said once
     if (Q.get('film') === '1') page.setFilm(true, false);    // task 0252: a link to the Film
     if (LEAD && Q.has('lead')) Q.get('lead').split(',').forEach(function (kp) {   // task 0310: a link to the sliders
       var a = kp.split(':'), k = parseInt(a[0], 10), p = parseFloat(a[1]);
@@ -2707,6 +2725,7 @@
       try {
         loader.parse(buf, '', function (gltf) {
           try {
+            judgeModel(gltf);
             prepare(gltf);
             setupTubes(gltf).then(function () { resize(); oneLess(); }, bad);   // task 0142
           } catch (e) { bad(e); }

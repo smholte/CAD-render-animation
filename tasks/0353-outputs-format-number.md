@@ -40,10 +40,34 @@ owns the lines it names). Whoever merges second updates its branch to `main`; ve
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web (Sonnet), 28 Nov 2026.
 
-**What changed:**
+**What changed (0.2.274):**
+- New `core/outputs.py` (0352's style: a number + a plain line): `number`, `judge` (older / same / newer / bad),
+  `newer()` = "Made by a newer Fresing Render – update to open it fully.", `page_format`, `page_state`.
+- **3D page:** the settings block's `"v"` (there since the first page) is now `PAGE_FORMAT` (1) by name; the model inside
+  (the page's data file) carries `asset.extras.fresing_format` = 1. `fr_page.js` reads both (`READS`), takes the higher,
+  keeps older / missing numbers as format 1, and for a newer one opens and says the plain line once (also in
+  `data-fr-player`: `format`, `formatState`, `newer`). A page without any number (all earlier ones) is format 1.
+- **House:** both packages already carry the House format's own `version` ("1.0", FORMAT section 2; the bake also
+  names the app in `generator`) and `house_scene.check_version` already refused another major version and noted a
+  newer minor – so no field was added (agreed with the pinned spec, nothing changed on the House side). Table test for
+  older / same / newer on both packages.
+- **Toolbox inbox:** passes that line on in the job's status; new real-app test (newer 2.0 / older 0.9 house).
+- `docs/OUTPUT-FORMATS.md` = the numbers and rules for the Viewer (V1). No button, panel or tour change, so no guide,
+  PC-check line, tour stop or function entry.
 
-**Tested and measured** (name the machine and the model):
+**Tested and measured** (4-core web machine, Linux, headless Chromium, bpy module): `tests/test_outputs_format.py`
+(9 tests: rule, page and model in Python, the page's words, the page opened in the browser as same / no number / newer
+by `v` / newer by model), `test_toolbox_blender.py` (+1), `test_web3d*.py`, `test_house_scene.py`,
+`test_house_pinned.py` all green locally; GitHub run: see below.
 
 **Open points / follow-up tasks:**
+- **Item 4, the re-pin to `v1.0.2`, is NOT done:** the tag `v1.0.2` does not exist yet, and `example-house.hpscene` is
+  only on the unmerged branch `claude/task-0044-house-planner-y0f1ld` of `smholte/house-scene-format` (4 commits, MIT
+  `LICENSE`, 5.9 MB sample, format unchanged – "1.0"). Pins are tags (never an unreviewed branch), and tags are the
+  owner's. Once the House lead's and our lead's OK is given and the owner has made the tag: a small task re-pins
+  `tests/data/house/` + `fresing_render/data/` as 0130 did (the sample is 5.9 MB, so decide whether it ships in the extension).
+- No sample page of a newer number exists (none is written yet); the tests make one by raising `"v"` by hand.
+
+**Owner's check:** none.
