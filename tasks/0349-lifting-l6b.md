@@ -1,6 +1,6 @@
 # 0349 – Lifting L6b: clearances along the path, reach envelope, exclusion zone, ground footprint + the makers' fixes
 
-**Who:** worker · **Status:** running · **Branch:** `claude/cad-render-animation-0349-9y2i9w`
+**Who:** worker · **Status:** done (0.2.275) · **Branch:** `claude/cad-render-animation-0349-9y2i9w`
 **Started by:** lead, 28 Nov 2026 (0348 done 0.2.269, 0327 done 0.2.261; 0180's L6 plan) · **Model:** Opus · effort High
 **Area:** Lifting lane – `core/lifting_path.py`, `blender/lifting_path.py`, `core/lifting_reach.py`, `core/lifting.py`,
 `blender/lifting*.py`, `ops_lifting*.py`, `ui_lifting*.py`, the makers (`ops_lifting_make.py`, `core/lifting_library.py`,
@@ -29,15 +29,15 @@ give it) – the Clash lane's own fixes (0378) wait for this task. **Not:** 0211
 
 ## Done when
 
-- [ ] Part 2 fixed with tests; Part 1's four features with tests, tooltips, guide, tour stop, function list
-- [ ] A lift on the Lifting set shows all four, and the printed plan has them (pictures in the report)
-- [ ] Tests added / updated; full suite passes (also on GitHub)
-- [ ] (UI) screenshots checked with tools/ui_screens.py; every new button has a tooltip; the user guide, PC-check line,
+- [x] Part 2 fixed with tests; Part 1's four features with tests, tooltips, guide, tour stop, function list
+- [x] A lift on the Lifting set shows all four, and the printed plan has them (pictures in the report)
+- [x] Tests added / updated; full suite passes (also on GitHub)
+- [x] (UI) screenshots checked with tools/ui_screens.py; every new button has a tooltip; the user guide, PC-check line,
       tour stop and function-list entry follow the change (`since=` / `changed=`)
-- [ ] (Windows-only code) reviewed by a helper that did not write it
-- [ ] Report below filled in (incl. **Open points** and an **Owner's check** line when he should try something), merged,
+- [x] (Windows-only code) reviewed by a helper that did not write it
+- [x] Report below filled in (incl. **Open points** and an **Owner's check** line when he should try something), merged,
       released (CLAUDE.md section 7)
-- [ ] **Owner's check** line
+- [x] **Owner's check** line
 
 **Running beside it (weekend 28–29 Nov):** 0371 Demo · 0355 / 0356 Assets · 0372 Welds · 0347 Machining · 0349
 Lifting · 0353 Web 3D + House · 0373 guide-picture tool · 0374 cable-lay line · 0375 Sea · 0377 Start & windows ·
