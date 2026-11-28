@@ -1,6 +1,6 @@
 # 0374 – Cable-lay line: slack cables on a gutter, two cables over one sheave, set-down depth, the 7 s sea-cable solve, touch-down drift, drum layers, spline routes, copying cables
 
-**Who:** worker · **Status:** running · **Branch:** `task/0374-cable-lay-line-fixes`
+**Who:** worker · **Status:** done (0.2.271) · **Branch:** `task/0374-cable-lay-line-fixes`
 **Started by:** lead, 28 Nov 2026 (open points of 0078, 0172, 0173, 0174, 0192, 0293 – the owner's main goal is the
 cable-lay line) · **Model:** Opus · effort High (+ an independent tester helper for the row fixes)
 **Area:** Flex + Paths (cables): `blender/flex.py`, `flex_route.py`, `core/flex.py`, `core/flex_fit.py`,
@@ -146,4 +146,11 @@ refusals, three cables sharing a sheave, pasting twice, a copy of a subassembly,
 3. In a project with a wire rope from a winch drum over sheaves: select the model's top row, **Ctrl+C**, **Ctrl+V** –
    the copy's window lists "1 cable, 1 drum"; in 4 Motion > Cables and paths the copy's rope "… (2)" runs by itself.
 
-**GitHub runs:** (filled in at merge)
+**GitHub runs:** 2 full runs of the branch. The first (06b3be2) was cancelled by me once the tester's faults were found
+(nothing had failed before that). The second (60a923d, run 46139912580): green, 25.4 min under load, `main` fast-forwarded to
+the branch. No version clash.
+
+**Subagents:** one independent tester (wrote `tests/test_cable_lay_0374_independent.py` from the brief; resumed once after a
+container restart). Its faults were fixed by the worker (not sent back).
+
+**Branches to delete on GitHub:** `ccr-3cdfcf28-c4vcwe` (merged).
