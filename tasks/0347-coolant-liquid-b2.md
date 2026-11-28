@@ -51,6 +51,33 @@ Lifting · 0353 Web 3D + House · 0373 guide-picture tool · 0374 cable-lay line
 `core/functions.py`, `tools/guide_screens.py` (0373 owns its start-up code), `pccheck/checks.py` / `heavy.py` (0379
 owns the lines it names). Whoever merges second updates its branch to `main`; versions: CLAUDE.md section 7 step 0.
 
+## Design (worker, 28 Nov 2026)
+
+**A / B – charts from the chain of movers (`blender/liquid.py`, `machining.sample`).** `machining.sample` also stores
+the world matrix of every mover above the workpiece's own at every frame (`fr_chain_m`, names in `fr_chain`; chips
+keep `fr_carrier_m`). The liquid takes the levels from the workpiece's mover upwards and stops after the first level
+that only slides (3-axis: the table alone – as 0346; 4th axis: A, then the X table; trunnion: C, the cradle A, then
+the X table). Every level is a top-down chart of the parts that ride on exactly that mover, in its riding space (the
+world at the motion's first frame); the workpiece's level also has the cut block (`_Cut`). **Bar mode:** when the
+workpiece's mover turns about a line more than 45° from vertical (relative to its carrier), its level is four charts
+round that line (chart z = outward at 0°, 90°, 180°, 270°, x = along the axis, the bar's length; height = the distance
+from the axis; rays inward in each chart's own frame), as the 0251 prototype. Every chart keeps its placement:
+`to_obj` (chart frame → the followed object's local frame at the first frame) and the object it follows (the
+workpiece, a mover, none = world), saved in the beds file; `show` draws one sheet object per chart
+("FR coolant liquid (<chart>)", the 3-axis names stay) following its object with Copy Transforms. `_Cut` reads per
+cut chart in that chart's frame. `VERSION` 2.
+
+**D – the lab (subagent, own files):** `core/liquid_lab.py` (no Blender: the six stand-alone cases of 0251 as charts +
+mats + pours + the case's number), `blender/liquid_lab.py` (bed meshes, bake into a cache next to the project, its own
+frame handler drawing with `liquid.sheet` / `liquid.material`), `tests/test_liquid_lab.py`; tour set "liquid_lab"
+(no model) with six stops. 4- / 5-axis stops: tour sets "liquid4" (test_4axis.step) and "liquid5" (test_5axis.step),
+set up by `liquid.set_up_test_rotary`.
+
+**E** – `coolant.is_patched` asks for the patch nodes too; `_patch_new_materials`' key holds each material's node count.
+
+**C** – the five makers run again; each new file differs from the old in CHIP TRAY only (volume 17,453,205 →
+16,502,993 mm³, its bottom 33.85 mm higher), compared part by part with OpenCascade.
+
 ---
 
 ## Report (filled in by the chat that did the task)
