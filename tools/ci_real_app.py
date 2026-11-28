@@ -75,7 +75,7 @@ MIN_CHECKS = {"ui1": 32, "ui2": 50, "faces": 10, "decals": 13, "surroundings": 2
               "panel": 39, "start": 56, "setup": 48, "highlight": 74, "usage": 33, "lesson": 43, "lessoni": 38,
               "doublearm": 19, "clash": 21, "vessel": 15, "flex": 31, "cables": 36,
               "spool": 43, "undorebake": 4, "lifting": 22, "liftingmake": 25, "setupcrane": 32, "lock": 19, "quiet": 125, "menus": 34, "left": 55, "settings": 64, "locations": 17, "toolbox": 19,
-              "clientkeys": 12, "keys": 30, "demokits": 25, "drawn": 25, "route": 12, "backups": 23, "forms": 29,
+              "clientkeys": 12, "keys": 30, "demokits": 30, "drawn": 25, "route": 12, "backups": 23, "forms": 29,
               "move": 27, "importagain": 18, "place": 22, "jointfold": 11, "workspaces2": 19, "copy": 16, "welds": 23, "names": 19, "measure": 16,
               "firstsetup": 43,
               "leadmotions": 27, "materials": 28}

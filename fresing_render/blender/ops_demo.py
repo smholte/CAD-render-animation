@@ -43,6 +43,11 @@ def _version() -> str:
 
 def running() -> bool:
     """A build runs, or a program of the last one is still ending (task 0371: Make it waits for both)."""
+    if _BUILD.get("ended_at") and _BUILD.get("tree") is not None:
+        try:
+            end_step()                               # stop again what is still ending (no modal may be looking)
+        except Exception:  # noqa: BLE001
+            pass
     tree = _BUILD.get("tree")
     if tree is not None:
         try:
@@ -187,6 +192,8 @@ class FRESING_OT_demo_make(bpy.types.Operator):
                 self.report({"ERROR"}, why)
                 return {"CANCELLED"}
         kit_title = title if info is not None else ""
+        if _BUILD.get("proc") is not None and not (self.in_place or bpy.app.background) and end_step():
+            wrap_up(context, self.report)            # the last build ended, nobody has said so yet (task 0371)
         if running() and not (self.in_place or bpy.app.background):
             self.report({"WARNING"}, _busy_text())
             return {"CANCELLED"}
@@ -224,14 +231,13 @@ class FRESING_OT_demo_make(bpy.types.Operator):
         except OSError as exc:
             self.report({"ERROR"}, f"Could not start making the demo project: {exc}")
             return {"CANCELLED"}
-        try:
-            _BUILD["fh"].close()                     # an earlier build whose modal has not looked yet
-        except (KeyError, OSError):
-            pass
         _BUILD.clear()
         self._run = next(_RUNS)
         _BUILD.update(op=self._run, proc=tree.proc, tree=tree, folder=folder, version=version, log=log, fh=fh,
                       started=time.time(), title=kit_title, kit=info.id if info is not None else "")
+        _BUILD["seen"] = time.time()
+        if not bpy.app.timers.is_registered(_watch):
+            bpy.app.timers.register(_watch, first_interval=1.0, persistent=True)
         self._timer = context.window_manager.event_timer_add(0.5, window=context.window)
         context.window_manager.modal_handler_add(self)
         self.report({"INFO"}, "Making the demo project in the background (a few minutes)")
@@ -241,43 +247,81 @@ class FRESING_OT_demo_make(bpy.types.Operator):
         if event.type != "TIMER":
             return {"PASS_THROUGH"}
         if _BUILD.get("op") != getattr(self, "_run", None):
-            context.window_manager.event_timer_remove(self._timer)          # a newer Make it owns the build now
+            context.window_manager.event_timer_remove(self._timer)          # wrapped up elsewhere, or a newer build
             return {"FINISHED"}
+        _BUILD["seen"] = time.time()
         if not end_step():
             context.workspace.status_text_set(progress_text())
             _redraw(context)
             return {"PASS_THROUGH"}
         context.window_manager.event_timer_remove(self._timer)
         context.workspace.status_text_set(None)
-        folder, version = _BUILD.get("folder", ""), _BUILD.get("version", _version())
-        title = _BUILD.get("title", "")
-        cancelled = bool(_BUILD.get("cancel_at"))
-        try:
-            _BUILD["fh"].close()
-        except (KeyError, OSError):
-            pass
-        log = _BUILD.get("log", "")
-        left_running = _BUILD.get("left_running", "")
-        tree = _BUILD.get("tree")
-        if tree is not None:
-            tree.close()
-        _BUILD.clear()
-        if left_running:
-            print(f"Fresing Render: {left_running}")
-        res = _read_result(folder)
-        if res.get("finished") and demo.exists(folder, version, title):
-            _ready_popup(context, demo.project_path(folder, version, title))
-            self.report({"INFO"}, f"Demo project ready ({res.get('seconds', 0):.0f} s): Help > Open demo project")
-            return {"FINISHED"}
-        left = demo.remove(folder, version)              # a stopped build leaves nothing behind
-        if cancelled or res.get("cancelled"):
-            self.report({"WARNING"}, "Demo project cancelled: nothing was left behind" if not left else
-                        f"Demo project cancelled, but {left}")
-            return {"FINISHED"}
-        why = res.get("error") or "it stopped half-way"
-        self.report({"ERROR"}, f"The demo project could not be made ({why[:200]}). Nothing was left behind "
-                               f"except its log: {log}")
+        wrap_up(context, self.report)
         return {"FINISHED"}
+
+
+def wrap_up(context, report) -> None:
+    """The ended build's last word: the ready window, or its half-made folder removed and why (``report(type,
+    text)``). Called once, by the Make it button's modal or – when Blender dropped that modal (another project was
+    opened meanwhile) – by the watch timer or the next Make it (task 0371)."""
+    folder, version = _BUILD.get("folder", ""), _BUILD.get("version", _version())
+    title = _BUILD.get("title", "")
+    cancelled = bool(_BUILD.get("cancel_at"))
+    try:
+        _BUILD["fh"].close()
+    except (KeyError, OSError):
+        pass
+    log = _BUILD.get("log", "")
+    left_running = _BUILD.get("left_running", "")
+    tree = _BUILD.get("tree")
+    if tree is not None:
+        tree.close()
+    _BUILD.clear()
+    if left_running:
+        print(f"Fresing Render: {left_running}")
+    if not folder:
+        return
+    res = _read_result(folder)
+    if res.get("finished") and demo.exists(folder, version, title):
+        _ready_popup(context, demo.project_path(folder, version, title))
+        report({"INFO"}, f"Demo project ready ({res.get('seconds', 0):.0f} s): Help > Open demo project")
+        return
+    left = demo.remove(folder, version)              # a stopped build leaves nothing behind
+    if cancelled or res.get("cancelled"):
+        report({"WARNING"}, "Demo project cancelled: nothing was left behind" if not left else
+               f"Demo project cancelled, but {left}")
+        return
+    why = res.get("error") or "it stopped half-way"
+    report({"ERROR"}, f"The demo project could not be made ({why[:200]}). Nothing was left behind except its log: "
+                      f"{log}")
+
+
+def _print_report(kind, text) -> None:
+    print(f"Fresing Render: {text}")
+
+
+MODAL_GONE = 3.0            # s without a look from the Make it button's modal: Blender dropped it (another project)
+
+
+def _watch():
+    """A timer that outlives a project change (``persistent``): the modal of Make it is dropped when another project
+    is opened, and then nobody stopped a cancelled build or what an ended one left running (task 0371, found by the
+    independent review). Returns None (stops) once the build is wrapped up."""
+    if not _BUILD.get("proc"):
+        return None
+    try:
+        done = end_step()
+    except Exception as exc:  # noqa: BLE001 - never a traceback from a timer
+        print(f"Fresing Render: the demo build could not be looked at: {exc}")
+        return 0.5
+    if done and time.time() - _BUILD.get("seen", 0.0) > MODAL_GONE:
+        try:
+            wrap_up(bpy.context, _print_report)
+        except Exception as exc:  # noqa: BLE001
+            _BUILD.clear()
+            print(f"Fresing Render: the demo build could not be wrapped up: {exc}")
+        return None
+    return 0.5
 
 
 def _busy_text() -> str:
@@ -407,7 +451,9 @@ class FRESING_OT_demo_cancel(bpy.types.Operator):
                 fh.write("cancel\n")
         except OSError:
             pass                                    # the folder may not be there yet: it is stopped instead
-        _BUILD["cancel_at"] = time.time()
+        _BUILD.setdefault("cancel_at", time.time())  # a second press does not put the forced stop off
+        if not bpy.app.timers.is_registered(_watch):
+            bpy.app.timers.register(_watch, first_interval=0.5, persistent=True)
         self.report({"INFO"}, "Stopping the demo project …")
         return {"FINISHED"}
 

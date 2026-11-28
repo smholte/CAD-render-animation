@@ -69,6 +69,8 @@ class Tree:
     def __init__(self, cmd, **kwargs):
         self._job = None
         self._k32 = None
+        self._killed = False
+        self.job_error = ""                        # Windows: why the tree has no job object (then taskkill /T)
         if WINDOWS:
             kwargs["creationflags"] = kwargs.get("creationflags", 0) | getattr(subprocess, "CREATE_NO_WINDOW", 0)
         else:
@@ -78,14 +80,21 @@ class Tree:
         self.pgid = 0
         if WINDOWS:
             try:
+                import ctypes
                 k32 = _k32()
                 job = k32.CreateJobObjectW(None, None)
                 if job and k32.AssignProcessToJobObject(job, int(self.proc._handle)):
                     self._job, self._k32 = job, k32
-                elif job:
-                    k32.CloseHandle(job)
-            except Exception:  # noqa: BLE001 - without a job the tree is stopped with taskkill /T
+                else:
+                    self.job_error = f"Windows error {ctypes.get_last_error()}"
+                    if job:
+                        k32.CloseHandle(job)
+            except Exception as exc:  # noqa: BLE001 - without a job the tree is stopped with taskkill /T
                 self._job = None
+                self.job_error = str(exc) or type(exc).__name__
+            if self.job_error:
+                print(f"Fresing Render: a program could not be put in a job object ({self.job_error}); "
+                      "it is stopped with taskkill instead")
         else:
             try:
                 self.pgid = os.getpgid(self.pid)
@@ -97,7 +106,8 @@ class Tree:
         if WINDOWS:
             if self._job is not None:
                 self._k32.TerminateJobObject(self._job, 1)
-            elif self.proc.poll() is None:
+            elif self.proc.poll() is None and not self._killed:
+                self._killed = True                # taskkill waits for its answer: once is enough
                 kill_pid_tree(self.pid)
             return
         try:
@@ -105,6 +115,11 @@ class Tree:
         except (OSError, ProcessLookupError):
             pass
         self.proc.poll()                           # reap the root, so its group number can go
+
+    @property
+    def in_job(self) -> bool:
+        """Windows: the tree is held by a job object (else only its first program is known)."""
+        return self._job is not None
 
     def alive(self) -> bool:
         """A program of the tree still runs (or is still ending)."""

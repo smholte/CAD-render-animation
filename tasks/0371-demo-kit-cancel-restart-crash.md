@@ -60,3 +60,87 @@ only if the cause is there, and then say so at the top of the report), `build.py
 ## Done when
 
 Tests green on every OS, CHANGELOG + version (CLAUDE.md section 7), report in this file, merged.
+
+## Report
+
+**Chat / date:** worker (Claude Code on the web), 28 Nov 2026. `importer/step_reader.py` not touched.
+
+**Findings (step 1).** Not reproduced on the 4-core Linux web machine, with a background Blender started exactly as
+Make it starts it (scaled-down form): public demo, Cancel during the import → Make it again: OK (77 s); public demo,
+Cancel during the model maker → Make it again: OK; kit 2 (private, scaled-down), Cancel during its first import →
+Make it again: OK (367 s). On Linux nothing of the cancelled build was left running (reader helpers stop with their
+reader). What the code did allow – and what a Windows PC can hit:
+1. **Make it could start while programs of the cancelled build were still running or ending.** The app counted the
+   build as over as soon as the background Blender itself had ended. Cancel's forced stop (`taskkill /T`) ran only
+   when the build did not stop by itself within 4 s; a build that stopped by itself after Cancel (between stages, in
+   the maker's loop) killed only its maker, and nothing checked the rest. `taskkill /T` / `TerminateProcess` also
+   return before the processes have ended (memory and files are freed later) – on a 24-core PC a reader with ~20
+   helpers. The most likely collision: the new build's reader starting next to the old reader / helpers still
+   holding memory, or Windows handing out the same process number again.
+2. **The reader's work folder was named `<cache>.partial-<process number>-<job count>`** – Windows reuses process
+   numbers quickly, so a new build's job could get the name of an old one's.
+3. **The log lost lines:** the owner's log stopped at "Joints 310/319", about ten stage lines before the failing import
+   (the stages after "joints" all print a title first) – lines were sitting in a buffer when the build ended.
+4. The error named no file (`bpy.ops` turned the operator's report into "Error: Import failed: Reader stopped (code
+   3221225477)").
+5. `_RestrictData`: `compat.register()` read `bpy.data.filepath` while Blender's data is restricted (add-ons are
+   switched on at start) – reproduced on the web machine at the first start of the installed app.
+
+**What changed:**
+- New `core/proctree.py` `Tree`: the build and every program it starts as one thing – a **job object** of its own on
+  Windows (no limits, no kill-on-close: a build keeps running when the app is closed, as before; the reader's own
+  helper job nests inside it), a process group elsewhere. `kill()` stops all of it, `alive()` says whether anything of
+  it still runs (Linux: zombies do not count).
+- `ops_demo.py`: Make it starts the build as a `Tree`; `end_step()` (the modal's timer) stops it after Cancel's 4 s,
+  and once the build's Blender has ended – finished, failed or cancelled – stops whatever of its tree is left and
+  **waits until nothing of it runs** (at most 60 s, then a console line). `running()` is true until then: Make it is
+  refused with "The last demo project is still stopping: Make it again in a moment", Help shows "Stopping the demo
+  project …". A second Cancel no longer puts the forced stop off. A persistent timer (`_watch`) does the same when
+  Blender dropped the Make it modal (another project opened while the demo is made) and wraps the build up; the next
+  Make it wraps up an ended build nobody has reported yet (both found by the independent review).
+- `importer/runner.py`: the work folder name gets a random part; a reader that stops says **which file** and what the
+  code means: "Reader stopped while reading demo_park.step (crashed: access violation, code 0xC0000005)." (file name
+  only, no path).
+- `blender/demo.py` `build_main`: stdout / stderr line-buffered, the build's own lines written straight to the log;
+  `ops_import.py`: in a background run each import writes "reading <file> (<detail>)" and, on failure, "Import failed:
+  …" to the log at once.
+- `blender/compat.py`: the format check is skipped while `bpy.data` cannot be read (`data_readable()`); the load that
+  follows checks the project. A format that really cannot be read still prints.
+- PC check line **`demo.cancel`** (Full; runs on GitHub's Windows machine too): a reader left running by a program
+  that ended is counted, stopped and gone; a whole read inside such a job finishes as usual; on Windows the build must
+  get its job object. `MIN_LINES_FULL` 168. Function `help.demo` names it.
+- Real-app test `ui_test_demo_kits.py`: Make it → Cancel → Make it again with the real buttons, the second time with
+  another project opened meanwhile (`MIN_CHECKS["demokits"]` 30).
+- User guide (Make it, step 2), CHANGELOG.
+- The kit is unchanged (the cause is not in it).
+
+**Tested and measured** (4-core Linux web machine): `tests/test_demo_cancel.py` (18: a tree with a program left
+running, kill stops only the tree, a real STEP reader left running by its parent is stopped with its helpers, a read
+cancelled half-way then read again with no `.partial` left, two jobs never share a work folder, exit codes in words,
+a crashing reader names its file not its folder, Make it waits until nothing runs, Cancel's forced stop, the timer
+without the modal, the log keeps every line when the program ends without flushing); `test_demo_project.py`
+`test_cancel_at_the_import_then_make_it_again` (twice Cancel → Make it, no reader left); `test_compat_blender.py`
+`test_no_format_line_while_blender_data_cannot_be_read`; the PC check line `demo.cancel` (OK, 1.3 s); the real-app
+test `demokits`. Independent review (a subagent that did not write it) of the Windows code: ctypes layout, nesting and
+handle use found fine; 7 points, of which the modal-dropped case, the wrap-up by the next Make it, the PC-check line's
+pipe race, the silent fallback (now a console line + `in_job` checked by the PC check) and the second Cancel were fixed.
+
+**Open points:**
+- The crash itself was not reproduced; the fix removes every overlap between a cancelled and a new build that the code
+  allowed. The owner's test below is the proof on Windows.
+- If a job object cannot be made (a PC that runs the app inside a job that forbids nesting), the old `taskkill /T`
+  path is used and the console says so; the PC check line fails on such a PC.
+- Linux only, unlikely: a process group number reused within 0.5 s by another program of the same user.
+
+**Owner's test steps** (your PC, after the update):
+1. **Help > Make demo project…**, pick **Demo cable-lay vessel (full) (kit 2)**, click **Make it**.
+2. When the bottom line shows "Importing" (after the model is written), **Help > Cancel demo project**. The bottom line
+   shows "Stopping the demo project …" for a few seconds, then a line "Demo project cancelled: nothing was left
+   behind".
+3. Right away **Make it** again. It should finish (about as long as a normal Make it) with the window "The demo project
+   is ready".
+4. Do 1–3 a second time. Then the same twice with **Vessel in a wind park**.
+5. If one fails: send the message and the file "Make demo log.txt" from the demo folder – its last lines now say which
+   model was being read.
+6. At the app's start the two lines "the project's format could not be read: '_RestrictData' …" should no longer be
+   in a log.

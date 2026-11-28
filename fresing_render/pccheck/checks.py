@@ -7395,15 +7395,20 @@ def demo_cancel(ctx):
                 f"sys.path.insert(0, {app_parent!r})\n"
                 f"runner = importlib.import_module({package!r} + '.importer.runner')\n"
                 f"job = runner.ImportJob({model!r}, 'fine', {os.path.join(work, name)!r})\n"
-                "job.start()\n"
-                + ("while not job.poll():\n    time.sleep(0.1)\n"
+                + ("job.start()\nwhile not job.poll():\n    time.sleep(0.1)\n"
                    f"open({os.path.join(work, name + '.txt')!r}, 'w').write(job.error or 'ok')\n" if wait else
+                   # the reader's output into nothing: it must not stop by itself when this program has gone
+                   "import subprocess\n"
+                   "env = dict(os.environ, PYTHONPATH=os.pathsep.join(p for p in sys.path if p and os.path.isdir(p)))\n"
+                   "subprocess.Popen(job.command(), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env)\n"
                    "time.sleep(1.0)\nos._exit(0)\n"))
 
     t0 = time.time()
     left = proctree.Tree([runner.python_executable(), "-c", script("left", False)], env=env,
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
+        _check(not proctree.WINDOWS or left.in_job, "the demo build could not be put in a job object of its own: "
+               f"{left.job_error}")
         left.proc.wait(timeout=120)
         _check(left.alive(), "the reader was not counted as part of the build after the build's own program ended")
         left.kill()

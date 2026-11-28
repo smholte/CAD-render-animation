@@ -101,8 +101,10 @@ def test_a_reader_left_running_by_a_stopped_build_is_stopped_with_the_tree(tmp_p
             f"sys.path.insert(0, {ROOT!r})\n"
             "from fresing_render.importer import runner\n"
             f"job = runner.ImportJob({CRANE_B!r}, 'fine', {str(tmp_path / 'cache')!r})\n"
-            "job.start()\n"
-            f"open({pid_file!r}, 'w').write(str(job.proc.pid))\n"
+            "import subprocess\n"
+            "env = dict(os.environ, PYTHONPATH=os.pathsep.join(p for p in sys.path if p and os.path.isdir(p)))\n"
+            "r = subprocess.Popen(job.command(), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env)\n"
+            f"open({pid_file!r}, 'w').write(str(r.pid))\n"
             "os._exit(0)\n")                            # the build ends without stopping its reader
     env = dict(os.environ, FRESING_IMPORT_WORKERS="2")
     tree = proctree.Tree([sys.executable, "-c", code], env=env)
@@ -264,3 +266,39 @@ def test_the_log_has_every_line_even_when_the_build_ends_at_once(tmp_path):
     assert lines[-4:] == ["Fresing Render: a plain print", "Joints: Joints 310/319", "The wind park round the vessel",
                           "Fresing Render: Import failed: Reader stopped while reading demo_park.step (crashed: "
                           "access violation, code 0xC0000005)."], lines
+
+
+@pytest.mark.skipif(not LINUX, reason="/proc: Linux")
+def test_without_the_buttons_watcher_the_timer_stops_and_wraps_up(tmp_path, capsys):
+    """Opening another project while the demo is made drops Make it's modal (Blender does). The persistent timer then
+    stops a cancelled build that does not stop by itself, what it left running, and removes its half-made folder
+    (found by the independent review of task 0371)."""
+    pytest.importorskip("bpy")
+    from fresing_render.blender import demo, ops_demo
+    folder = str(tmp_path / "Demo")
+    os.makedirs(demo.project_dir(folder, "0.0.0"))
+    pid_file = str(tmp_path / "child")
+    tree = proctree.Tree([sys.executable, "-c", _orphan_script(pid_file) + "import time; time.sleep(120)\n"])
+    ops_demo._BUILD.clear()
+    ops_demo._BUILD.update(proc=tree.proc, tree=tree, folder=folder, version="0.0.0", log="",
+                           cancel_at=time.time() - ops_demo.CANCEL_WAIT - 1, seen=0.0)
+    try:
+        t0 = time.time()
+        while not os.path.isfile(pid_file) or not open(pid_file).read():
+            assert time.time() - t0 < 30
+            time.sleep(0.05)
+        child = int(open(pid_file).read())
+        first = ops_demo._BUILD["cancel_at"]
+        ops_demo._BUILD.setdefault("cancel_at", time.time())   # (what a second Cancel does: the first time stays)
+        assert ops_demo._BUILD["cancel_at"] == first
+        t0 = time.time()
+        while ops_demo._watch() is not None:
+            assert time.time() - t0 < 20
+            time.sleep(0.1)
+        assert ops_demo._BUILD == {}
+        assert not _running(child) and tree.proc.poll() is not None
+        assert not os.path.exists(demo.project_dir(folder, "0.0.0"))
+        assert "Demo project cancelled" in capsys.readouterr().out
+    finally:
+        tree.kill()
+        ops_demo._BUILD.clear()

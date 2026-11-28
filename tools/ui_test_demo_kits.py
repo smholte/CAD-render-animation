@@ -306,6 +306,57 @@ def s_opened():
 
 
 @step
+def s_cancel_make():
+    """Task 0371: Make it → Cancel → Make it again, with the real buttons."""
+    with override():
+        bpy.ops.wm.read_homefile("EXEC_DEFAULT", use_empty=True)      # the made demo is open: it is replaced
+    S["t1"] = time.time()
+    with override():
+        r = bpy.ops.fresing.demo_make("EXEC_DEFAULT", True, folder=DEMO, which="test-kit")
+    check("Make it again starts a build", r == {"RUNNING_MODAL"}, str(r))
+    return 0.5
+
+
+@step
+def s_cancel():
+    demo, ops_demo = mod("blender.demo"), mod("blender.ops_demo")
+    folder = demo.kit_folder(DEMO, "test-kit")
+    if not demo.read_progress(folder, ops_demo._version()).get("stage") and time.time() - S["t1"] < 120:
+        return "wait"                                                   # cancelled while it builds, not before
+    with override():
+        r = bpy.ops.fresing.demo_cancel("EXEC_DEFAULT", True)
+    check("Cancel while the kit's demo is made", r == {"FINISHED"}, str(r))
+    return 0.5
+
+
+@step
+def s_cancelled():
+    demo, ops_demo = mod("blender.demo"), mod("blender.ops_demo")
+    if ops_demo.running() or ops_demo._BUILD:
+        return "wait"
+    folder = demo.kit_folder(DEMO, "test-kit")
+    check("Cancel: nothing of the build runs and nothing is left behind",
+          not os.path.exists(demo.project_dir(folder, ops_demo._version())), folder)
+    with override():
+        r = bpy.ops.fresing.demo_make("EXEC_DEFAULT", True, folder=DEMO, which="test-kit")
+    check("… then Make it again starts at once", r == {"RUNNING_MODAL"}, str(r))
+    with override():
+        bpy.ops.wm.read_homefile("EXEC_DEFAULT", use_empty=True)      # another project: Blender drops the modal
+    return 1.0
+
+
+@step
+def s_made_again():
+    demo, ops_demo = mod("blender.demo"), mod("blender.ops_demo")
+    if ops_demo.running() or ops_demo._BUILD:
+        return "wait"
+    folder = demo.kit_folder(DEMO, "test-kit")
+    check("the demo is made again after Cancel, also with another project opened meanwhile",
+          demo.exists(folder, ops_demo._version(), "Test kit box"), folder)
+    return 0.3
+
+
+@step
 def s_remove():
     ops_demo = mod("blender.ops_demo")
     with override():
