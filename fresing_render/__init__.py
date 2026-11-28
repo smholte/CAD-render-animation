@@ -229,6 +229,8 @@ def register():
     coolant.register()                       # after milling: the milled block's cut faces get the wet sheen too
     from .blender import liquid
     liquid.register()                        # task 0346: the coolant liquid on the machine
+    from .blender import liquid_lab
+    liquid_lab.register()                    # task 0347: the liquid's six checks (test tour)
     linkages.register()
     clash.register()
     from .blender import finishes
@@ -350,6 +352,8 @@ def unregister():
     from .blender import copy as copy_paste
     copy_paste.unregister()
     linkages.unregister()
+    from .blender import liquid_lab
+    liquid_lab.unregister()
     from .blender import liquid
     liquid.unregister()
     coolant.unregister()

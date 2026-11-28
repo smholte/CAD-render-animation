@@ -4148,6 +4148,58 @@ def _check_liquid(scene):
             f"{len(ob.data.polygons):,} faces drawn")
 
 
+# task 0347 D: the liquid's six stand-alone checks (study 0251's T1–T6, core/liquid_lab.py) side by side, no model
+LIQUID_LAB = ("pocket", "slot", "tilt", "tray", "slosh", "wall")
+
+
+@tour_set("liquid_lab", "Coolant liquid – six checks", added="0.2.999", changed="0.2.999")
+def build_liquid_lab(b: Build):
+    """Six small invented rigs, the coolant liquid worked out on each; one saved scene (camera) per check."""
+    from mathutils import Vector
+
+    from . import liquid_lab
+    sc = b.scene
+    out = liquid_lab.build(sc, os.path.dirname(b.file("Liquid lab.txt")))
+    bad = [out[c]["text"] for c in LIQUID_LAB if not out[c]["ok"]]
+    _check(not bad, "; ".join(bad))
+    _look("PRODUCT")
+    for cid in LIQUID_LAB:
+        lo, hi = (Vector(v) for v in liquid_lab.case_row(sc, cid)["box"])
+        size = max(max(hi - lo) * 0.8, 0.09)
+        _close_camera(b, (lo + hi) / 2, size, f"Tour liquid {cid}")
+        _shot(b, f"@liquid_{cid}")
+    sc.frame_set(sc.frame_start)
+
+
+def _lab_setup(cid: str):
+    def setup(scene):
+        """The time line as long as this check (it plays it from the start, again and again)."""
+        from . import liquid_lab
+        row = liquid_lab.case_row(scene, cid)
+        if row:
+            scene.frame_end = int(liquid_lab.data(scene).get("start", scene.frame_start)) + int(row["frames"])
+    setup.__name__ = f"_lab_setup_{cid}"
+    return setup
+
+
+def _lab_check(cid: str):
+    def check(scene):
+        """The check's number (worked out when the set was made) is within its limit; its liquid is drawn from the
+        bake at the frame that shows it best (that frame is left shown)."""
+        from . import liquid_lab
+        row = liquid_lab.case_row(scene, cid)
+        _check(bool(row), "the liquid's six checks were not worked out (make the Learning hub again)")
+        _check(bool(row.get("ok")), f"out of its limit ({row.get('limit', '')}): {row.get('text', '')}")
+        f = liquid_lab.case_frame(scene, cid)
+        scene.frame_set(f)
+        k, faces, drops = liquid_lab.draw(scene).get(cid, (None, 0, 0))
+        _check(k is not None, "the liquid's bake is missing next to the project")
+        _check(faces > 0, f"no liquid drawn at frame {f}")
+        return f"{row['text']}; {faces:,} faces, {drops:,} drops drawn at frame {f}"
+    check.__name__ = f"_check_liquid_{cid}"
+    return check
+
+
 def _check_coolant(scene):
     import bpy
 
@@ -5792,6 +5844,35 @@ stop("liquid", MACH, "liquid", "Coolant liquid on the machine",
      "full. (It is worked out a moment after Build & play: the Coolant panel shows how far.)",
      where="4 Motion > CNC machine > Coolant (Liquid on the machine)", animation="Coolant liquid", at=0.8,
      play=True, check=_check_liquid, auto="clip", since="0.2.263")
+stop("liquid_pocket", MACH, "liquid_lab", "Liquid: closed pocket",
+     "A grey plate with a square pocket. Coolant pours into the pocket for 2 s (twice what it holds): it fills to the "
+     "brim, the rest runs over the plate's edges and drips off. Then the pocket stays full. The note gives the "
+     "volume held (within 2 % of the pocket's).", where="4 Motion > CNC machine > Coolant (Liquid on the machine)", play=True,
+     setup=_lab_setup("pocket"), check=_lab_check("pocket"), auto="still", since="0.2.999")
+stop("liquid_slot", MACH, "liquid_lab", "Liquid: open slot drains",
+     "A grey plate with a slot open at its right end. Coolant pours into the slot for 2 s and fills it; it runs out "
+     "of the open end and drips off. When the pour stops the slot drains: half is gone within a second, only a thin "
+     "film is left (under 15 %).", where="4 Motion > CNC machine > Coolant (Liquid on the machine)", play=True,
+     setup=_lab_setup("slot"), check=_lab_check("slot"), auto="still", since="0.2.999")
+stop("liquid_tilt", MACH, "liquid_lab", "Liquid: tilted plate spills",
+     "A grey plate with a square pocket half full of coolant tilts slowly from level to 30°. The liquid leans to the "
+     "low side; at about 14° it reaches the rim and spills over it; at 30° what is left lies in the pocket's low "
+     "corner. The note gives the angle it spilled at (14.0° ± 1.5°).", where="4 Motion > CNC machine > Coolant (Liquid on the machine)", play=True,
+     setup=_lab_setup("tilt"), check=_lab_check("tilt"), auto="still", since="0.2.999")
+stop("liquid_tray", MACH, "liquid_lab", "Liquid: tray runs to its drain",
+     "A grey tray with low walls falls gently to a dark drain hole at its left end. Coolant pours onto its far end "
+     "for 10 s: it spreads, runs down the slope to the drain and goes down it. Within 30 s after the pour stops the "
+     "tray is empty but for a wet film.", where="4 Motion > CNC machine > Coolant (Liquid on the machine)", play=True,
+     setup=_lab_setup("tray"), check=_lab_check("tray"), auto="still", since="0.2.999")
+stop("liquid_slosh", MACH, "liquid_lab", "Liquid: box stopped sloshes",
+     "A grey box with 10 mm of coolant slides to the right and stops hard after half a second. The liquid runs on, "
+     "piles up at the right wall and sloshes back and forth, a wave about every 1.3 s, and settles. The note gives "
+     "the period (within 0.1 s of 2L / sqrt(g h)).", where="4 Motion > CNC machine > Coolant (Liquid on the machine)", play=True,
+     setup=_lab_setup("slosh"), check=_lab_check("slosh"), auto="still", since="0.2.999")
+stop("liquid_wall", MACH, "liquid_lab", "Liquid: no leak through a wall",
+     "A grey tank with a thin wall across its middle rocks back and forth. The coolant on the left runs up against "
+     "the wall and back, but not a drop gets through to the right side (0.000 cm³).", where="4 Motion > CNC machine > Coolant (Liquid on the machine)", play=True,
+     setup=_lab_setup("wall"), check=_lab_check("wall"), auto="still", since="0.2.999")
 
 
 def _check_setup(scene):
@@ -6580,7 +6661,7 @@ stop("backups", OUT, "faces", "Automatic backups",
 #: the sets of a CNC mill or a milling bit: their stops also check the cut (marks on every cut face, every move
 #: through the block cut, no program running through a block that nothing cuts)
 MILLING_SETS = ("mill", "gantry", "atc", "doublearm", "rotary4", "rotary5", "toolpath", "tools", "marks", "air",
-                "coolant", "liquid", "operator")
+                "coolant", "liquid", "liquid_lab", "operator")
 
 
 def check_milling(scene) -> str:
