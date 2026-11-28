@@ -7447,7 +7447,7 @@ def demo_kit(ctx):
     return f"test kit made in {time.time() - t0:.0f} s, its joint moves the box"
 
 
-@line("demo.cancel", "Demo project: Cancel stops every program of the build", "0.2.276",
+@line("demo.cancel", "Demo project: Cancel stops every program of the build", "0.2.277",
       what="Starts the STEP reader on a test model from a program that then ends at once, as a cancelled demo build "
            "leaves it, inside the group Make demo project… keeps its build in (a job object on Windows): the group "
            "still runs, Cancel's stop ends the reader and its helpers, and nothing of it runs afterwards; a whole read "

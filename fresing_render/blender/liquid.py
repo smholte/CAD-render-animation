@@ -45,7 +45,7 @@ from ..core import liquid as core
 from ..core import liquid_cache, liquid_pool
 from . import build, coolant, machining
 
-VERSION = 1                          # of the bake: a change here bakes old projects' liquid again
+VERSION = 3                          # of the bake: a change here bakes old projects' liquid again (2: task 0347)
 COLLECTION = "FR Coolant liquid"
 OBJ_TABLE = "FR coolant liquid (table)"
 OBJ_TRAY = "FR coolant liquid (tray)"
@@ -59,11 +59,17 @@ DETAIL = {"DRAFT": (4e-3, 10e-3), "NORMAL": (2e-3, 5e-3)}
 SHOW = 0.1e-3                        # a cell shows liquid from this depth (the 0.04 mm film is the wet sheen)
 LIFT = 0.05e-3                       # the sheet a hair over the surface (no flicker on the bed)
 WAVE_DEPTH = 0.01                    # m: deep pools (T-slots, pockets) carry waves as if 10 mm deep (core: wave_depth)
+BAR_DRIP = 0.5                       # the bar's charts: liquid drips off them when tilted more than 60 deg (task 0347)
+BAR_SHOW_MAX = 6e-3                  # m: the bar's charts are drawn at most this thick – on a strip on its side single
+                                     # cells can hold columns of 2-4 cm in some frames (no gravity presses them flat;
+                                     # task 0347's open point); their volumes are worked out as they are
 CUT_EVERY = 4                        # frames: the cut block's top is read again at most this often while it is cut
 TRAY_REACH = 0.15                    # m round where the table goes: the still parts there are the tray chart
 TRAY_WORDS = ("TRAY", "DRAIN")       # still parts named so are taken whole into the tray chart (the drain may lie
                                      # beyond where the table goes)
 HOSE_GAP = 2e-3                      # m: the poured liquid lands this far outside the tool
+JET_SPREAD = 12e-3                   # m: a jet lands spread over a disc this wide (its own speed fans it out; task 0347:
+                                     # at 2.5 mm a 14 l/min flood stood 2 cm high on the 4th axis' bar)
 DRAIN_NAME = "COOLANT DRAIN"
 DRAIN_DEEP = 0.015                   # m: a ray this far below the drain's top went into its hole
 MM = 0.001
@@ -107,8 +113,11 @@ def problem(scene) -> str:
     r = coolant.root()
     if r is None or "fr_spans" not in r:
         return "Press Build & play: the liquid follows the coolant of the built program"
-    if "fr_wp_m" not in machining.settings(scene):
+    m = machining.settings(scene)
+    if "fr_wp_m" not in m:
         return "Waiting for the motion to be read"
+    if "fr_chain" not in m:
+        return "Press Build & play: the liquid needs the motion read again (made with an older version)"
     return ""
 
 
@@ -152,6 +161,8 @@ def fingerprint(scene) -> str:
     for k in ("fr_spans", "fr_rpm", "fr_tools", "fr_cut"):
         h.update(_bytes(r, k))
     h.update(_bytes(m, "fr_wp_m"))
+    h.update(_bytes(m, "fr_chain_m"))
+    h.update(str(m.get("fr_chain", "")).encode())
     from . import chips
     cache = {}
     for ob in _parts(scene):                          # where each part sits on what moves it (not the frame's place)
@@ -178,6 +189,7 @@ def _memo_fingerprint(scene) -> str:
     r = coolant.root()
     sign = (m.path_sig, s.liquid_detail, round(rate(scene), 4), s.source, int(s.auto_count), len(s.nozzles),
             scene.frame_start, scene.frame_end, scene.render.fps, len(m.get("fr_wp_m", ())),
+            len(m.get("fr_chain_m", ())), str(m.get("fr_chain", "")),
             hashlib.sha1(_bytes(r, "fr_spans") + _bytes(r, "fr_rpm")).hexdigest())
     if rt.get("fp_sign") != sign or "fp" not in rt:
         rt["fp_sign"], rt["fp"] = sign, fingerprint(scene)
@@ -250,9 +262,14 @@ def is_baked(scene) -> bool:
 class Beds:
     """Each chart's bed (m, NaN = no surface) at any frame: the first bed + the changes (frame, box, heights)."""
 
-    def __init__(self, base: list, changes: list, fingerprint: str = "", geom=()):
+    def __init__(self, base: list, changes: list, fingerprint: str = "", geom=(), place=None, follow=()):
         self.base = [np.asarray(b, np.float64) for b in base]
         self.geom = [tuple(float(x) for x in g) for g in geom]   # per chart (cell, x0, y0), m
+        # per chart: its frame -> the local frame of the object its sheet follows (task 0347), and that object's
+        # name ("" = none: the world; "@workpiece" = the milled workpiece)
+        self.place = (np.asarray(place, np.float64).reshape(-1, 4, 4) if place is not None and len(place)
+                      else np.stack([np.eye(4)] * len(self.base)) if self.base else np.zeros((0, 4, 4)))
+        self.follow = [str(x) for x in follow] if len(follow) else [""] * len(self.base)
         self.changes = sorted(changes, key=lambda x: x[0])      # (frame, chart, j0, i0, heights (h, w))
         self.frames = np.array([c[0] for c in self.changes], np.int64)
         self.fingerprint = fingerprint
@@ -272,7 +289,9 @@ class Beds:
 
     def save(self, path: str) -> None:
         d = {"fingerprint": np.array(self.fingerprint), "n_base": np.array(len(self.base)),
-             "geom": np.array(self.geom, np.float64).reshape(-1, 3)}
+             "geom": np.array(self.geom, np.float64).reshape(-1, 3),
+             "place": np.asarray(self.place, np.float64).reshape(-1, 4, 4),
+             "follow": np.array(list(self.follow) or [""], dtype=str)}
         for c, b in enumerate(self.base):
             d[f"base{c}"] = b.astype(np.float32)
         meta = np.array([(fr, c, j0, i0, h.shape[0], h.shape[1]) for fr, c, j0, i0, h in self.changes],
@@ -293,13 +312,15 @@ class Beds:
             base = [z[f"base{c}"].astype(np.float64) for c in range(int(z["n_base"]))]
             meta, flat = z["meta"], z["heights"]
             geom = z["geom"].tolist()
+            place = z["place"] if "place" in z.files else None
+            follow = [str(x) for x in z["follow"]][:len(base)] if "follow" in z.files else ()
         changes, pos = [], 0
         for fr, c, j0, i0, hh, ww in meta:
             n = int(hh * ww)
             changes.append((int(fr), int(c), int(j0), int(i0), flat[pos:pos + n].reshape(int(hh), int(ww))
                             .astype(np.float64)))
             pos += n
-        return cls(base, changes, fp, geom)
+        return cls(base, changes, fp, geom, place, follow)
 
 
 # ---------------------------------------------------------------------------
@@ -388,20 +409,43 @@ def _grid(lo, hi, cell) -> tuple:
     return x0 + np.arange(nx) * cell, y0 + np.arange(ny) * cell
 
 
+class Plan:
+    """How one chart sits on the machine (task 0347): its frame in its level's riding space (``C``, riding-from-chart),
+    its grid, and where its sheet is drawn (``to_obj``: chart -> the followed object's local frame; ``follow``: the
+    object's name, "@workpiece", or "" for the world)."""
+
+    def __init__(self, name, C, xs, ys, z_from, base, cut=False, to_obj=None, follow=""):
+        self.name = name
+        self.C = np.asarray(C, np.float64)
+        self.xs, self.ys = xs, ys
+        self.z_from = float(z_from)
+        self.base = base                     # the bed without the block (NaN = no surface)
+        self.cut = bool(cut)                 # the cut block is part of it (read again while it is cut)
+        self.to_obj = np.eye(4) if to_obj is None else np.asarray(to_obj, np.float64)
+        self.follow = follow
+        self.foot = (0, len(ys), 0, len(xs))  # the block's cells in it (j0, j1, i0, i1)
+
+    @property
+    def flat(self) -> bool:
+        return bool(np.allclose(self.C, np.eye(4)))
+
+
 class Setup:
     """What the bake needs, read from the scene once (``gather``)."""
 
     def __init__(self):
         self.charts = []          # core.Chart
-        self.roles = []           # "table" / "tray"
+        self.roles = []           # "table" / "bar 1" … / "carrier 1" … / "tray"
+        self.plans = []           # Plan per chart
         self.mats = []            # (n, 4, 4) world-from-chart per frame
         self.f0 = 0
         self.n = 0
         self.fps = 24.0
         self.floor_z = -1.0
         self.m0 = np.eye(4)       # the workpiece's world matrix at the first frame
-        self.base = None          # the table chart's bed without the block
-        self.foot = None          # (j0, j1, i0, i1): the block's cells in the table chart
+        self.carry = None         # (n, 4, 4) the workpiece's riding space -> world per frame
+        self.levels = 1           # charts' levels on the machine (the workpiece's mover and what carries it)
+        self.bar = None           # (origin, axis) in riding space when the workpiece turns about a lying axis
         self.tools = []           # (t, o (n, 3) riding, d (n, 3) riding, radius, flute)
         self.flood = np.zeros((0, 2))
         self.rpm = np.zeros((0, 2))
@@ -410,6 +454,15 @@ class Setup:
         self.timeline = None
         self.cuts = np.zeros((0, 2))   # (t0, t1) frames of cutting segments
         self.drain_cells = 0
+
+    # (the 3-axis names of task 0346: the table chart's grid)
+    @property
+    def base(self):
+        return self.plans[0].base
+
+    @property
+    def foot(self):
+        return self.plans[0].foot
 
 
 def gather(scene) -> Setup:
@@ -431,6 +484,77 @@ def gather(scene) -> Setup:
         _STATE["guard"] -= 1
 
 
+def _turn(R) -> tuple:
+    """(angle in rad, unit axis) of a rotation matrix."""
+    c = max(-1.0, min(1.0, (float(np.trace(R)) - 1.0) / 2.0))
+    a = math.acos(c)
+    if a < 1e-9:
+        return 0.0, np.array([0.0, 0.0, 1.0])
+    w, v = np.linalg.eig(R)
+    u = np.real(v[:, int(np.argmin(np.abs(w - 1.0)))])
+    return a, u / max(float(np.linalg.norm(u)), 1e-300)
+
+
+def _relative(inner, outer) -> np.ndarray:
+    """The inner level's motion against the outer level, in the inner level's riding space: D_k with D_0 = I
+    (inner/outer: (n, 4, 4) world matrices per frame)."""
+    rel = np.linalg.inv(outer) @ inner
+    return outer[0] @ rel @ np.linalg.inv(rel[0]) @ np.linalg.inv(outer[0])
+
+
+def _max_turn(D) -> tuple:
+    """(largest angle in rad, its axis, its matrix) of the motions D (n, 4, 4)."""
+    tr = np.clip((np.trace(D[:, :3, :3], axis1=1, axis2=2) - 1.0) / 2.0, -1.0, 1.0)
+    k = int(np.argmin(tr))
+    a, u = _turn(D[k, :3, :3])
+    return a, u, D[k]
+
+
+def _levels(scene, m, wp, ms) -> list:
+    """The levels of the machine the liquid lies on, nearest the workpiece first: (mover name, its world matrices
+    (n, 4, 4) per frame) – the workpiece's mover (its matrices: the workpiece's), then what carries it, up to and
+    with the first level that only slides (a 3-axis table: that level alone; a 4th axis: A, the X table; a trunnion:
+    C, the cradle, the X table)."""
+    names = [x for x in str(m.get("fr_chain", "")).split("\n") if x]
+    if not names:
+        return [("", ms)]
+    k = len(names)
+    cm = np.array(m["fr_chain_m"], dtype=np.float64).reshape(len(ms), k, 4, 4)
+    levels = [(names[0], ms)]
+    for i in range(1, k):
+        inner = levels[-1][1]
+        a, _u, _D = _max_turn(_relative(inner, cm[:, i]))
+        if a < math.radians(1.0):
+            break                                     # the inner level only slides on this one: it is the last
+        levels.append((names[i], cm[:, i]))
+    return levels
+
+
+def _bar_axis(D, sv) -> tuple | None:
+    """(origin, axis) of the line the workpiece turns about in riding space, when it lies (> 45 deg from vertical)
+    and the workpiece turns by more than 20 deg; else None. ``sv``: the block's points in riding space."""
+    a, u, Dk = _max_turn(D)
+    if a < math.radians(20.0) or abs(float(u[2])) > math.cos(math.radians(45.0)):
+        return None
+    R, t = Dk[:3, :3], Dk[:3, 3]
+    p = np.linalg.lstsq(np.eye(3) - R, t, rcond=None)[0]          # a point on the axis
+    c = sv.mean(axis=0)
+    o = p + float(np.dot(c - p, u)) * u                            # the axis' point nearest the block's middle
+    if u[0] < 0 or (abs(u[0]) < 1e-9 and u[1] < 0):
+        u = -u
+    return o, u
+
+
+def _frame(o, x, z) -> np.ndarray:
+    z = np.asarray(z, float) / np.linalg.norm(z)
+    x = np.asarray(x, float) - np.dot(x, z) * z
+    x /= np.linalg.norm(x)
+    y = np.cross(z, x)
+    M = np.eye(4)
+    M[:3, 0], M[:3, 1], M[:3, 2], M[:3, 3] = x, y, z, o
+    return M
+
+
 def _gather(scene) -> Setup:
     st = Setup()
     s = settings(scene)
@@ -442,61 +566,86 @@ def _gather(scene) -> Setup:
     st.n = len(ms)
     st.fps = scene.render.fps / (scene.render.fps_base or 1.0)
     st.m0 = ms[0]
-    carry = ms @ np.linalg.inv(ms[0])
-    M0 = Matrix([list(r) for r in st.m0])
-    # which parts ride with the workpiece, which stand still (as the chips: ``chips.mover``)
+    st.carry = ms @ np.linalg.inv(ms[0])
+    # which parts ride on which level, which stand still (as the chips: ``chips.mover``)
     from . import chips
     cache = {}
     wp_mover = chips.mover(wp, cache)
+    levels = _levels(scene, m, wp, ms) if wp_mover else [("", ms)]
+    st.levels = len(levels)
     parts = _parts(scene)
-    riding, still = [], []
+    riding = [[] for _ in levels]
+    still = []
+    names = [n for n, _ms in levels]
     for ob in parts:
         if ob is wp:
             continue
         mv = chips.mover(ob, cache)
-        if wp_mover and mv == wp_mover:
-            riding.append(ob)
+        if wp_mover and mv in names:
+            riding[names.index(mv)].append(ob)
         elif not mv:
             still.append(ob)
     moving = bool(wp_mover)
     if not moving:                                    # the block stands still: one chart of what is round it
-        riding, still = still, []
-    to_ride = M0 @ wp.matrix_world.inverted()
-    # the block's box in riding space
+        riding, still = [still], []
+    # the block in riding space
     sv, _st = _tris(m.stock_mesh or wp.data, st.m0)
     blo, bhi = sv.min(axis=0), sv.max(axis=0)
     all_parts = parts + ([wp] if wp not in parts else [])
     st.floor_z = float(build.world_bounds(all_parts)[0][2]) - 0.01 if all_parts else -1.0
-    # --- the table chart: riding parts round the block (all of them on a moving table; within 0.5 m when still)
-    # a part that lies inside the block (a finished-part reference not picked in Milling) is no surface
-    inside = lambda o: bool(np.all(_box([o], lambda q: to_ride @ q.matrix_world)[0] >= blo - MM) and  # noqa: E731
-                            np.all(_box([o], lambda q: to_ride @ q.matrix_world)[1] <= bhi + MM))
-    riding = [ob for ob in riding if not inside(ob)]
-    if moving:
-        near = riding
-    else:
-        near = [ob for ob in riding if _overlap(ob, lambda o: to_ride @ o.matrix_world, blo[:2] - 0.5, bhi[:2] + 0.5)]
-    meshes = [_tris(ob.data, to_ride @ ob.matrix_world) for ob in near]
-    lo, hi = _box(near, lambda o: to_ride @ o.matrix_world) if near else (blo, bhi)
-    lo, hi = np.minimum(lo, blo), np.maximum(hi, bhi)
-    xs, ys = _grid(lo - cell_t, hi + cell_t, cell_t)
-    z_from = float(max(hi[2], bhi[2])) + 0.02
-    base = _cast(_bvh(meshes), xs, ys, z_from)
-    st.base = base
-    j0 = max(0, int(np.floor((blo[1] - ys[0]) / cell_t)) - 1)
-    j1 = min(len(ys), int(np.ceil((bhi[1] - ys[0]) / cell_t)) + 2)
-    i0 = max(0, int(np.floor((blo[0] - xs[0]) / cell_t)) - 1)
-    i1 = min(len(xs), int(np.ceil((bhi[0] - xs[0]) / cell_t)) + 2)
-    st.foot = (j0, j1, i0, i1)
-    st.z_from = z_from
-    st.xs, st.ys = xs, ys
-    st.charts.append(core.Chart("table", base.copy(), cell_t, float(xs[0]), float(ys[0]), open_edges=True))
-    st.roles.append("table")
-    st.mats.append(carry if moving else core.still(st.n))
-    # --- the tray: still parts round where the table goes
+    inv_m0 = np.linalg.inv(st.m0)
+    for lv, (mv_name, lms) in enumerate(levels):
+        carry = lms @ np.linalg.inv(lms[0])
+        L0 = Matrix([list(r) for r in lms[0]])
+        mob = bpy.data.objects.get(mv_name) if mv_name else None
+        if lv == 0:
+            to_ride = Matrix([list(r) for r in st.m0]) @ wp.matrix_world.inverted()
+            follow, to_obj = "@workpiece", inv_m0
+        else:
+            to_ride = L0 @ mob.matrix_world.inverted()
+            follow, to_obj = mv_name, np.linalg.inv(lms[0])
+        obs = riding[lv]
+        if lv == 0:
+            # a part that lies inside the block (a finished-part reference not picked in Milling) is no surface
+            def inside(o):
+                lo_, hi_ = _box([o], lambda q: to_ride @ q.matrix_world)
+                return bool(np.all(lo_ >= blo - MM) and np.all(hi_ <= bhi + MM))
+            obs = [ob for ob in obs if not inside(ob)]
+            if not moving:
+                obs = [ob for ob in obs if _overlap(ob, lambda o: to_ride @ o.matrix_world, blo[:2] - 0.5,
+                                                    bhi[:2] + 0.5)]
+            if len(levels) > 1:
+                st.bar = _bar_axis(_relative(lms, levels[1][1]), sv)
+            if st.bar is not None:
+                _bar_charts(st, sv, cell_t * 0.75, carry, to_obj, follow)
+                continue
+        meshes = [_tris(ob.data, to_ride @ ob.matrix_world) for ob in obs]
+        lo, hi = _box(obs, lambda o: to_ride @ o.matrix_world) if obs else (blo, bhi)
+        if lv == 0:
+            lo, hi = np.minimum(lo, blo), np.maximum(hi, bhi)
+        elif not obs:
+            continue
+        xs, ys = _grid(lo - cell_t, hi + cell_t, cell_t)
+        z_from = float(max(hi[2], bhi[2] if lv == 0 else hi[2])) + 0.02
+        base = _cast(_bvh(meshes), xs, ys, z_from)
+        pl = Plan("table" if lv == 0 else f"carrier {lv}", np.eye(4), xs, ys, z_from, base, cut=lv == 0,
+                  to_obj=to_obj, follow=follow)
+        if lv == 0:
+            j0 = max(0, int(np.floor((blo[1] - ys[0]) / cell_t)) - 1)
+            j1 = min(len(ys), int(np.ceil((bhi[1] - ys[0]) / cell_t)) + 2)
+            i0 = max(0, int(np.floor((blo[0] - xs[0]) / cell_t)) - 1)
+            i1 = min(len(xs), int(np.ceil((bhi[0] - xs[0]) / cell_t)) + 2)
+            pl.foot = (j0, j1, i0, i1)
+        _add(st, pl, core.Chart(pl.name, base.copy(), cell_t, float(xs[0]), float(ys[0]), open_edges=True),
+             carry if moving else core.still(st.n))
+    # --- the tray: still parts round where the outermost level goes
     if moving and still:
+        out = [k for k, pl in enumerate(st.plans) if not pl.name.startswith("bar")][-1:] or [0]
+        pl = st.plans[out[0]]
+        lo = np.array([pl.xs[0], pl.ys[0], np.nanmin(pl.base) if np.isfinite(pl.base).any() else blo[2]])
+        hi = np.array([pl.xs[-1], pl.ys[-1], pl.z_from])
         corners = np.array([[x, y, z, 1.0] for x in (lo[0], hi[0]) for y in (lo[1], hi[1]) for z in (lo[2], hi[2])])
-        pts = np.einsum("fij,cj->fci", carry, corners)[:, :, :3].reshape(-1, 3)
+        pts = np.einsum("fij,cj->fci", st.mats[out[0]], corners)[:, :, :3].reshape(-1, 3)   # (a flat chart)
         slo, shi = pts.min(axis=0)[:2] - TRAY_REACH, pts.max(axis=0)[:2] + TRAY_REACH
         near_s = [ob for ob in still if _overlap(ob, lambda o: o.matrix_world, slo, shi)]
         whole = [ob for ob in near_s if any(w in str(ob.get(build.PROP_NAME, ob.name)).upper() for w in TRAY_WORDS)]
@@ -514,10 +663,9 @@ def _gather(scene) -> Setup:
             tbed = _cast(_bvh([_tris(ob.data, ob.matrix_world) for ob in surf]), txs, tys, tz)
             drain = _drain(scene, near_s, tbed, txs, tys, cell_s)
             st.drain_cells = int((drain > 0).sum()) if drain is not None else 0
-            st.charts.append(core.Chart("tray", tbed, cell_s, float(txs[0]), float(tys[0]), open_edges=False,
-                                        drain=drain))
-            st.roles.append("tray")
-            st.mats.append(core.still(st.n))
+            pl = Plan("tray", np.eye(4), txs, tys, tz, tbed)
+            _add(st, pl, core.Chart("tray", tbed, cell_s, float(txs[0]), float(tys[0]), open_edges=False,
+                                    drain=drain), core.still(st.n))
     # --- the inputs
     for c in machining.cut_items(scene):
         p = c.path
@@ -535,6 +683,70 @@ def _gather(scene) -> Setup:
     if st.timeline is not None:
         st.cuts = np.array([(sg.t0, sg.t1) for sg in st.timeline.segs if sg.cuts], np.float64).reshape(-1, 2)
     return st
+
+
+def _add(st: Setup, pl: Plan, chart, carry) -> None:
+    st.plans.append(pl)
+    st.charts.append(chart)
+    st.roles.append(pl.name)
+    st.mats.append(carry @ pl.C)
+
+
+def _bar_charts(st: Setup, sv, cell, carry, to_obj, follow) -> None:
+    """Four charts round the turning bar (the 0251 prototype): each one's z points out from the axis (up, then every
+    90 deg about the axis), x along the axis; the height is the distance from the axis, read by rays inwards. Only the
+    cut block is their surface (no chuck, no centre): liquid runs off their ends and sides as drops."""
+    o, u = st.bar
+    rel = sv - o
+    along = rel @ u
+    radial = np.linalg.norm(rel - along[:, None] * u[None], axis=1)
+    rmax = float(radial.max())
+    up = np.array([0.0, 0.0, 1.0]) - u[2] * u
+    if np.linalg.norm(up) < 1e-6:
+        up = np.cross(u, [1.0, 0.0, 0.0])
+    up /= np.linalg.norm(up)
+    side = np.cross(u, up)
+    half = rmax * math.sin(math.radians(45.0)) + cell
+    # (cells whose middle lies on the bar's end face read the face seen edge on – a step 13 mm down: only whole cells
+    # inside the bar's length, its ends are open edges – found by the independent tester of task 0347)
+    xs = np.arange(float(along.min()) + 0.5 * cell, float(along.max()) - 0.25 * cell, cell)
+    ny = max(1, int(math.ceil(2 * half / cell)))
+    ys = (np.arange(ny) - 0.5 * (ny - 1)) * cell
+    z_from = rmax + 0.005
+    for k in range(4):
+        a = k * 0.5 * math.pi
+        n = math.cos(a) * up + math.sin(a) * side
+        C = _frame(o, u, n)
+        base = np.full((len(ys), len(xs)), np.nan)
+        pl = Plan(f"bar {k + 1}", C, xs, ys, z_from, base, cut=True, to_obj=to_obj @ C, follow=follow)
+        # (steeper than 60 deg it drips off: a strip of the bar on its side has no gravity pressing the liquid onto
+        # it, nothing evens it out and it stood in columns 2-4 cm thick)
+        _add(st, pl, core.Chart(pl.name, base.copy(), cell, float(xs[0]), float(ys[0]), open_edges=True,
+                                drip_below=BAR_DRIP), carry)
+
+
+def _cast_in(bvh, pl: Plan, xs, ys) -> np.ndarray:
+    """Heights in the chart's own frame where rays along its -z from ``pl.z_from`` first hit (NaN: they miss)."""
+    if pl.flat:
+        return _cast(bvh, xs, ys, pl.z_from)
+    out = np.full((len(ys), len(xs)), np.nan)
+    if bvh is None:
+        return out
+    C = pl.C
+    R = Matrix([list(r[:3]) for r in C[:3]])
+    d = R @ Vector((0.0, 0.0, -1.0))
+    zcol = C[:3, 2]
+    rc = bvh.ray_cast
+    org = C[:3, 3] + C[:3, 2] * pl.z_from
+    for j, y in enumerate(ys):
+        row = out[j]
+        base = org + C[:3, 1] * float(y)
+        for i, x in enumerate(xs):
+            p = base + C[:3, 0] * float(x)
+            hit = rc(Vector(p), d)[0]
+            if hit is not None:
+                row[i] = float(np.dot(np.array(hit) - C[:3, 3], zcol))
+    return out
 
 
 def _overlap(ob, m_of, lo, hi) -> bool:
@@ -597,8 +809,12 @@ def _flooding(st: Setup, f: float) -> bool:
     return bool(len(st.flood) and np.any((st.flood[:, 0] <= f + 1e-6) & (f < st.flood[:, 1] - 1e-6)))
 
 
+def _riding_to_world(st: Setup, k: int) -> np.ndarray:
+    return st.carry[min(max(k, 0), st.n - 1)]
+
+
 def _world(st: Setup, k: int, p) -> np.ndarray:
-    M = st.mats[0][min(max(k, 0), st.n - 1)]
+    M = _riding_to_world(st, k)
     return M[:3, :3] @ np.asarray(p, float) + M[:3, 3]
 
 
@@ -609,7 +825,7 @@ def inputs(st: Setup, k: int) -> tuple:
     pours, tool = [], None
     if t is not None:
         rad, flute, tip_r, ax_r = t
-        M = st.mats[0][min(max(k, 0), st.n - 1)]
+        M = _riding_to_world(st, k)
         tip = _world(st, k, tip_r)
         ax = M[:3, :3] @ ax_r
         rpm = _rpm(st, f)
@@ -627,7 +843,7 @@ def inputs(st: Setup, k: int) -> tuple:
             for h in range(n):
                 ang = 2.0 * math.pi * (h + 0.25) / n
                 p = tip + (rad + HOSE_GAP) * (math.cos(ang) * u + math.sin(ang) * v) + 0.02 * a
-                pours.append(core.Pour(tuple(p), st.rate / n, tuple(-a), radius=2.5 * MM))
+                pours.append(core.Pour(tuple(p), st.rate / n, tuple(-a), radius=JET_SPREAD))
     return pours, tool
 
 
@@ -636,14 +852,18 @@ def inputs(st: Setup, k: int) -> tuple:
 # ---------------------------------------------------------------------------
 
 class _Cut:
-    """Reads the cut block's top into the table chart's bed, only where the tools went since the last read."""
+    """Reads the cut block's top into every chart it is part of (the table; the bar's four), each in its own frame,
+    only where the tools went since the last read."""
 
     def __init__(self, st: Setup):
         self.st = st
         self.last = None              # frame of the last read
-        j0, j1, i0, i1 = st.foot
-        self.box = (j0, j1, i0, i1)
-        self.bed = st.base.copy()
+        self.cut = [c for c, pl in enumerate(st.plans) if pl.cut]
+        self.beds = {c: st.plans[c].base.copy() for c in self.cut}
+
+    @property
+    def bed(self):                    # (the table chart's, task 0346)
+        return self.beds[self.cut[0]]
 
     def _mesh(self, T):
         tl = self.st.timeline
@@ -658,10 +878,11 @@ class _Cut:
         c = self.st.cuts
         return bool(len(c) and np.any((c[:, 0] < T + 1e-9) & (c[:, 1] > self.last + 1e-9)))
 
-    def _swept(self, T):
-        """(j0, j1, i0, i1) of the table cells the tools went over between the last read and T."""
+    def _swept(self, c, T):
+        """(j0, j1, i0, i1) of chart c's cells the tools went over between the last read and T."""
         st = self.st
-        j0, j1, i0, i1 = self.box
+        pl = st.plans[c]
+        j0, j1, i0, i1 = pl.foot
         if self.last is None:
             return j0, j1, i0, i1
         pts, rmax = [], 0.0
@@ -673,37 +894,47 @@ class _Cut:
         if not pts:
             return None
         p = np.concatenate(pts)
-        cell = st.charts[0].cell
+        if not pl.flat:                                   # into the chart's frame
+            Ci = np.linalg.inv(pl.C)
+            p = p @ Ci[:3, :3].T + Ci[:3, 3]
+        cell = st.charts[c].cell
         m = rmax + 3 * cell
-        a0 = max(j0, int(np.floor((p[:, 1].min() - m - st.ys[0]) / cell)))
-        a1 = min(j1, int(np.ceil((p[:, 1].max() + m - st.ys[0]) / cell)) + 1)
-        b0 = max(i0, int(np.floor((p[:, 0].min() - m - st.xs[0]) / cell)))
-        b1 = min(i1, int(np.ceil((p[:, 0].max() + m - st.xs[0]) / cell)) + 1)
+        a0 = max(j0, int(np.floor((p[:, 1].min() - m - pl.ys[0]) / cell)))
+        a1 = min(j1, int(np.ceil((p[:, 1].max() + m - pl.ys[0]) / cell)) + 1)
+        b0 = max(i0, int(np.floor((p[:, 0].min() - m - pl.xs[0]) / cell)))
+        b1 = min(i1, int(np.ceil((p[:, 0].max() + m - pl.xs[0]) / cell)) + 1)
         if a1 <= a0 or b1 <= b0:
             return None
         return a0, a1, b0, b1
 
-    def read(self, T):
-        """The new bed if the block changed since the last read: (bed, (j0, i0, heights)) or None."""
-        if self.st.timeline is None or not self.changed(T):
-            return None
-        box = self._swept(T)
+    def read_all(self, T) -> list:
+        """The charts whose bed changed since the last read: [(chart, bed, (j0, i0, heights))]."""
+        if self.st.timeline is None or not self.cut or not self.changed(T):
+            return []
+        boxes = {c: self._swept(c, T) for c in self.cut}
         self.last = float(T)
-        if box is None:
-            return None
-        v, t = self._mesh(T)
-        bvh = _bvh([(v, t)])
-        a0, a1, b0, b1 = box
-        st = self.st
-        hits = _cast(bvh, st.xs[b0:b1], st.ys[a0:a1], st.z_from)
-        base = st.base[a0:a1, b0:b1]
-        new = np.where(np.isfinite(hits), np.where(np.isfinite(base), np.fmax(hits, base), hits), base)
-        old = self.bed[a0:a1, b0:b1]
-        same = (np.isnan(new) & np.isnan(old)) | (np.abs(np.nan_to_num(new) - np.nan_to_num(old)) < 1e-7)
-        if same.all():
-            return None
-        self.bed[a0:a1, b0:b1] = new
-        return self.bed, (a0, b0, new.copy())
+        boxes = {c: b for c, b in boxes.items() if b is not None}
+        if not boxes:
+            return []
+        bvh = _bvh([self._mesh(T)])
+        out = []
+        for c, (a0, a1, b0, b1) in boxes.items():
+            pl = self.st.plans[c]
+            hits = _cast_in(bvh, pl, pl.xs[b0:b1], pl.ys[a0:a1])
+            base = pl.base[a0:a1, b0:b1]
+            new = np.where(np.isfinite(hits), np.where(np.isfinite(base), np.fmax(hits, base), hits), base)
+            old = self.beds[c][a0:a1, b0:b1]
+            same = (np.isnan(new) & np.isnan(old)) | (np.abs(np.nan_to_num(new) - np.nan_to_num(old)) < 1e-7)
+            if same.all():
+                continue
+            self.beds[c][a0:a1, b0:b1] = new
+            out.append((c, self.beds[c], (a0, b0, new.copy())))
+        return out
+
+    def read(self, T):
+        """(task 0346) The table chart's new bed: (bed, (j0, i0, heights)) or None."""
+        got = self.read_all(T)
+        return next(((b, ch) for c, b, ch in got if c == self.cut[0]), None) if got else None
 
 
 # ---------------------------------------------------------------------------
@@ -728,9 +959,8 @@ def steps(scene, notes: list | None = None, helpers: int | None = None):
         helpers = liquid_pool.default_helpers() if cells > 40000 else 0
     cut = _Cut(st)
     changes = []
-    first = cut.read(st.f0)
-    if first is not None:
-        st.charts[0].bed = first[0].copy()
+    for c, bed, _ch in cut.read_all(st.f0):
+        st.charts[c].bed = bed.copy()
     base_beds = [ch.bed.copy() for ch in st.charts]
     sim = core.Liquid(st.charts, st.mats, st.fps, st.floor_z, helpers=helpers, wave_depth=WAVE_DEPTH)
     writer = liquid_cache.Writer(path, fp, names, st.fps)
@@ -743,11 +973,9 @@ def steps(scene, notes: list | None = None, helpers: int | None = None):
         for k in range(st.n - 1):
             f = st.f0 + k
             if k % CUT_EVERY == 0 and k:
-                got = cut.read(f)
-                if got is not None:
-                    sim.set_bed(0, got[0])
-                    a0, b0, hts = got[1]
-                    changes.append((f, 0, a0, b0, hts))
+                for c, bed, (a0, b0, hts) in cut.read_all(f):
+                    sim.set_bed(c, bed)
+                    changes.append((f, c, a0, b0, hts))
             pours, tool = inputs(st, k)
             t0 = time.perf_counter()
             fr = sim.step(k, pours, tool)
@@ -761,7 +989,8 @@ def steps(scene, notes: list | None = None, helpers: int | None = None):
             if time.perf_counter() - last > 0.05:
                 last = time.perf_counter()
                 yield 0.03 + 0.96 * (k + 1) / max(1, st.n - 1)
-        Beds(base_beds, changes, fp, [(ch.cell, ch.x0, ch.y0) for ch in st.charts]).save(_beds_path(path))
+        Beds(base_beds, changes, fp, [(ch.cell, ch.x0, ch.y0) for ch in st.charts],
+             [pl.to_obj for pl in st.plans], [pl.follow for pl in st.plans]).save(_beds_path(path))
         writer.close()
         ok = True
         tot = sim.totals()
@@ -1052,31 +1281,41 @@ def show(scene, T: float | None = None) -> bool:
     f = min(max(f, int(frames[0])), int(frames[-1]))
     depths, drops, vols, _tot = rd.read(f)
     mat = material(scene)
-    s_m = machining.settings(scene)
-    m0 = np.array(s_m["fr_wp_m"][:16], dtype=np.float64).reshape(4, 4)
     wp = machining.workpiece(scene)
     names = rd.names
     shown = 0
+    from .chips import _follow
     for c, d in enumerate(depths):
         role = names[c] if c < len(names) else "tray"
         bed = beds.at(c, f)
         cell, x0, y0 = beds.geom[c]
+        if role.startswith("bar"):                    # (drawn at most BAR_SHOW_MAX thick: see there)
+            d = np.minimum(d, BAR_SHOW_MAX)
         v, q = sheet(d, bed, cell, x0, y0)
-        if role == "table":
-            ob = _object(scene, OBJ_TABLE, "table")
-            inv = np.linalg.inv(m0)
-            if len(v):
-                v = (v.astype(np.float64) @ inv[:3, :3].T + inv[:3, 3]).astype(np.float32)
-            from .chips import _follow
-            if wp is not None:
-                _follow(ob, wp)
+        ob = _object(scene, chart_object(role), role)
+        P = beds.place[c] if c < len(beds.place) else np.eye(4)
+        if len(v) and not np.allclose(P, np.eye(4)):
+            v = (v.astype(np.float64) @ P[:3, :3].T + P[:3, 3]).astype(np.float32)
+        who = beds.follow[c] if c < len(beds.follow) else ""
+        target = wp if who == "@workpiece" else (bpy.data.objects.get(who) if who else None)
+        if target is not None:
+            _follow(ob, target)
         else:
-            ob = _object(scene, OBJ_TRAY, "tray")
+            con = ob.constraints.get("Follow the workpiece")
+            if con is not None:
+                ob.constraints.remove(con)
         _write_sheet(ob.data, v, q)
         _set_material(ob, mat)
         shown += len(q)
         if ob.hide_render or ob.hide_viewport:
             ob.hide_render = ob.hide_viewport = False
+    drawn = {chart_object(r) for r in names} | {OBJ_DROPS}
+    if rt.get("drawn") != drawn:                      # sheets of an earlier bake's charts: empty
+        for ob in objects():
+            if ob.name not in drawn and ob.data is not None and len(ob.data.vertices):
+                ob.data.clear_geometry()
+                ob.data.update()
+        rt["drawn"] = drawn
     dob = _object(scene, OBJ_DROPS, "drops")
     mod = dob.modifiers.get("Drops")
     if mod is None:
@@ -1094,9 +1333,8 @@ def show(scene, T: float | None = None) -> bool:
 
 def hide(scene) -> None:
     """No liquid in the picture: the objects stay, empty."""
-    for name in (OBJ_TABLE, OBJ_TRAY, OBJ_DROPS):
-        ob = bpy.data.objects.get(name)
-        if ob is not None and ob.get(TAG) and ob.data is not None and len(ob.data.vertices):
+    for ob in objects():
+        if ob.data is not None and len(ob.data.vertices):
             ob.data.clear_geometry()
             ob.data.update()
     runtime(scene)["shown"] = None
@@ -1104,9 +1342,8 @@ def hide(scene) -> None:
 
 def remove(scene) -> None:
     """Take everything made here out (the liquid switched off)."""
-    for name in (OBJ_TABLE, OBJ_TRAY, OBJ_DROPS):
-        ob = bpy.data.objects.get(name)
-        if ob is not None and ob.get(TAG):
+    for ob in objects():
+        if ob is not None:
             me = ob.data
             bpy.data.objects.remove(ob)
             if me is not None and me.users == 0:
@@ -1116,9 +1353,15 @@ def remove(scene) -> None:
         bpy.data.collections.remove(col)
 
 
+def chart_object(role: str) -> str:
+    """The name of the sheet object of a chart ("table" and "tray" keep task 0346's names)."""
+    return {"table": OBJ_TABLE, "tray": OBJ_TRAY}.get(role, f"FR coolant liquid ({role})")
+
+
 def objects() -> list:
-    return [ob for ob in (bpy.data.objects.get(n) for n in (OBJ_TABLE, OBJ_TRAY, OBJ_DROPS))
-            if ob is not None and ob.get(TAG)]
+    """Everything drawn here: the sheets of every chart and the drops."""
+    return [ob for ob in bpy.data.objects if ob.get(TAG) and ob.type == "MESH" and ob.name.startswith(
+        ("FR coolant liquid", OBJ_DROPS))]
 
 
 # ---------------------------------------------------------------------------
@@ -1312,6 +1555,109 @@ def set_up_test_model(scene, folder: str, text: str = TEST_PROGRAM, fit: float =
     c.liquid_on = True
     if before_build is not None:                      # (the test tour hides the finished-part reference first)
         before_build(scene)
+    r = animation.bake(scene, a)
+    machining.sample(scene)
+    return a, r
+
+
+# ---------------------------------------------------------------------------
+# the 4th axis and the trunnion (task 0347): test_4axis.step / test_5axis.step
+# ---------------------------------------------------------------------------
+
+def _pocket4(x0, x1, y0, y1, depth, step=4.0) -> list:
+    """A closed pocket on the bar's top (Plain 4th axis, work zero on the bar's top): zigzag along X."""
+    out = [f"G0 X{x0:g} Y{y0:g}", f"G1 Z{depth:g} F300"]
+    y, k = y0, 0
+    while True:
+        out.append(f"G1 X{(x1 if k % 2 == 0 else x0):g} F600")
+        k += 1
+        if y + step > y1 + 1e-9:
+            break
+        y += step
+        out.append(f"G1 Y{y:g}")
+    out += [f"G1 X{x0:g} Y{y0:g}", f"G1 X{x1:g}", f"G1 Y{y1:g}", f"G1 X{x0:g}", f"G1 Y{y0:g}", "G0 Z10"]
+    return out
+
+
+#: test_4axis.step (the bar Ø50 turning about X): flood (M8) while a pocket 44 x 14 x 3 is cut on the bar's top and a
+#: groove 2 deep is wrapped once round it; M9, then the bar turns slowly by 90 deg (the pocket's liquid runs out over
+#: its side) and on to upside down (what is left drips off), a wait
+TEST_PROGRAM_4 = "\n".join([
+    "%",
+    "(LIQUID ON THE 4TH AXIS: A POCKET ON THE BAR AND A WRAPPED GROOVE, THEN THE BAR TURNS)",
+    "(T1 D=6 CR=0 - ZMIN=-3 - flat end mill)",
+    "G21 G90 G94 G17 G54",
+    "T1 M6",
+    "S10000 M3",
+    "G0 Z10",
+    "G0 X-60 Y-4 A0",
+    "M8",
+    *_pocket4(-60, -20, -4, 4, -3),
+    "G0 X30 Y0",
+    "G1 Z-2 F300",
+    "G1 A360 F3600",
+    "G0 Z10",
+    "G0 X-40 Y0",
+    "G4 P1",
+    "M9",
+    "G1 A450 F900",
+    "G1 A540 F1800",
+    "G4 P2",
+    "M5",
+    "M30",
+    "%",
+]) + "\n"
+
+
+def long_program_4(pockets: int = 6) -> str:
+    """A longer program on the 4th axis for the Heavy line and the cache measure (task 0347): ``pockets`` pockets
+    30 x 10 x 3 on the bar at A 0, 60, 120 … (three places along it), a groove wrapped once round it after every
+    second one; flood all the time, M9 at the end, the bar turned upside down and a wait."""
+    rows = ["%", "(T1 D=6 CR=0 - ZMIN=-3 - flat end mill)", "G21 G90 G94 G17 G54", "T1 M6", "S10000 M3", "G0 Z10",
+            "G0 X-80 Y-3 A0", "M8"]
+    for k in range(pockets):
+        x0 = (-80.0, -30.0, 20.0)[k % 3]
+        rows += ["G0 Z10", f"G0 A{60 * k:g}", *_pocket4(x0, x0 + 30.0, -3.0, 3.0, -3.0, step=3.0)]
+        if k % 2 == 1:
+            xg = 60.0 + 6.0 * (k // 2)
+            rows += [f"G0 X{xg:g} Y0", "G1 Z-2 F300", f"G1 A{60 * k + 360:g} F3600", "G0 Z10"]
+    rows += ["G0 Z10", "M9", "G1 A{0:g} F900".format(60 * pockets + 540), "G4 P5", "M5", "M30", "%"]
+    return "\n".join(rows) + "\n"
+
+
+def _program_5() -> str:
+    """test_5axis.step (TCP; the block on the C table on the tilting cradle): flood while the two tilted pockets of
+    rotary's test are cut (A30 at C0 and C180), M9, then the cradle tilts to A-35 and back: the pools spill to the
+    low side, over the table into the cradle."""
+    from . import rotary
+    rows = ["%", "(LIQUID ON THE TRUNNION: TWO TILTED POCKETS, THEN THE CRADLE TILTS)",
+            "(T1 D=6 CR=0 - ZMIN=-3 - flat end mill)", "G21 G90 G94 G17 G54", "T1 M6", "S10000 M3", "G0 Z20", "M8",
+            *rotary._pocket(0.0), "G0 Z40", *rotary._pocket(180.0), "G0 Z40", "G0 A0 C0", "G4 P1", "M9",
+            "G0 Z90", "G1 A-35 F1200", "G4 P2", "G1 A0 F1200", "G4 P2", "M5", "M30", "%"]
+    return "\n".join(rows) + "\n"
+
+
+def set_up_test_rotary(scene, folder: str, five: bool = False, fit: float = 16.0, detail: str = "DRAFT",
+                       name: str = "Liquid", text: str | None = None):
+    """The imported test_4axis.step (``five``: test_5axis.step) set up as rotary's test (``rotary.set_up_test_model``)
+    with the liquid's program (``TEST_PROGRAM_4`` / ``_program_5()``) fitted into ``fit`` s, coolant and "Liquid on
+    the machine" on; built and its motion read. Returns (animation, Build's result)."""
+    from . import animation, rotary
+    os.makedirs(folder, exist_ok=True)
+    path = os.path.join(folder, "liquid_5axis.ngc" if five else "liquid_4axis.ngc")
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(text or (_program_5() if five else TEST_PROGRAM_4))
+    a = scene.fresing.animations.add()
+    a.name, a.tail, a.fps = name, 0.0, "24"
+    b = a.blocks.add()
+    b.kind = "GCODE"
+    b.gcode_file = path
+    b.gcode_speed, b.gcode_fit, b.gcode_path = "FIT", float(fit), False
+    rotary.set_up_test_model(scene, b, five=five, milling=True)
+    c = settings(scene)
+    c.enabled = True
+    c.liquid_detail = detail
+    c.liquid_on = True
     r = animation.bake(scene, a)
     machining.sample(scene)
     return a, r

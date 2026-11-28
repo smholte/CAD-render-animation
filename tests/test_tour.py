@@ -38,7 +38,8 @@ def test_every_stop_is_complete():
     assert groups == sorted(groups, key=tour.GROUPS.index)
     assert set(groups) == set(tour.GROUPS)
     for ts in tour.SETS.values():
-        assert ts.models and all(os.path.isfile(m) for m in ts.models), ts.id
+        assert ts.models or ts.id == "liquid_lab", ts.id             # (task 0347: rigs of its own, no model)
+        assert all(os.path.isfile(m) for m in ts.models), ts.id
         # the title names its project file: nothing Windows (or GitHub's artifacts) refuses in a file name
         assert not set(ts.title) & set(':\\/*?"<>|'), ts.title
         assert any(s.set == ts.id for s in tour.STOPS), f"set {ts.id} has no stop"

@@ -107,6 +107,7 @@ class Chart:
     open_edges: bool = True
     drain: np.ndarray | None = None
     catches: bool = True
+    drip_below: float = 0.05     # (task 0347) liquid drips off where the pressing gravity is below this share of g
 
     def __post_init__(self):
         self.bed = np.array(self.bed, float)
@@ -224,6 +225,7 @@ class Kernel:
         self.NY, self.NX = int(meta["NY"]), int(meta["NX"])
         self.xs = np.asarray(meta["xs"], float)
         self.ys = np.asarray(meta["ys"], float)
+        self.drip = float(meta.get("drip_below", 0.05)) * G    # (task 0347) drips off below this pressing gravity
         cap = meta.get("wave_depth")
         self.cap = float(cap) if cap else None      # (task 0346) the faces' depth for the waves at most this
         self.runs = []
@@ -266,6 +268,10 @@ class Kernel:
                 gx = g[0] + B[0, 0] * X + B[0, 1] * Y + B[0, 2] * Z
                 gy = g[1] + B[1, 0] * X + B[1, 1] * Y + B[1, 2] * Z
                 gn = -(g[2] + B[2, 0] * X + B[2, 1] * Y + B[2, 2] * Z)
+            # the weir's gravity (task 0347): the pressing one, or the sliding one where that is larger – a chart
+            # turned on its side (the 4th axis' bar) has almost no pressing gravity, and capped by it nothing could
+            # run along it: the flood stood 3-4 cm high there. Up to 45 deg of tilt nothing changes.
+            gwq = np.maximum(np.maximum(gn, 0.0), np.sqrt(gx * gx + gy * gy))
             if push:
                 gx = gx + A["px"][w]
                 gy = gy + A["py"][w]
@@ -273,19 +279,19 @@ class Kernel:
             # per face: the pressing gravity / cell (x dt l), the driving gravity (x dt l), the weir's factor
             if uniform:
                 a_x = a_y = float(gnp) * (1.0 / l) * dtl
-                gq = WEIR * l * math.sqrt(float(gnp))
+                gq = WEIR * l * math.sqrt(float(gwq))
                 gq_x = gq_y = None
             else:
                 a_x = 0.5 * (gnp[:, :-1] + gnp[:, 1:]) * (1.0 / l) * dtl
                 a_y = 0.5 * (gnp[:-1, :] + gnp[1:, :]) * (1.0 / l) * dtl
-                gq_x = (WEIR * l) * np.sqrt(0.5 * (gnp[:, :-1] + gnp[:, 1:]))
-                gq_y = (WEIR * l) * np.sqrt(0.5 * (gnp[:-1, :] + gnp[1:, :]))
+                gq_x = (WEIR * l) * np.sqrt(0.5 * (gwq[:, :-1] + gwq[:, 1:]))
+                gq_y = (WEIR * l) * np.sqrt(0.5 * (gwq[:-1, :] + gwq[1:, :]))
                 gq = None
             b_x = (gx * dtl) if np.ndim(gx) == 0 else 0.5 * (gx[:, :-1] + gx[:, 1:]) * dtl
             b_y = (gy * dtl) if np.ndim(gy) == 0 else 0.5 * (gy[:-1, :] + gy[1:, :]) * dtl
             valid = A["valid"][w]
             all_valid = bool(valid.all())
-            down = (np.broadcast_to(gn, valid.shape) <= 0.05 * G) & (valid > 0)
+            down = (np.broadcast_to(gn, valid.shape) <= self.drip) & (valid > 0)
             down = down.astype(float) if down.any() else None
             dr = A["drain"][w]
             dcoef = (CD * dr * np.sqrt(2.0 * np.broadcast_to(gnp, dr.shape))) if dr.any() else None
@@ -714,7 +720,8 @@ class Liquid:
         self._touched_push = [[] for _ in self.grids]
 
     def _meta(self, g):
-        return dict(cell=g.l, NY=g.NY, NX=g.NX, xs=g.xs, ys=g.ys, wave_depth=self.wave_depth)
+        return dict(cell=g.l, NY=g.NY, NX=g.NX, xs=g.xs, ys=g.ys, wave_depth=self.wave_depth,
+                    drip_below=float(g.chart.drip_below))
 
     # --- set-up and reading ---------------------------------------------------------------------------------------
     def fill(self, c, depth):

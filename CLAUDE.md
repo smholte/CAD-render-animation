@@ -156,10 +156,13 @@ The owner's AI usage is limited; every chat works economically:
 ### Working efficiently with the automatic tests (owner's request, 6 Nov 2026)
 
 GitHub's minutes are free (public repository); the owner's *waiting time* and AI usage are not. Since task 0108
-a full run takes about 12 minutes alone (parallel jobs, task 0108; more while other tasks' runs share GitHub's 20 jobs; a docs-only run about 2), but a task is often run several times. So:
+a full run takes about 12 minutes alone (parallel jobs, task 0108; more while other tasks' runs share GitHub's 20 jobs; a docs-only run about 2), but a task is often run several times. **28 Nov 2026 measured:** a full run is ~32 jobs
+and GitHub Free runs 20 jobs at a time for the whole account. With ≤ 6 tasks a full run took 30–35 min; with more,
+55–75 min, and its jobs waited ~10 min on average (up to 24) for a runner. That day: 31 green, 9 red, **14
+cancelled** runs. Every wasted full run costs every other task's waiting time. So:
 - **Take the version number last.** Do not bump the version, write the CHANGELOG heading or touch
-  `MIN_*` counts until the branch is finished. Then `git fetch`, merge `main` **once**, take the next free
-  version after what is on `main`/released, and push. Other tasks finish in the same hours: a clash costs a
+  `MIN_*` counts until the branch is finished. Then take the **version claim** (bullet "One merge at a time"
+  below), merge `main` **once**, raise the version to the claimed number and push. Other tasks finish in the same hours: a clash costs a
   whole extra run – the `precheck` job catches it in about a minute ("someone took your version number: merge
   main and renumber to 0.2.NN") before any test starts.
 - **Push when the work is ready, not after every edit.** A newer push to the same branch cancels the running
@@ -185,10 +188,28 @@ a full run takes about 12 minutes alone (parallel jobs, task 0108; more while ot
   meanwhile, the fast-forward is refused: merge once more. When `main` moved only by documents (the task list,
   briefs, reports), that merge + report push gets a docs run (~3 min, task 0170): the precheck finds the branch's
   own green commit inside the push and sees that only documents differ from it. If `main` brought code: a full run.
-- **Several tasks at the same time:** the one that finishes first merges first; the others take the next
-  version and merge `main` then. A lead sentence for a new task never fixes a version number in advance.
-- **A red run:** read the failing step with `ci_status.py` (do not re-run blindly), fix, push once. A run that
-  fails in `precheck` is a version/changelog/list problem (its message says what to change): fix that and push.
+- **One merge at a time (28 Nov 2026 – the version claim).** The claim is one line in `tasks/MERGING.md` on `main`. A
+  `tasks/`-only push starts no run. When your branch is finished and the tests of your area pass:
+  1. `git fetch` and read `tasks/MERGING.md` on `origin/main`. **No claim line:** write
+     `0.2.NN · task NNNN · <branch> · claimed <dd Mon HH:MM>` (NN = the next number after `main` and every release),
+     commit only that file and push it to `main` from a clean checkout of `origin/main`. If the push is refused,
+     another worker was first: fetch and read again.
+  2. **Held by another task:** do not merge `main`, do not raise the version, do not push code. Finish the report and
+     the guide. Check again with one `git fetch` about every 15 min (no tight loop).
+  3. **With the claim:** merge `main` once, raise the version to the claimed number, push once (full run). If it is
+     red, see "A red run". If it is red a second time, empty the claim line (you give up your place) and claim again
+     when it is fixed.
+  4. **Green:** fast-forward `main` (bullet above). In the report push (`tasks/` + TASKS.md only), empty
+     `tasks/MERGING.md`.
+
+  A claim older than 90 min with no push on its branch: the next worker asks the owner (the session may have
+  stopped). A lead sentence for a new task never fixes a version number in advance. Until task 0383 lands, the claim
+  lasts one full run; 0383 makes the step after the claim a short run.
+- **A red run:** read the failing step with `ci_status.py` (do not re-run blindly). Run **the failing groups
+  locally**, fix everything you find and push **once**. Never push one fix at a time: each push cancels the running
+  run, and that run has already held runners other tasks were waiting for (28 Nov: 0347 pushed 7× in an hour). A
+  run that fails in `precheck` is a version / changelog / list problem (its message says what to change): fix that
+  and push.
 - **A new test:** a new `tests/test_*.py` file joins a pytest group by itself; a new real-app test goes into
   `TESTS`, `MIN_CHECKS` **and** the lightest group in `GROUPS` (`tools/ci_real_app.py`) – the precheck fails
   otherwise. After a big change in test times: `python3 tools/ci_status.py --run <green run> --record` and
@@ -460,7 +481,15 @@ fresing_render/            the Blender extension (Python package)
                            ``<project>_liquid/<scene>.frliquid`` + ``.beds.npz`` keyed by ``fingerprint`` (parts' places on
                            their movers, never the frame's); drawing ``show`` (sheets + drops, own frame_change_pre
                            handler), material with a Cycles and an EEVEE output (``liquid_eevee``); ``set_up_test_model``
-                           = tests, PC check, tour set "liquid"
+                           = tests, PC check, tour set "liquid". Task 0347: the charts come from the chain of movers
+                           (``machining.sample`` stores ``fr_chain`` / ``fr_chain_m``; ``_levels`` = the workpiece's mover up
+                           to the first that only slides): a top-down chart per level ("table", "carrier 1" …), and on a
+                           4th axis (the workpiece turning about a lying line, ``_bar_axis``) four charts round the bar
+                           ("bar 1" … "bar 4", ``_bar_charts``, rays in each chart's own frame, ``Plan.C``); every chart's
+                           sheet follows its object (``Beds.place`` / ``follow``); ``set_up_test_rotary`` = the 4th axis /
+                           trunnion test set-up (tour sets "liquid4", "liquid5", Heavy ``heavy.liquid4``).
+                           liquid_lab.py + core/liquid_lab.py (task 0347): 0251's six stand-alone checks as rigs with their
+                           own bakes and frame handler (tour set "liquid_lab"; ``tests/liquid_scenes.py`` uses them)
     callouts.py            labels pointing at parts (task 0025): point on a part, projected per frame, boxes placed;
                            ops_callouts.py, ui_callouts.py (5 Scene & Render > Labels, 6 Animation > Pictures, Music);
                            the strips for labels, picture cards and music are made in video.py
@@ -1712,3 +1741,8 @@ the release → Delete); the next run on `main` publishes it again.
   reproduced). `core/weld_pool.py`: a writer thread per helper, one answer queue, every job tagged with its call,
   timed from when it was sent. The real-app guide pictures of a sub-panel came out empty when the project's workspace
   hid it (`tools/guide_screens.py` welds modes call `workspaces.use_all`; other per-panel modes still do not).
+- The coolant liquid's height field on a turning bar (task 0347): a flat chart turned on its side has no gravity
+  pressing its liquid onto it – the critical-flow cap (by pressing gravity) let nothing run along it and the liquid
+  stood in columns of 3–4 cm. The cap now takes the sliding gravity where that is larger, and the bar's charts drip
+  off when steeper than 60° (`Chart.drip_below`). Cells whose middle lies on a part's end face read that face seen
+  edge on (a 13 mm step): a chart over a part's length keeps only whole cells. Drops are 64 % of a bake on disk.
