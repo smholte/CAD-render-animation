@@ -1,6 +1,6 @@
 # 0356 – Assets pack P5: the pack checks in the public repository (no private CI)
 
-**Who:** worker · **Status:** waits – after 0354 · **Branch:** `task/0356-assets-pack-checks`
+**Who:** worker · **Status:** running · **Branch:** `task/0356-assets-pack-checks`
 **Started by:** lead, 25 Nov 2026 23:3x (0344's P5; owner's picks 23:17, pick 12) · **Model:** Opus · effort Medium ·
 Claude Code on the web, environment "CAD-render-animation"
 **Area:** Quality & delivery lane – new `tools/assets_check.py` (+ its tests), new by-hand workflow
