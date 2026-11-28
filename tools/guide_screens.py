@@ -287,6 +287,7 @@ def trim_sidebar(im, margin=6):
 # side-panel sections on their own
 # ---------------------------------------------------------------------------
 
+BAD = []               # pictures the check refused (task 0373)
 _ORIG = {}
 _CLONES = []
 _N = [0]
@@ -296,6 +297,13 @@ def _panel_names():
     # (the popover panels of Make stay registered: the Make list's buttons open them)
     return sorted(n for n in dir(bpy.types) if n.startswith("FRESING_PT_") and "__shot" not in n
                   and not n.startswith("FRESING_PT_make_"))
+
+
+def _counted(fn):
+    def draw(self, context):
+        DRAWN[0] += 1
+        return fn(self, context)
+    return draw
 
 
 def show_only(spec):
@@ -336,6 +344,8 @@ def show_only(spec):
         attrs = {"bl_idname": name + suffix, "bl_options": opts}
         if draw:                                       # only part of the panel (under the app's title row)
             attrs["draw"] = panels._make_draw(base, draw[0])
+        if top or not getattr(base, "bl_parent_id", ""):
+            attrs["draw"] = _counted(attrs.get("draw") or base.draw)
         parent = getattr(base, "bl_parent_id", "")
         if top or not parent:
             attrs["bl_parent_id"] = ""
@@ -367,9 +377,38 @@ def restore_panels():
     panels.fold_sections()
 
 
+DRAWN = [0]            # task 0373: how many times a copy made by show_only() was drawn since the last picture
+
+
+def picture_problem(im, drawn=1):
+    """Task 0373: why a side-panel picture cannot be right ('' = fine): no Fresing panel was drawn (Blender's Item tab
+    or a hidden panel showed instead), or the picture is nearly empty (a blank panel, a title row alone)."""
+    import numpy as np
+    if not drawn:
+        return "no Fresing panel was drawn (Blender's Item tab, or the project's workspace hid it)"
+    h, w = im.shape[:2]
+    if h < 40 or w < 120:
+        return f"picture only {w} x {h} px"
+    bg = im[h - 3, 2].astype(int)
+    diff = np.abs(im.astype(int) - bg).max(axis=2) > 6
+    rows = diff.any(axis=1)
+    bands = int(((rows[1:] & ~rows[:-1]).sum()) + rows[0])    # runs of drawn rows: title row, labels, buttons
+    if diff.mean() < 0.02 or bands < 2:
+        return f"nearly empty ({diff.mean():.1%} drawn, {bands} bands)"
+    return ""
+
+
 def shoot_sidebar(name):
     win, area, region, sb = areas()
     im = trim_sidebar(crop_region(grab_screen(), sb, win.height))
+    bad = picture_problem(im, DRAWN[0])
+    DRAWN[0] = 0
+    if bad:
+        log("PICTURE WRONG", name, bad)
+        print("PICTURE WRONG", name, bad)
+        BAD.append(name)
+        if os.environ.get("GUIDE_KEEP_WRONG") != "1":
+            return                       # never overwrite a good picture with a blank or wrong one
     save_png(im, name)
 
 
@@ -528,7 +567,19 @@ def _howto_as_in_the_app():
     ui.fold = fold
 
 
+def all_functions():
+    """Task 0373: every picture is made in the workspace "All functions", whatever the settings folder says.
+    The environment variable above comes after Blender has started (the app picks the start workspace in its own
+    load handler), so a fresh folder started in Essentials: blank panels, Blender's Item tab. The project's own
+    workspace is set here instead – at the start and again once the model is in, so no mode needs a variable."""
+    try:
+        mod("blender.workspaces").use_all(bpy.context.scene)
+    except Exception:
+        log("all_functions failed", traceback.format_exc())
+
+
 def _start():
+    all_functions()
     _howto_as_in_the_app()
     win, area, region, sb = areas()
     log("mode", MODE, "ui scale", bpy.context.preferences.view.ui_scale, "window", win.width, win.height,
@@ -555,6 +606,7 @@ def _wait_import():
     job = mod("blender.ops_import")._ACTIVE_JOB
     if s.model_count == 0 or (job is not None and not job.done):
         return "wait"
+    all_functions()
     return 1.0
 
 
@@ -1815,11 +1867,28 @@ elif MODE == "tour":
         data = tour.load_results(folder, version)
         data["current"] = "stack"
         tour.save_results(folder, version, data)
-        show_only([("FRESING_PT_tour", False, True)])
+        all_functions()
+        # task 0260 moved the stops into the LEFT panel (the 3D view's toolbar region): the picture is that region
         wiggle()
-        return 2.5
+        return 3.0
     step(_tour_marks)
-    step(lambda: (shoot_sidebar("panel_tour"), 0.5)[1])
+
+    def _tour_shoot():
+        win, area, region, sb = areas()
+        left = next((r for r in area.regions if r.type == "TOOLS"), None)
+        if left is None or left.width < 60:
+            log("PICTURE WRONG panel_tour no left panel")
+            BAD.append("panel_tour")
+            return 0.5
+        im = trim_sidebar(crop_region(grab_screen(), left, win.height))
+        bad = picture_problem(im)
+        if bad:
+            log("PICTURE WRONG panel_tour", bad)
+            BAD.append("panel_tour")
+        else:
+            save_png(im, "panel_tour")
+        return 0.5
+    step(_tour_shoot)
 
 elif MODE == "clash":
     # task 0065: 6 Animation > Clash check on the clash test model (test_clash.step): built, checked, the row clicked;
@@ -2083,6 +2152,8 @@ elif MODE in ("render", "looks", "decals"):
 
 @step
 def s_quit():
+    if BAD:
+        log("PICTURES REFUSED:", ", ".join(BAD))
     LOG.close()
     bpy.ops.wm.quit_blender()
     return None
