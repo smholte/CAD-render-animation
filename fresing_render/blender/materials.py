@@ -629,6 +629,34 @@ def group_no_rust_why(g) -> str:
                                      fs.get("kind", "") if f.get("kinds") else "")
 
 
+# Task 0355: where a group material's look comes from – "code" (today's nodes) or "pack:<version>" (the Fresing
+# assets pack's node group). Only these helpers here; 0360 compares it in ``is_current`` (study 0344 2.5).
+PROP_LOOK_SRC = "fr_look_src"
+
+
+def look_src_of(mat) -> str:
+    """``code`` or ``pack:<version>`` of a material; one without the stamp (made before the pack) is ``code``."""
+    from ..core import assets_keep
+    src, ver = assets_keep.parse_look_src(mat.get(PROP_LOOK_SRC) if mat is not None else None)
+    return assets_keep.look_src(ver if src == assets_keep.PACK else "")
+
+
+def set_look_src(mat, version: str = "") -> None:
+    """Stamp a material's look source: ``version`` = the pack version of its look, "" = today's code look."""
+    from ..core import assets_keep
+    mat[PROP_LOOK_SRC] = assets_keep.look_src(version)
+
+
+def look_src_matches(mat, source: str, version: str = "") -> bool:
+    """The material's look comes from ``source`` (``code`` / ``pack``; a ``pack`` look also from ``version``
+    when given) – what 0360's ``is_current`` asks, so installing or removing the pack rebuilds nothing."""
+    from ..core import assets_keep
+    src, ver = assets_keep.parse_look_src(mat.get(PROP_LOOK_SRC) if mat is not None else None)
+    if assets_keep.source_of(source) != src:
+        return False
+    return src == assets_keep.CODE or not version or ver == version
+
+
 def is_current(mat, material_id: str, color_text: str = "", wear: float = 0.0, finish: str = "",
                rust: float = 0.0, adjust: str = "") -> bool:
     """The material already shows this look, built by this version (``finish``: a finish's settings key)."""
