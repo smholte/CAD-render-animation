@@ -30,6 +30,8 @@ def as_of(created: str):
     cache = {}
 
     def api(path):
+        if "/branches/" in path:          # today's branch head says nothing about then (task 0383's stale check)
+            raise RuntimeError("not replayed: the branch's head at the time")
         if path not in cache:
             cache[path] = P.gh_api(path)
         data = cache[path]
