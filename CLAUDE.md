@@ -460,7 +460,15 @@ fresing_render/            the Blender extension (Python package)
                            ``<project>_liquid/<scene>.frliquid`` + ``.beds.npz`` keyed by ``fingerprint`` (parts' places on
                            their movers, never the frame's); drawing ``show`` (sheets + drops, own frame_change_pre
                            handler), material with a Cycles and an EEVEE output (``liquid_eevee``); ``set_up_test_model``
-                           = tests, PC check, tour set "liquid"
+                           = tests, PC check, tour set "liquid". Task 0347: the charts come from the chain of movers
+                           (``machining.sample`` stores ``fr_chain`` / ``fr_chain_m``; ``_levels`` = the workpiece's mover up
+                           to the first that only slides): a top-down chart per level ("table", "carrier 1" …), and on a
+                           4th axis (the workpiece turning about a lying line, ``_bar_axis``) four charts round the bar
+                           ("bar 1" … "bar 4", ``_bar_charts``, rays in each chart's own frame, ``Plan.C``); every chart's
+                           sheet follows its object (``Beds.place`` / ``follow``); ``set_up_test_rotary`` = the 4th axis /
+                           trunnion test set-up (tour sets "liquid4", "liquid5", Heavy ``heavy.liquid4``).
+                           liquid_lab.py + core/liquid_lab.py (task 0347): 0251's six stand-alone checks as rigs with their
+                           own bakes and frame handler (tour set "liquid_lab"; ``tests/liquid_scenes.py`` uses them)
     callouts.py            labels pointing at parts (task 0025): point on a part, projected per frame, boxes placed;
                            ops_callouts.py, ui_callouts.py (5 Scene & Render > Labels, 6 Animation > Pictures, Music);
                            the strips for labels, picture cards and music are made in video.py
