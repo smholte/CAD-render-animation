@@ -266,6 +266,10 @@ class Kernel:
                 gx = g[0] + B[0, 0] * X + B[0, 1] * Y + B[0, 2] * Z
                 gy = g[1] + B[1, 0] * X + B[1, 1] * Y + B[1, 2] * Z
                 gn = -(g[2] + B[2, 0] * X + B[2, 1] * Y + B[2, 2] * Z)
+            # the weir's gravity (task 0347): the pressing one, or the sliding one where that is larger – a chart
+            # turned on its side (the 4th axis' bar) has almost no pressing gravity, and capped by it nothing could
+            # run along it: the flood stood 3-4 cm high there. Up to 45 deg of tilt nothing changes.
+            gwq = np.maximum(np.maximum(gn, 0.0), np.sqrt(gx * gx + gy * gy))
             if push:
                 gx = gx + A["px"][w]
                 gy = gy + A["py"][w]
@@ -273,13 +277,13 @@ class Kernel:
             # per face: the pressing gravity / cell (x dt l), the driving gravity (x dt l), the weir's factor
             if uniform:
                 a_x = a_y = float(gnp) * (1.0 / l) * dtl
-                gq = WEIR * l * math.sqrt(float(gnp))
+                gq = WEIR * l * math.sqrt(float(gwq))
                 gq_x = gq_y = None
             else:
                 a_x = 0.5 * (gnp[:, :-1] + gnp[:, 1:]) * (1.0 / l) * dtl
                 a_y = 0.5 * (gnp[:-1, :] + gnp[1:, :]) * (1.0 / l) * dtl
-                gq_x = (WEIR * l) * np.sqrt(0.5 * (gnp[:, :-1] + gnp[:, 1:]))
-                gq_y = (WEIR * l) * np.sqrt(0.5 * (gnp[:-1, :] + gnp[1:, :]))
+                gq_x = (WEIR * l) * np.sqrt(0.5 * (gwq[:, :-1] + gwq[:, 1:]))
+                gq_y = (WEIR * l) * np.sqrt(0.5 * (gwq[:-1, :] + gwq[1:, :]))
                 gq = None
             b_x = (gx * dtl) if np.ndim(gx) == 0 else 0.5 * (gx[:, :-1] + gx[:, 1:]) * dtl
             b_y = (gy * dtl) if np.ndim(gy) == 0 else 0.5 * (gy[:-1, :] + gy[1:, :]) * dtl

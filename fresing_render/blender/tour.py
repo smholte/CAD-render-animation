@@ -4107,6 +4107,82 @@ def build_coolant(b: Build):
     a.start_shot = _shot(b, "Tour: coolant").name
 
 
+@tour_set("liquid4", "Coolant liquid - 4th axis", "test_4axis.step", added="0.2.999", changed="0.2.999")
+def build_liquid4(b: Build):
+    """Task 0347: the coolant on the turning bar – pools in the pocket, runs round the bar onto the table, drips off
+    when the bar turns."""
+    from mathutils import Vector
+
+    from . import liquid
+    sc = b.scene
+    _look("PRODUCT")
+    a, r = liquid.set_up_test_rotary(sc, os.path.dirname(b.file("Tour liquid 4th axis.ngc")), five=False,
+                                     name="Coolant liquid 4th axis")
+    _check(not r["warnings"], "; ".join(r["warnings"][:2]))
+    a.quality, a.out_resolution, a.out_format = "draft", "preview", "presentation"
+    _close_camera(b, Vector((-0.03, 0.0, 0.17)), 0.42, "Tour liquid 4th axis")
+    a.start_shot = _shot(b, "Tour: coolant liquid on the 4th axis").name
+
+
+@tour_set("liquid5", "Coolant liquid - trunnion", "test_5axis.step", added="0.2.999", changed="0.2.999")
+def build_liquid5(b: Build):
+    """Task 0347: the coolant on the trunnion – the tilted pockets fill, the cradle tilts and the pools spill to its
+    low side, over the C table onto the cradle and the table."""
+    from mathutils import Vector
+
+    from . import liquid
+    sc = b.scene
+    _look("PRODUCT")
+    a, r = liquid.set_up_test_rotary(sc, os.path.dirname(b.file("Tour liquid trunnion.ngc")), five=True,
+                                     name="Coolant liquid trunnion")
+    _check(not r["warnings"], "; ".join(r["warnings"][:2]))
+    a.quality, a.out_resolution, a.out_format = "draft", "preview", "presentation"
+    _close_camera(b, Vector((0.0, 0.0, 0.24)), 0.5, "Tour liquid trunnion")
+    a.start_shot = _shot(b, "Tour: coolant liquid on the trunnion").name
+
+
+def _liquid_volumes(scene):
+    """(frame, cm^3 per chart, chart names) of the bake at the frame shown, the liquid worked out first (Draft)."""
+    from . import liquid
+    _check(liquid.problem(scene) == "", liquid.problem(scene))
+    info = liquid.bake_now(scene)
+    _check(info is not None, "the liquid was not worked out")
+    liquid.show(scene)
+    rd, beds = liquid._open(scene)
+    _check(rd is not None, "no bake for the project as it is")
+    f = scene.frame_current
+    vols = [float(d.sum()) * g[0] ** 2 * 1e6 for d, g in zip(rd.read(f)[0], beds.geom)]
+    return f, vols, list(rd.names)
+
+
+def _check_liquid4(scene):
+    """On the bar while the flood flows: the four charts round it hold liquid, the table under it gets the rest."""
+    import bpy
+
+    from . import liquid
+    f, vols, names = _liquid_volumes(scene)
+    _check(names[:4] == ["bar 1", "bar 2", "bar 3", "bar 4"], f"the charts are {names}, not four round the bar")
+    bar = sum(vols[:4])
+    _check(bar > 1.0, f"only {bar:.2f} cm³ on the bar at frame {f}")
+    _check(vols[4] > 1.0, f"only {vols[4]:.2f} cm³ on the table at frame {f}")
+    faces = sum(len(o.data.polygons) for o in liquid.objects() if o.name.startswith("FR coolant liquid (bar"))
+    _check(faces > 0 and bpy.data.objects.get(liquid.chart_object("bar 1")) is not None, "no liquid drawn on the bar")
+    return f"{bar:.1f} cm³ on the bar, {vols[4] / 1000:.2f} l on the table at frame {f}; {faces:,} faces on the bar"
+
+
+def _check_liquid5(scene):
+    """The cradle tilted after M9: the C table has spilled, the cradle under it caught it."""
+    from . import liquid
+    f, vols, names = _liquid_volumes(scene)
+    _check(names[:3] == ["table", "carrier 1", "carrier 2"], f"the charts are {names}, not C table, cradle, table")
+    rd, beds = liquid._open(scene)
+    peak = max(float(d.sum()) * beds.geom[0][0] ** 2 * 1e6 for d in (rd.read(int(k))[0][0] for k in rd.frames[::8]))
+    _check(vols[0] < 0.5 * peak, f"the C table still holds {vols[0]:.1f} of its {peak:.1f} cm³ at frame {f}")
+    _check(vols[1] > 1.0, f"only {vols[1]:.2f} cm³ on the cradle at frame {f}")
+    return (f"C table {vols[0]:.1f} cm³ (it held up to {peak:.1f}), cradle {vols[1]:.1f} cm³, table "
+            f"{vols[2] / 1000:.2f} l at frame {f}")
+
+
 @tour_set("liquid", "Coolant liquid", "test_mill.step", added="0.2.263", changed="0.2.263")
 def build_liquid(b: Build):
     """Task 0346: the coolant collects on the VMC – fills the pocket, runs over the table into the tray."""
@@ -5784,6 +5860,20 @@ stop("coolant", MACH, "coolant", "Coolant (flood)",
      "gets a wet sheen; after M9 it dries.", where="4 Motion > CNC machine > Coolant",
      animation="Pocket with coolant", at=0.5, play=True, check=_check_coolant, auto="clip", since="0.2.48",
      changed="0.2.205")
+
+stop("liquid4", MACH, "liquid4", "Coolant liquid on the 4th axis",
+     "Flood coolant on the turning bar: it fills the little pocket on the bar's top, runs round the bar and drips "
+     "onto the table, which carries it to its ends and into the chip tray. After M9 the bar turns slowly: the "
+     "pocket tips over and empties, and what is left on the bar drips off when it is upside down.",
+     where="4 Motion > CNC machine > Coolant (Liquid on the machine)", animation="Coolant liquid 4th axis", at=0.45,
+     play=True, check=_check_liquid4, auto="clip", since="0.2.999")
+
+stop("liquid5", MACH, "liquid5", "Coolant liquid on the trunnion",
+     "Flood coolant while two tilted pockets are cut on the block: the C table holds a pool round the block. After "
+     "M9 the cradle tilts the other way: the pools run to the low side, spill off the C table onto the cradle and "
+     "from there onto the table and into the tray.",
+     where="4 Motion > CNC machine > Coolant (Liquid on the machine)", animation="Coolant liquid trunnion", at=0.88,
+     play=True, check=_check_liquid5, auto="clip", since="0.2.999")
 
 stop("liquid", MACH, "liquid", "Coolant liquid on the machine",
      "The bit cuts a pocket and an open slot with flood coolant and 'Liquid on the machine' ticked: milky coolant "
