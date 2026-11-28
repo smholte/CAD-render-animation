@@ -166,6 +166,10 @@ WINDOWS_FILES = {"fresing_render/update_helper.py", "fresing_render/selftest.py"
                  "fresing_render/blender/files.py", "fresing_render/blender/updates.py",
                  "fresing_render/blender/project_lock.py", "tools/update_test_blender.py", "tools/appicon_test.py"}
 WINDOWS_MARK = re.compile(r"""os\.name\s*==\s*["']nt|sys\.platform|ctypes|CREATE_NO_WINDOW|winreg|creationflags""")
+# Task 0356: the code the real assets pack's job checks (tests.yml "Linux - real assets pack"): a lane run that changes
+# it runs that job too (once the pin exists – ci_precheck.real_pack_wanted)
+REALPACK_FILES = {"fresing_render/core/assets_pack.py", "fresing_render/core/assets_registry.py", "tools/assets_check.py"}
+REALPACK_TESTS = "tests/real_pack/"                        # the with-pack tests: only that job runs them
 SELFTEST_FILES = {"fresing_render/selftest.py"}            # the packaged self-test runs in the lane run too
 LANE_GROUP_SECS = 600.0                                    # a lane run's pytest groups: about 10 minutes each
 LANE_SKIP_REALAPP = {"pccheck", "pccheck2", "pccheckheavy", "tour", "tour2"}   # cover everything: full run only
@@ -211,8 +215,12 @@ def lane_plan(files: list[str], root: str = ROOT, times: dict | None = None) -> 
     real: set[str] = set()
     why: list[str] = []
     full: list[str] = []
-    windows = selftest = False
+    windows = selftest = realpack = False
     for f in sorted(set(files)):
+        realpack = realpack or f in REALPACK_FILES or f.startswith(REALPACK_TESTS)
+        if f.startswith(REALPACK_TESTS):
+            why.append(f"{f}: the real assets pack's job")
+            continue
         if f in FULL_FILES or f.startswith(FULL_PREFIXES):
             full.append(f"{f} is shared by every lane")
             continue
@@ -263,8 +271,9 @@ def lane_plan(files: list[str], root: str = ROOT, times: dict | None = None) -> 
             "demo": regroup(sorted(demo_set), DEMO_GROUPS, False, "demo "),
             "realapp": realapp,
             "windows": matrix_windows(("a",)) if windows else [],
-            "build": windows}
-    if not (plan["pytest"] or plan["demo"] or plan["realapp"] or plan["windows"]):
+            "build": windows,
+            "realpack": realpack}
+    if not (plan["pytest"] or plan["demo"] or plan["realapp"] or plan["windows"] or plan["realpack"]):
         return {"full": True, "why": ["no test is named by the changed files: everything"]}
     return plan
 
@@ -281,6 +290,8 @@ def describe(plan: dict) -> list[str]:
     out += [f"Windows part {p['name']}: {p['what']}" for p in plan["windows"]]
     if not plan["windows"]:
         out.append("no installer build, no Windows job (no Windows code changed)")
+    if plan.get("realpack"):
+        out.append("the assets pack code changed: the real assets pack's job runs (once a pin exists)")
     return out
 
 
