@@ -1,6 +1,6 @@
 # 0383 – CI: full run before the claim, a short catch-up run after it; fewer, balanced jobs
 
-**Who:** worker · **Status:** open · **Branch:** `task/0383-ci-catch-up`
+**Who:** worker · **Status:** running · **Branch:** `task/0383-ci-catch-up`
 **Started by:** lead, 28 Nov 2026 (owner: "is it slower from fighting for GitHub compute?" – yes; 14 cancelled runs)
 · **Model:** Opus · effort High
 **Area:** Quality & delivery lane: `tools/ci_precheck.py`, `tools/ci_groups.py`, `tools/ci_status.py`,
