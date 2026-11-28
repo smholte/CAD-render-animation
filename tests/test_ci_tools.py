@@ -831,3 +831,17 @@ def test_workflow_real_pack_job_tags_and_by_hand_check():
     hon = hand[hand.index("\non:\n"):hand.index("\npermissions:")]
     assert "workflow_dispatch:" in hon and "push" not in hon and "pull_request" not in hon
     assert "secrets." not in hand and '--fetch "$TAG"' in hand and "${{ inputs.tag }}\n        run" not in hand
+
+
+def test_assets_release_workflow_is_by_hand_from_main_with_one_read_only_secret():
+    text = open(os.path.join(ROOT, ".github", "workflows", "assets-release.yml"), encoding="utf-8").read()
+    on = text[text.index("\non:\n"):text.index("\npermissions:")]
+    assert "workflow_dispatch:" in on and "push" not in on and "pull_request" not in on
+    assert "if: ${{ github.ref == 'refs/heads/main' }}" in text and "-F prerelease=true" in text
+    import re
+    assert set(re.findall(r"secrets\.([A-Z_]+)", text)) == {"ASSETS_SRC_DEPLOY_KEY"}
+    code = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
+    assert "upload-artifact" not in code and "set -x" not in code                 # no working file leaves the runner
+    for line in code.splitlines():                     # inputs reach the shell only through env (no injection)
+        if "${{ inputs." in line:
+            assert re.match(r"\s*(- )?([A-Z]+|name):\s", line), line
