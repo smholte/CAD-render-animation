@@ -14,6 +14,10 @@ The engine every later assets task uses (0357 Settings > Assets, 0359 "Use the n
 3. otherwise ``Answer("code", code_id)``: the caller builds today's code look (a pack-only id: its fallback's id;
    ``""`` when nobody knows the id – the caller's default).
 
+A brought copy has no users yet: the caller puts it to use at once (a group node, a world, a scene). Blender does not
+save a datablock nothing uses, so a copy left unused is not in the saved project – the next ask brings it again.
+A refused item is not tried again in this session (``forget`` – a pack update put in place – tries again).
+
 **Bring** (``bring``): append the item's datablock from the pack's ``.blend`` (never a link) or load its picture file
 (light, HDRI, decal), check what came in (no Text, no linked data, no script node, no Python driver, no picture outside
 the pack's own list, every file's sha256 as pack.json says), **pack every picture into the project** at the project
@@ -62,7 +66,7 @@ STAMP = K.STAMP
 # What may come in with a pack item (anything else – a Text, a scene, a screen … – refuses the item).
 ALLOWED = frozenset(("node_groups", "materials", "images", "objects", "meshes", "collections", "worlds", "lights",
                      "cameras", "curves", "armatures", "shape_keys", "actions", "lattices", "pointclouds", "volumes",
-                     "hair_curves", "textures", "libraries"))
+                     "hair_curves", "textures", "libraries", "fonts"))
 # Where an item's own copy can be (looked up by ``get``): the kinds' datablock collections + pictures.
 ITEM_COLLS = {kind: tuple(colls) for kind, colls in ap.BLEND_KINDS.items()}
 ITEM_COLLS.update({kind: ("images",) for kind in ap.PICTURE_KINDS})
@@ -73,13 +77,15 @@ NOTE_BRING = ("A look of the Fresing assets pack could not be brought into the p
 NOTE_NO_PACK = "No Fresing assets pack was found on this PC – nothing was changed."
 NOTE_BACKUP = "No backup of the project could be saved ({why}) – nothing was changed."
 NOTE_BLOCKED = "{why} – nothing was changed."
-NOTE_SOME = "{n} could not be brought from the Fresing assets pack – they keep their look."
+NOTE_SOME = "{n} could not be updated from the Fresing assets pack – the project keeps their earlier version."
 
 STATE: dict = {
     "notes": [],            # the one note of this session (a list so tests can read it)
     "log": [],              # (id, why) of every refused bring, for the console / the PC check
     "brings": 0,            # appends + picture loads done (tests: "no disk work twice")
     "index_scans": 0,       # collection scans (tests: hot paths answer from the index)
+    "refused": set(),       # (id, pack version) refused this session: not tried again until ``forget``
+    "quiet": False,         # inside ``apply``: its own result says what failed, not the session note
 }
 SWITCH: dict = {"read": None}     # 0357: Settings > Assets' switch "Use the Fresing assets pack for new projects"
 FOLDER: dict = {"read": None}     # 0358: the company's shared pack folder (the .frsetup's "assets" key)
@@ -113,14 +119,21 @@ def registry() -> areg.Registry:
 
 
 def forget() -> None:
-    """Read the pack again at the next question (a pack update put in place; tests)."""
+    """Read the pack again at the next question (a pack update put in place; tests). Waits for a start-up read still
+    under way, so its older answer cannot come in after this (review finding 7)."""
+    t = STATE.get("warm")
+    if t is not None and t.is_alive():
+        t.join(30.0)
     areg.forget()
     _INDEX.clear()
+    STATE["refused"] = set()
 
 
 def warm() -> None:
     """Read the pack in a helper thread now, so the first question in a hot path answers from memory."""
-    threading.Thread(target=lambda: _quiet(registry), name="fresing-assets", daemon=True).start()
+    t = threading.Thread(target=lambda: _quiet(registry), name="fresing-assets", daemon=True)
+    STATE["warm"] = t
+    t.start()
 
 
 def _quiet(f):
@@ -147,10 +160,11 @@ def note() -> str:
         return ""
 
 
-def _refused(aid: str, why: str) -> None:
+def _refused(aid: str, why: str, version: str = "") -> None:
     STATE["log"].append((aid, why))
+    STATE["refused"].add((aid, version))
     print(f"Fresing Render (assets): {aid} not brought – {why}")
-    if not STATE["notes"]:
+    if not STATE["notes"] and not STATE["quiet"]:
         STATE["notes"].append(NOTE_BRING)
 
 
@@ -207,11 +221,33 @@ def new_source(reg: areg.Registry | None = None) -> str:
         return K.CODE
 
 
-def source(scene) -> str:
-    """``pack`` or ``code`` for this scene's project. Stored ``assets_source`` first; an unsaved new project:
-    ``new_source()``; anything else (opened from a file without the field) = ``code``."""
+def _stored(scene) -> tuple[str, str]:
     s = _settings(scene)
-    stored = getattr(s, "assets_source", "") if s is not None else ""
+    if s is None:
+        return "", ""
+    return str(getattr(s, "assets_source", "") or ""), str(getattr(s, "assets_version", "") or "")
+
+
+def _project_stored() -> tuple[str, str]:
+    """The file's own (source, version): what its scenes store – a scene made later (House import, a new scene) has
+    nothing of its own and is the project's. ("", "") = nothing stored."""
+    got = [_stored(sc) for sc in _local_scenes()]
+    for src, ver in got:
+        if src == K.PACK:
+            return src, ver
+    for src, ver in got:
+        if src:
+            return src, ver
+    return "", ""
+
+
+def source(scene) -> str:
+    """``pack`` or ``code`` for this scene's project. Stored ``assets_source`` first (the scene's, else the file's
+    other scenes'); an unsaved new project: ``new_source()``; anything else (opened from a file without the field)
+    = ``code``."""
+    stored = _stored(scene)[0] if scene is not None else ""
+    if not stored and getattr(scene, "library", None) is None:
+        stored = _project_stored()[0]
     if stored:
         return K.source_of(stored)
     if getattr(scene, "library", None) is None and is_new_project():
@@ -221,8 +257,10 @@ def source(scene) -> str:
 
 def version(scene) -> str:
     """The pack version the project's copies come from ("" for a code project or before the first bring)."""
-    s = _settings(scene)
-    return str(getattr(s, "assets_version", "") or "") if s is not None else ""
+    src, ver = _stored(scene) if scene is not None else ("", "")
+    if not src and getattr(scene, "library", None) is None:
+        ver = _project_stored()[1]
+    return ver
 
 
 def _local_scenes():
@@ -242,7 +280,12 @@ def _set_source(src: str, ver: str = "", scenes=None, only_empty: bool = False) 
 
 
 def stamp_new_project(reg: areg.Registry | None = None) -> None:
-    """A new project's scenes get their source now (its first save, its first bring). An opened one never does."""
+    """A new project's scenes get their source now (its first save, its first bring). An opened one never does –
+    only a scene made in it later takes what its other scenes store."""
+    src, ver = _project_stored()
+    if src:
+        _set_source(src, ver, only_empty=True)
+        return
     if not is_new_project():
         return
     src = new_source(reg)
@@ -329,9 +372,46 @@ def copies(full_id: str, colls=None) -> list:
             if stale and attempt == 0:          # renamed, undone …: look again once
                 _scan(name)
                 continue
-            out += found
+            out += [x for x in found if x not in _duplicates(found)]
             break
     return out
+
+
+def _weak(idb) -> bool:
+    return getattr(idb, "library_weak_reference", None) is not None
+
+
+def _duplicates(found: list) -> list:
+    """The user's own duplicates among copies of one id (review finding 9): Blender keeps a weak reference to the
+    pack file on the appended datablock (saved with the project) and never copies it to a duplicate, so of two copies
+    of the same version the one without it is the user's – never answered, never updated."""
+    if len(found) < 2:
+        return []
+    by_ver: dict = {}
+    for x in found:
+        by_ver.setdefault(stamp_of(x).get("version", ""), []).append(x)
+    out = []
+    for same in by_ver.values():
+        if len(same) > 1 and any(_weak(x) for x in same):
+            out += [x for x in same if not _weak(x)]
+    return out
+
+
+def _strip_duplicates() -> int:
+    """Take the stamp off the user's duplicates (they are the user's own from now on). Only where writing is allowed."""
+    n = 0
+    for kind, colls in ITEM_COLLS.items():
+        for name in colls:
+            _sig, items, _sh = _index(name)
+            coll = getattr(bpy.data, name)
+            for aid, names in items.items():
+                found = [coll.get(x) for x in names if coll.get(x) is not None]
+                for dup in _duplicates(found):
+                    del dup[STAMP]
+                    n += 1
+    if n:
+        _INDEX.clear()
+    return n
 
 
 def _shared(coll_name: str, key: tuple):
@@ -381,7 +461,7 @@ def get(scene, full_id: str, bring: bool = True) -> Answer:
         src = source(scene)
         choice = reg.resolve(full_id, src, use_pack())
         if choice.source == "pack":
-            if bring:
+            if bring and (full_id, reg.version) not in STATE["refused"]:
                 idb = bring_choice(scene, choice, reg)
                 if idb is not None:
                     return Answer("pack", full_id, idb)
@@ -483,6 +563,8 @@ def _check(coll: str, idb) -> None:
     """Refuse what could run code or reach outside the project."""
     if coll not in ALLOWED:
         raise _Refuse(f"it holds {coll} ({idb.name})")
+    if coll == "fonts" and getattr(idb, "filepath", "") != "<builtin>":
+        raise _Refuse(f"it holds a font file ({idb.name})")
     if getattr(idb, "library", None) is not None:
         raise _Refuse(f"it links to another file ({idb.name})")
     for owner in (idb, *(_trees(coll, idb))):
@@ -552,7 +634,7 @@ def bring_choice(scene, choice, reg: areg.Registry | None = None):
     except Exception as exc:  # noqa: BLE001 - never a half-built item
         _remove(_new_since(before))
         _INDEX.clear()
-        _refused(a.id, str(exc) if isinstance(exc, _Refuse) else f"{type(exc).__name__}: {exc}")
+        _refused(a.id, str(exc) if isinstance(exc, _Refuse) else f"{type(exc).__name__}: {exc}", reg.version)
         return None
     _INDEX.clear()
     STATE["brings"] += 1
@@ -568,6 +650,7 @@ def bring_choice(scene, choice, reg: areg.Registry | None = None):
 
 def _bring(a: ap.Asset, pack: ap.Pack, reg: areg.Registry, before: dict):
     base = reg.stamp(areg.Choice("pack", a.id, a, reg.version))
+    owners = {(r.datablock[0], r.datablock[1]): r.id for r in pack.assets.values() if r.datablock}
     quality = str((pack.qualities or {}).get("normal") or ap.DEFAULT_QUALITIES["normal"])
     if a.datablock:
         coll_name, db_name = a.datablock
@@ -597,27 +680,30 @@ def _bring(a: ap.Asset, pack: ap.Pack, reg: areg.Registry, before: dict):
             continue
         if img.source != "FILE":
             raise _Refuse(f"picture {img.name} is a {img.source.lower()}, not one picture file")
-        if img.packed_file is not None:                 # packed inside the checked .blend already
-            data = bytes(img.packed_file.data)
-            rel, sha = "", _sha(data)
-        else:
-            rel = _pack_rel(pack, img.filepath)
-            if not rel:
-                raise _Refuse(f"picture {img.name} lies outside the pack")
-            rel = K.at_quality(rel, pack.files, quality)
-            if rel not in pack.files:
-                raise _Refuse(f"picture {rel} is not a file of the pack")
-            sha, data = pack.files[rel][1], None
-        have = _shared("images", ("images", sha))
-        if have is None and data is None:
+        if img.packed_file is not None:                 # the pack's pictures are its listed files, never packed
+            raise _Refuse(f"picture {img.name} is packed inside the pack file")
+        rel = _pack_rel(pack, img.filepath)
+        if not rel:
+            raise _Refuse(f"picture {img.name} lies outside the pack")
+        rel = K.at_quality(rel, pack.files, quality)
+        if rel not in pack.files:
+            raise _Refuse(f"picture {rel} is not a file of the pack")
+        sha, data = pack.files[rel][1], None
+        space = f"{img.colorspace_settings.name}|{img.alpha_mode}"
+        have = _shared("images", ("images", sha, space))
+        if have is not None and img == main:            # a picture item is its own image (review finding 6)
+            hs = stamp_of(have)
+            if K.is_item(hs) and hs.get("id") != a.id:
+                have = None
+        if have is None:
             data = _read_checked(pack, rel)
-        pictures.append((img, rel, sha, data, have))
+        pictures.append((img, rel, sha, data, have, space))
     # 3. keep: pack the pictures, share what the project has, stamp, drop leftovers
     drop = []
-    for img, rel, sha, data, have in pictures:
+    for img, rel, sha, data, have, space in pictures:
         is_main = img == main
         st = K.stamp(base, name=os.path.basename(rel) if not a.datablock else _pack_name(img, path),
-                     part="" if is_main else "images", file=rel, sha=sha)
+                     part="" if is_main else "images", file=rel, sha=sha, space=space)
         if have is not None:                            # the project holds these bytes already: one picture
             img.user_remap(have)
             drop.append(("images", img))
@@ -626,12 +712,11 @@ def _bring(a: ap.Asset, pack: ap.Pack, reg: areg.Registry, before: dict):
                     have[STAMP] = st
                 main = have
             continue
-        if rel:
-            full = pack.path(rel)
-            if os.path.normcase(os.path.realpath(bpy.path.abspath(img.filepath))) != os.path.normcase(
-                    os.path.realpath(full)):
-                img.filepath = full
-            img.pack(data=data, data_len=len(data))
+        full = pack.path(rel)
+        if os.path.normcase(os.path.realpath(bpy.path.abspath(img.filepath))) != os.path.normcase(
+                os.path.realpath(full)):
+            img.filepath = full
+        img.pack(data=data, data_len=len(data))
         img[STAMP] = st
     pic_set = {p[0].as_pointer() for p in pictures}
     for coll, idb in new:
@@ -641,7 +726,9 @@ def _bring(a: ap.Asset, pack: ap.Pack, reg: areg.Registry, before: dict):
         if idb.as_pointer() in pic_set:
             continue
         is_main = idb == main
-        st = K.stamp(base, name=_pack_name(idb, path), part="" if is_main else coll)
+        name = _pack_name(idb, path)
+        st = K.stamp(base, name=name, part="" if is_main else coll, file=a.file,
+                     of=a.id if is_main else owners.get((coll, name), ""))
         have = _shared(coll, K.share_key(coll, st))
         if have is not None and have != idb:
             have_st = stamp_of(have)
@@ -744,11 +831,22 @@ def changes(scene=None, reg: areg.Registry | None = None) -> list:
     return out
 
 
-def _swap(kind: str, old, new) -> None:
+def _swap(kind: str, old, new) -> bool:
+    """Point the project at the new copy. True = the old datablock stays (it took the new one's content), else every
+    user of the old one now uses the new one. Objects (props) keep each placed copy and where it stands: they take the
+    new mesh (review finding 2). A kind's own ``swap`` hook decides for its kind."""
     f = _hook(kind, "swap")
     if f is not None:
-        f(old, new)
-        return
+        return bool(f(old, new))
+    if isinstance(old, bpy.types.Object) and isinstance(new, bpy.types.Object):
+        st = stamp_of(new)
+        for ob in [o for o in bpy.data.objects if o == old or (stamp_of(o).get("id") == st.get("id")
+                                                                and K.is_item(stamp_of(o)) and o != new
+                                                                and stamp_of(o).get("version") != st.get("version"))]:
+            if ob.type == new.type and new.data is not None:
+                ob.data = new.data
+            ob[STAMP] = dict(st)
+        return True
     old.user_remap(new)
     from . import materials
     if isinstance(new, bpy.types.ShaderNodeTree):
@@ -759,6 +857,7 @@ def _swap(kind: str, old, new) -> None:
                 continue
             if any(getattr(nd, "node_tree", None) == new for nd in nt.nodes):
                 materials.set_look_src(mat, ver)
+    return False
 
 
 def _drop_old(pack_id: str, keep_version: str, keep_ids: set) -> int:
@@ -770,8 +869,8 @@ def _drop_old(pack_id: str, keep_version: str, keep_ids: set) -> int:
             st = stamp_of(idb)
             if not st or st.get("pack") != pack_id or getattr(idb, "library", None) is not None:
                 continue
-            if c == "images":
-                if idb.users == 0:
+            if c == "images":                           # keyed by bytes: garbage once nothing uses it
+                if idb.users == 0 and not (K.is_item(st) and st.get("version") == keep_version):
                     gone.append((c, idb))
                 continue
             if st.get("version") != keep_version and st.get("id") not in keep_ids and idb.users == 0:
@@ -802,6 +901,7 @@ def apply(scene=None, reg: areg.Registry | None = None, *, backup: bool = True, 
     if reg.pack is None:
         res.note = reg.note or NOTE_NO_PACK
         return res
+    _strip_duplicates()
     todo = changes(scene, reg)
     already = all(source(sc) == K.PACK and version(sc) == reg.version for sc in _local_scenes())
     if not todo and already:
@@ -813,25 +913,34 @@ def apply(scene=None, reg: areg.Registry | None = None, *, backup: bool = True, 
             res.note = NOTE_BACKUP.format(why=backups._S.get("last_reason", "") or "unknown")
             return res
     failed_ids = set()
-    for ch in todo:
-        if ch.what != "newer":
-            continue
-        olds = [x for x in copies(ch.id) if stamp_of(x).get("version") != reg.version]
-        new = bring(scene, ch.id)
-        if new is None:
-            failed_ids.add(ch.id)
-            res.failed.append((ch.id, STATE["log"][-1][1] if STATE["log"] else "not brought"))
-            continue
-        for old in olds:
-            name = old.name
-            _swap(ch.kind, old, new)
-            if old.users == 0:
-                _remove([("", old)])
-                try:
-                    new.name = name                     # the copy keeps the name the project knew
-                except Exception:  # noqa: BLE001
-                    pass
-        res.done.append(ch)
+    was = version(scene)
+    STATE["quiet"] = True                               # the result says what failed, not the session's note
+    try:
+        for ch in todo:
+            if ch.what != "newer":
+                continue
+            olds = [x for x in copies(ch.id) if stamp_of(x).get("version") != reg.version]
+            new = bring(scene, ch.id)
+            if new is None:
+                failed_ids.add(ch.id)
+                res.failed.append((ch.id, STATE["log"][-1][1] if STATE["log"] else "not brought"))
+                continue
+            kept = False
+            for old in olds:
+                name = old.name
+                if _swap(ch.kind, old, new):
+                    kept = True
+                elif old.users == 0:
+                    _remove([("", old)])
+                    try:
+                        new.name = name                 # the copy keeps the name the project knew
+                    except Exception:  # noqa: BLE001
+                        pass
+            if kept and new.users == 0:                 # the old datablocks took its content
+                _remove([("", new)])
+            res.done.append(ch)
+    finally:
+        STATE["quiet"] = False
     if source(scene) == K.CODE:
         for kind, h in sorted(HOOKS.items()):
             if h.code_apply is not None:
@@ -839,7 +948,7 @@ def apply(scene=None, reg: areg.Registry | None = None, *, backup: bool = True, 
                 res.done += [c for c in todo if c.what == "code" and c.id in set(done)]
     _restamp(reg)
     _drop_unused_parts(reg.pack.id, reg.version, failed_ids)
-    _set_source(K.PACK, reg.version)
+    _set_source(K.PACK, reg.version if not res.failed else (was or reg.version))   # a failed one: offered again
     _INDEX.clear()
     if res.failed:
         res.note = NOTE_SOME.format(n=_plural(len(res.failed)))

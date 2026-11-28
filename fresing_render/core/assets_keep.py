@@ -4,9 +4,11 @@
 exactly one copy per item and version; these are its rules in plain Python, so they are tested without Blender:
 
 * **The stamp** ``fr_asset`` on every brought datablock (``stamp`` / ``read_stamp``) – the only stamp per datablock:
-  ``{"id", "pack", "version", "contract", "sha"}`` (0354's ``Registry.stamp``) plus ``"name"`` (the datablock's name
-  inside the pack file – what makes two items' shared parts one copy) and, on what came along with the item,
-  ``"part"`` (the datablock collection) – a picture's ``"file"`` (its path in the pack) and ``"sha"`` (its file's).
+  ``{"id", "pack", "version", "contract", "sha"}`` (0354's ``Registry.stamp``) plus ``"name"`` (its name inside the
+  pack file), ``"file"`` (the pack file it came from; a picture: its own file, with that file's ``"sha"`` and its
+  ``"space"`` = colour space | alpha mode), ``"of"`` (when it is a pack item's own datablock: that item's id – also
+  when it came along with another item, as an environment's own copy of a material's node group) and, on what came
+  along with the item, ``"part"`` (the datablock collection).
 * **The project's source** (``SOURCES``): ``""`` = made before the pack → counts as ``code``; ``pack``; ``code``.
 * **The material's look source** ``fr_look_src`` (``look_src`` / ``parse_look_src``): ``code`` | ``pack:<version>``,
   compared by 0360's ``is_current``.
@@ -26,7 +28,7 @@ STAMP = "fr_asset"                 # on every brought datablock
 LOOK_SRC = "fr_look_src"           # on each group material (0360 compares it in is_current)
 CODE, PACK = "code", "pack"
 SOURCES = ("", PACK, CODE)         # the scene's assets_source: "" = made before the pack (counts as code)
-KEYS = ("id", "pack", "version", "contract", "sha", "name", "part", "file")
+KEYS = ("id", "pack", "version", "contract", "sha", "name", "part", "file", "of", "space")
 
 _QUALITY_DIR = re.compile(r"(^|/)(1k|2k|4k)(/)")
 _QUALITY_END = re.compile(r"_(1k|2k|4k)(\.[A-Za-z0-9]+)$")
@@ -36,7 +38,8 @@ _QUALITY_END = re.compile(r"_(1k|2k|4k)(\.[A-Za-z0-9]+)$")
 # the stamp
 # ---------------------------------------------------------------------------
 
-def stamp(base: dict, name: str = "", part: str = "", file: str = "", sha: str = "") -> dict:
+def stamp(base: dict, name: str = "", part: str = "", file: str = "", sha: str = "", of: str = "",
+          space: str = "") -> dict:
     """The ``fr_asset`` value of one brought datablock. ``base`` = ``Registry.stamp(choice)`` (id, pack, version,
     contract, sha of the item's file); ``name`` = its name in the pack file; ``part`` = the collection of a datablock
     that came along with the item (empty for the item itself); a picture adds its ``file`` and that file's ``sha``."""
@@ -49,6 +52,10 @@ def stamp(base: dict, name: str = "", part: str = "", file: str = "", sha: str =
         out["file"] = file
     if sha:
         out["sha"] = sha
+    if of:
+        out["of"] = of
+    if space:
+        out["space"] = space
     return out
 
 
@@ -85,11 +92,15 @@ def is_item(st: dict) -> bool:
 
 
 def share_key(coll: str, st: dict) -> tuple:
-    """Two datablocks with the same key are one copy: a picture by its file's sha256 (shared across items and
-    versions – the same bytes), anything else by pack, version, collection and its name in the pack."""
+    """Two datablocks with the same key are one copy: a picture by its bytes (sha256) and how it is read (colour
+    space, alpha) – shared across items and versions; a pack item's own datablock by that item, pack and version
+    (whichever file brought it); anything else only with what came from the same pack file (two files may use the same
+    name for different things – review finding 1)."""
     if coll == "images" and st.get("sha"):
-        return ("images", st["sha"])
-    return (coll, st.get("pack", ""), st.get("version", ""), st.get("name", ""))
+        return ("images", st["sha"], st.get("space", ""))
+    if st.get("of"):
+        return ("item", coll, st.get("pack", ""), st.get("version", ""), st["of"])
+    return ("part", coll, st.get("pack", ""), st.get("version", ""), st.get("file", ""), st.get("name", ""))
 
 
 # ---------------------------------------------------------------------------

@@ -632,3 +632,239 @@ def test_a_pack_project_on_a_pc_without_the_pack_keeps_its_copies(packs, env, tm
     assert assets.get(sc, "material:steel_brushed").source == "code"      # a new group: the code look, no note
     assert assets.STATE["notes"] == []
     assert assets.changes(sc) == []
+
+
+# ---------------------------------------------------------------------------
+# the independent review's findings (each failed before its fix)
+# ---------------------------------------------------------------------------
+
+def _relist(dst, assets_rows=None):
+    """pack.json again after files changed: every file's bytes + sha256, and the rows when given."""
+    with open(os.path.join(dst, "pack.json"), encoding="utf-8") as f:
+        data = json.load(f)
+    data["files"] = {}
+    for base, _d, names in os.walk(dst):
+        for n in names:
+            full = os.path.join(base, n)
+            r = os.path.relpath(full, dst).replace(os.sep, "/")
+            if r != "pack.json":
+                data["files"][r] = {"bytes": os.path.getsize(full), "sha256": tp.sha256(full)}
+    if assets_rows is not None:
+        data["assets"] = assets_rows
+    with open(os.path.join(dst, "pack.json"), "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=1)
+    return data
+
+
+def _load(dst, rel, coll, name):
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    full = os.path.join(dst, *rel.split("/"))
+    with bpy.data.libraries.load(full) as (_s, d):
+        setattr(d, coll, [name])
+    return full, getattr(bpy.data, coll)[name]
+
+
+def _write(full, ids):
+    os.remove(full)
+    bpy.data.libraries.write(full, set(ids), path_remap="RELATIVE_ALL", fake_user=True)
+
+
+def test_review_parts_of_two_files_with_the_same_name_stay_apart(packs, env, tmp_path):
+    dst = str(tmp_path / "p" / ap.FOLDER)
+    shutil.copytree(packs["1.0.0"], dst)
+    full, ob = _load(dst, "props/PALLET.blend", "objects", "FRP PALLET")
+    ob.data.name, ob.data.materials[0].name = "Box", "Wood"
+    _write(full, [ob])
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    me = bpy.data.meshes.new("Box")
+    me.from_pydata([(0, 0, 0), (2, 0, 0), (2, 2, 0), (0, 2, 0)], [], [(0, 1, 2, 3)])
+    mat = bpy.data.materials.new("Wood")
+    mat.diffuse_color = (0.8, 0.1, 0.1, 1)
+    me.materials.append(mat)
+    bpy.data.libraries.write(os.path.join(dst, "props", "CONTAINER.blend"), {bpy.data.objects.new("FRP CONTAINER", me)},
+                             path_remap="RELATIVE_ALL", fake_user=True)
+    with open(os.path.join(dst, "pack.json"), encoding="utf-8") as f:
+        rows = json.load(f)["assets"]
+    row = dict(next(r for r in rows if r["id"] == "prop:PALLET"))
+    row.update(id="prop:CONTAINER", file="props/CONTAINER.blend", datablock=["objects", "FRP CONTAINER"])
+    _relist(dst, rows + [row])
+    env(dst)
+    new_file()
+    sc = bpy.context.scene
+    p, c = assets.get(sc, "prop:PALLET").datablock, assets.get(sc, "prop:CONTAINER").datablock
+    assert len(p.data.vertices) > 8 and len(c.data.vertices) == 4 and p.data != c.data
+    assert tuple(round(x, 2) for x in c.data.materials[0].diffuse_color) == (0.8, 0.1, 0.1, 1.0)
+
+
+def test_review_a_prop_update_keeps_every_placed_copy_where_it_stands(packs, env, tmp_path):
+    v11 = str(tmp_path / "p" / ap.FOLDER)
+    shutil.copytree(packs["1.1.0"], v11)
+    full, ob = _load(v11, "props/PALLET.blend", "objects", "FRP PALLET")
+    ob.data.vertices[0].co.z = -0.01                                      # a changed look
+    _write(full, [ob])
+    with open(os.path.join(v11, "pack.json"), encoding="utf-8") as f:
+        rows = json.load(f)["assets"]
+    for r in rows:
+        if r["id"] == "prop:PALLET":
+            r["changed"] = "1.1.0"
+    _relist(v11, rows)
+    env(packs["1.0.0"])
+    new_file()
+    sc = bpy.context.scene
+    p = assets.get(sc, "prop:PALLET").datablock
+    sc.collection.objects.link(p)
+    p.location = (3, 2, 0)
+    dup = p.copy()
+    sc.collection.objects.link(dup)
+    dup.location = (-3, 0, 0)
+    bpy.ops.wm.save_as_mainfile(filepath=str(tmp_path / "props.blend"))
+    res = assets.apply(sc, env(v11), backup=False)
+    assert [c.id for c in res.done] == ["prop:PALLET"], res
+    obs = sorted((o.name, tuple(round(v, 3) for v in o.location)) for o in bpy.data.objects)
+    assert obs == [("FRP PALLET", (3.0, 2.0, 0.0)), ("FRP PALLET.001", (-3.0, 0.0, 0.0))], obs
+    for o in bpy.data.objects:
+        assert assets.stamp_of(o)["version"] == "1.1.0" and round(o.data.vertices[0].co.z, 3) == -0.01
+    assert len(bpy.data.meshes) == 1
+
+
+def test_review_a_shared_picture_keeps_each_colour_space(packs, env, tmp_path):
+    dst = str(tmp_path / "p" / ap.FOLDER)
+    shutil.copytree(packs["1.0.0"], dst)
+    full, ng = _load(dst, "materials/paint_satin.blend", "node_groups", "FRP paint_satin")
+    img = bpy.data.images.load(os.path.join(dst, "textures", "2k", "test_cast_iron_colour_v1.jpg"))
+    img.colorspace_settings.name = "Non-Color"
+    ng.nodes.new("ShaderNodeTexImage").image = img
+    _write(full, [ng])
+    _relist(dst)
+    env(dst)
+    new_file()
+    sc = bpy.context.scene
+    spaces = {}
+    for aid in ("material:cast_iron", "material:paint_satin"):
+        g = assets.get(sc, aid).datablock
+        spaces[aid] = {n.image.colorspace_settings.name for n in g.nodes
+                       if n.bl_idname == "ShaderNodeTexImage" and "colour_v1" in assets.stamp_of(n.image)["file"]}
+    assert spaces == {"material:cast_iron": {"sRGB"}, "material:paint_satin": {"Non-Color"}}
+
+
+def test_review_a_refused_item_is_not_tried_again_this_session(packs, env, tmp_path, monkeypatch):
+    dst = str(tmp_path / "p" / ap.FOLDER)
+    shutil.copytree(packs["1.0.0"], dst)
+    os.remove(os.path.join(dst, "textures", "2k", "test_cast_iron_rough_v1.png"))
+    env(dst)
+    new_file()
+    assert assets.get(bpy.context.scene, "material:cast_iron").source == "code"
+    opened = []
+    real_open = builtins.open
+    monkeypatch.setattr(builtins, "open", lambda *a, **k: opened.append(a[:1]) or real_open(*a, **k))
+    for _ in range(20):
+        assert assets.get(bpy.context.scene, "material:cast_iron").source == "code"
+    monkeypatch.setattr(builtins, "open", real_open)
+    assert len(assets.STATE["log"]) == 1 and opened == [], (assets.STATE["log"], opened)
+    env(dst)                                         # the pack read again (an update put in place): tried again
+    assets.get(bpy.context.scene, "material:cast_iron")
+    assert len(assets.STATE["log"]) == 2
+
+
+def test_review_a_scene_made_later_is_the_projects(packs, env, tmp_path):
+    env(packs["1.0.0"])
+    new_file()
+    assets.get(bpy.context.scene, "material:paint_satin")
+    bpy.ops.wm.save_as_mainfile(filepath=str(tmp_path / "s.blend"))
+    later = bpy.data.scenes.new("House – later")
+    assert later.fresing.assets_source == "" and assets.source(later) == "pack" and assets.version(later) == "1.0.0"
+    assert assets.get(later, "material:cast_iron").source == "pack"
+    bpy.ops.wm.save_mainfile()
+    assert (later.fresing.assets_source, later.fresing.assets_version) == ("pack", "1.0.0")
+
+
+def test_review_two_picture_items_with_the_same_bytes_are_two_items(packs, env, tmp_path):
+    dst = str(tmp_path / "p" / ap.FOLDER)
+    shutil.copytree(packs["1.0.0"], dst)
+    shutil.copyfile(os.path.join(dst, "lights", "PRODUCT.exr"), os.path.join(dst, "hdri", "test_hall_2k.exr"))
+    _relist(dst)
+    env(dst)
+    new_file()
+    sc = bpy.context.scene
+    light = assets.get(sc, "light:PRODUCT").datablock
+    brings = assets.STATE["brings"]
+    answers = [assets.get(sc, "hdri:test_hall") for _ in range(3)]
+    assert [a.source for a in answers] == ["pack", "project", "project"] and assets.STATE["brings"] == brings + 1
+    assert answers[0].datablock != light and assets.stamp_of(light)["id"] == "light:PRODUCT"
+
+
+def test_review_forget_waits_for_the_start_up_read(packs, env, monkeypatch):
+    monkeypatch.delenv(ap.ENV, raising=False)
+    from fresing_render.core import assets_registry as areg
+    slow_find = ap.find
+
+    def slow(*a, **k):
+        time.sleep(0.5)
+        return slow_find(*a, **k)
+    monkeypatch.setattr(ap, "find", slow)
+    areg.forget()
+    assets.warm()                                    # reads "no pack" slowly, as at a start
+    monkeypatch.setenv(ap.ENV, packs["1.0.0"])
+    assets.forget()
+    assert assets.registry().version == "1.0.0"
+
+
+def test_review_the_users_duplicate_is_not_the_pack_copy(packs, env, tmp_path):
+    env(packs["1.0.0"])
+    new_file()
+    sc = bpy.context.scene
+    g = assets.get(sc, "material:paint_satin").datablock
+    group_material("FR group A", g).use_fake_user = True
+    dup = g.copy()
+    dup.name = "AAA my own variant"
+    group_material("FR mine", dup).use_fake_user = True
+    bpy.ops.wm.save_as_mainfile(filepath=str(tmp_path / "d.blend"))
+    bpy.ops.wm.open_mainfile(filepath=str(tmp_path / "d.blend"))
+    sc = bpy.context.scene
+    assert assets.get(sc, "material:paint_satin").datablock.name == "FRP paint_satin"
+    assets.apply(sc, env(packs["1.1.0"]), backup=False)
+    mine = bpy.data.materials["FR mine"].node_tree.nodes["FR look"].node_tree
+    assert mine.name == "AAA my own variant" and assets.stamp_of(mine) == {}
+    assert assets.stamp_of(bpy.data.materials["FR group A"].node_tree.nodes["FR look"].node_tree)["version"] == "1.1.0"
+
+
+def test_review_packed_pictures_refused_the_built_in_font_allowed(packs, env, tmp_path):
+    dst = str(tmp_path / "a" / ap.FOLDER)
+    shutil.copytree(packs["1.0.0"], dst)
+    full, ng = _load(dst, "materials/paint_satin.blend", "node_groups", "FRP paint_satin")
+    img = bpy.data.images.new("unlisted", 8, 8)
+    img.pack()
+    img.source = "FILE"
+    ng.nodes.new("ShaderNodeTexImage").image = img
+    _write(full, [ng])
+    full, pal = _load(dst, "props/PALLET.blend", "objects", "FRP PALLET")
+    cu = bpy.data.curves.new("label", "FONT")
+    cu.body = "MAX 1000 kg"
+    lab = bpy.data.objects.new("label", cu)
+    pal["fr_label"] = lab
+    _write(full, [pal])
+    _relist(dst)
+    env(dst)
+    new_file()
+    before = {c: len(getattr(bpy.data, c)) for c in ("node_groups", "images", "libraries")}
+    assert assets.get(bpy.context.scene, "material:paint_satin").source == "code"
+    assert assets.STATE["log"][-1][0] == "material:paint_satin"          # refused whole
+    assert before == {c: len(getattr(bpy.data, c)) for c in before}
+    assert assets.get(bpy.context.scene, "prop:PALLET").source == "pack"
+
+
+def test_review_a_failed_update_keeps_the_version_and_says_so_once(packs, env, tmp_path):
+    env(packs["1.0.0"])
+    new_file()
+    build_project()
+    bpy.ops.wm.save_as_mainfile(filepath=str(tmp_path / "h.blend"))
+    v11 = str(tmp_path / "v" / ap.FOLDER)
+    shutil.copytree(packs["1.1.0"], v11)
+    os.remove(os.path.join(v11, "textures", "2k", "test_cast_iron_rough_v2.png"))
+    sc = bpy.context.scene
+    res = assets.apply(sc, env(v11), backup=False)
+    assert [c.id for c in res.done] == ["material:paint_satin"] and [f[0] for f in res.failed] == ["material:cast_iron"]
+    assert res.note == assets.NOTE_SOME.format(n="1 look") and assets.STATE["notes"] == []
+    assert (sc.fresing.assets_source, sc.fresing.assets_version) == ("pack", "1.0.0")
+    assert [c.id for c in assets.changes(sc)] == ["material:cast_iron"]
+    assert assets.get(sc, "material:cast_iron").source == "project"

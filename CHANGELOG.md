@@ -5,6 +5,12 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.271 – 28 Nov 2026 – Groundwork for the Fresing assets pack: looks kept inside the project (task 0355)
+
+- No visible change. Under the hood the app can now bring a look from the Fresing assets pack into a project as the
+  project's own copy, with its pictures packed inside, so the project opens complete on a PC without the pack (a
+  client's PC, a backup, the render queue). Projects made before the pack keep their looks; nothing uses this yet.
+
 ## 0.2.270 – 26 Nov 2026 – Shorter top-bar menus, only the Fresing tab in the side panel (task 0367)
 
 - **File** now holds what the app uses: New project, Open…, Open Recent, Revert, Recover, Save, Save As…, Save Copy…,
