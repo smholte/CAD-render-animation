@@ -25,9 +25,8 @@ HERE = os.path.dirname(__file__)
 ZB = -30.0                              # the cable's middle on the seabed
 AFT = np.array([-1.0, 0.0, 0.0])        # laid aft (-x)
 BEND_STEP = math.radians(0.5)           # paths_sea.BEND_STEP: a drawn point per 0.5° of free bend
-# the two faults left open by task 0172 (its report, open points 1–2): the bounds they reach now – the brief's bounds
-# are 10° / 0.5 m and 4°; lower these when the faults are fixed (rename the tests then)
-KNOWN_TIP = {(1.0, 0.0, 0.0): (55.0, 5.0), (0.0, 1.0, 0.0): (180.0, 7.5)}   # tipped about x / y: degrees, m
+# the fault left open by task 0172 (its report, open point 2): the bound it reaches now – the brief's bound is 4°; lower
+# it when the fault is fixed (rename the test then). Open point 1 was fixed by task 0374.
 KNOWN_SEABED_KINK = 50.0                         # degrees
 
 
@@ -201,31 +200,44 @@ def test_the_cable_leaves_the_gutter_without_a_kink_where_it_hangs_free():
 # 1. the hang-off from a gutter – faults found
 # ---------------------------------------------------------------------------
 
-def test_KNOWN_FAULT_tipping_towards_flat_the_leave_point_jumps_from_the_middle_to_the_far_end():
-    """FAULT (brief 1: "no step where the hang-off changes end"). A gutter of 3.5 m, its centre 1 m over the seabed,
-    tips from 30° to flat in 400 steps of 0.075° (the D tipping towards flat near the seabed, shot 11's first step):
-    the leave point stays at the gutter's middle (90°) and then, in ONE step at 11.58° (where the wheel's plane holds
-    ``FLAT`` = 0.2 of "down"), jumps to the far end (180°): the catenary's start moves 6.5 m between two neighbouring
-    moments; ``hang_off_steady`` keeps it (it only puts back runs of ≤ 2 moments). Tipped about y instead: 82.9° →
-    180° at 9.2°, 7.2 m. (Before the change the same jump came at 8.5°, 4.95 m: moved, not removed.)"""
+def test_tipping_towards_flat_the_leave_point_slides_over_to_the_far_end():
+    """Brief 1 of 0172 ("no step where the hang-off changes end"), fixed by task 0374. A gutter of 3.5 m, its centre 1 m
+    over the seabed, tips from 30° to flat in 400 steps of 0.075° (the D tipping towards flat near the seabed, shot 11's
+    first step), tipped about x and about y. A slack cable there has two places to lie: the leave point it lies at goes
+    away (the answer folds) and the next is at the gutter's far end. One moment at a time it still jumps there (that is
+    the answer of that moment); along the animation (``hang_off_steady``) it slides over in a few frames (``SLIDE``).
+    Before 0374: 51° / 4.45 m in one step (about x), from the near end to the far end / 7.2 m (about y)."""
     F = 400
     tilt = np.linspace(math.radians(30.0), 0.0, F)
     for tilt_axis in ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0)):
         g = gutter(F, np.full(F, 1.0), R=3.5, tilt=tilt, tilt_axis=tilt_axis)
         S = np.array([-60.0, 0.0, ZB])
         L0 = length0(g, S, np.full(F, 2.0))
-        for res in (C.hang_off(*g, math.pi, S, AFT, ZB, L0), C.hang_off_steady(*g, math.pi, S, AFT, ZB, L0)):
-            assert np.isfinite(res["T"]).all()
-            dpsi = np.degrees(np.abs(np.diff(res["psi"])))
-            step = np.linalg.norm(np.diff(res["T"], axis=0), axis=1)
-            k = int(dpsi.argmax())
-            # KNOWN FAULT (open point 1 of task 0172): the brief wants < 10° and < 0.5 m; after the task, tipped about x
-            # 51° / 4.45 m at 6.3° of tilt, about y from the near end to the far end (180°) / 7.2 m at 5.8° (before the
-            # task 4.95 m at 8.5°). Held to what it is now, so it cannot get worse unseen
-            jump, move = KNOWN_TIP[tilt_axis]
-            assert dpsi.max() <= jump, (f"axis {tilt_axis}: the wrap jumps {dpsi.max():.1f}° in one step of "
-                                        f"0.075° tilt at {math.degrees(tilt[k]):.2f}°")
-            assert step.max() < move, f"axis {tilt_axis}: the catenary's start moves {step.max():.2f} m"
+        assert np.isfinite(C.hang_off(*g, math.pi, S, AFT, ZB, L0)["T"]).all()
+        res = C.hang_off_steady(*g, math.pi, S, AFT, ZB, L0)
+        assert np.isfinite(res["T"]).all()
+        dpsi = np.degrees(np.abs(np.diff(res["psi"])))
+        step = np.linalg.norm(np.diff(res["T"], axis=0), axis=1)
+        k = int(dpsi.argmax())
+        assert dpsi.max() < 10.0, (f"axis {tilt_axis}: the wrap jumps {dpsi.max():.1f}° in one step of "
+                                   f"0.075° tilt at {math.degrees(tilt[k]):.2f}°")
+        assert step.max() < 0.5, f"axis {tilt_axis}: the catenary's start moves {step.max():.2f} m"
+        # it does get there: flat, the cable leaves at the far end (the way it is laid)
+        assert math.degrees(res["psi"][-1]) == pytest.approx(180.0, abs=0.5)
+
+
+def test_a_moment_apart_from_the_others_does_not_slide():
+    """The slide is over time only: moments that are not neighbouring frames (``frames`` with a gap) each keep their
+    own answer, and a single moment is the moment's answer."""
+    tilt = np.radians([30.0, 2.0])
+    g = gutter(2, np.full(2, 1.0), R=3.5, tilt=tilt, tilt_axis=(0.0, 1.0, 0.0))
+    S = np.array([-60.0, 0.0, ZB])
+    L0 = length0(g, S, np.full(2, 2.0))
+    own = C.hang_off(*g, math.pi, S, AFT, ZB, L0)
+    apart = C.hang_off_steady(*g, math.pi, S, AFT, ZB, L0, frames=np.array([10, 40]))
+    assert np.allclose(own["psi"], apart["psi"]) and abs(own["psi"][1] - own["psi"][0]) > 1.0
+    near = C.hang_off_steady(*g, math.pi, S, AFT, ZB, L0, frames=np.array([10, 11]))
+    assert abs(near["psi"][1] - near["psi"][0]) <= C.SLIDE / 3.5 + 1e-9
 
 
 def test_lowering_a_flat_gutter_the_bends_end_moves_on_smoothly():

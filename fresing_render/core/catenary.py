@@ -69,6 +69,7 @@ BEND_MIN = 1e-4                 # rad: a smaller kink is left as it is (no free 
 BEND_ROUNDS = 80                # rounds of the fixed point on the free bend's turn
 FLAT = 0.2                      # a wheel whose plane holds less of "down" than this lies (nearly) flat (as paths_sea.FLAT)
 BED_GAP = 1e-3                  # m: a free bend ends at least this far over the cable's middle on the seabed
+PILE_EASE = 1.0                 # m: a piled cable's wrap is read from straight down once this much has piled up
 BED_BAND = 2.0                  # m: a free bend ending this near the seabed bends in the catenary's plane at the wheel
 BIGHT_TURN = math.radians(45.0)  # a bight's feet turn this far off the lay line when no bend radius is known
 BIGHT_TURN_MAX = math.radians(140.0)  # … and at most this far (beyond 150° its feet would cross: a loop)
@@ -571,20 +572,47 @@ def _in_range(want, wmax):
     return best
 
 
-def _way(res: dict, k) -> np.ndarray:
-    """(F, 3): the direction the wrap is read from (task 0172) – the catenary's direction at T; for a wheel lying (nearly)
-    flat (its plane holds less than ``FLAT`` of "down": a quadrant tipped flat) blended towards the way the cable lies
-    on the seabed (the lay direction ``u``, from the touch-down towards S), fully that where it lies flat. A cable
-    hanging straight down past a flat wheel has no direction in the wheel's plane worth the name: its sideways part
-    moved the leave point from one end of the gutter to its middle and back."""
-    d = np.where((res["kind"] == PILED)[:, None], np.array([0.0, 0.0, -1.0]), res["direction"])
-    d_in = d - (d * k).sum(1, keepdims=True) * k
+def _way_want(res: dict, k, t0, wmax) -> np.ndarray:
+    """(F,): the wrap the catenary wants to leave at (task 0172, 0374) – where the wheel's tangent points along the
+    catenary's direction at T; for a wheel lying (nearly) flat (its plane holds less than ``FLAT`` of "down": a
+    quadrant tipped flat) blended towards where it points along the lay direction ``u`` (from the touch-down towards
+    S), fully that where it lies flat. A cable hanging straight down past a flat wheel has no direction in the wheel's
+    plane worth the name: its sideways part moved the leave point from one end of the gutter to its middle and back.
+    Task 0374: the two WRAPS are blended, not the two directions – where they point opposite ways (a gutter tipped about
+    the lay line: "down" at its near end, the lay at its far end) a blend of directions passed through nothing and the
+    leave point jumped from one end to the other in one step; the wraps' blend goes over the gutter from end to end."""
+    # a piled cable reads its wrap from straight down (task 0172) – eased in over its first ``PILE_EASE`` m of piled
+    # cable (task 0374): where it just piles up, its real direction (down and sideways to its touch-down beside T) and
+    # "down" differ by up to 90°, and the leave point jumped by them in one step
+    q = np.where(res["kind"] == PILED, np.clip(res["excess"] / PILE_EASE, 0.0, 1.0), 0.0)[:, None]
+    d = _unit((1.0 - q) * res["direction"] + q * np.array([0.0, 0.0, -1.0]), np.array([0.0, 0.0, -1.0]))
+    want_d = _in_range(_wrap_of(d, k, t0), wmax)
     u = res["u"]
     u_in = u - (u * k).sum(1, keepdims=True) * k
     down_in = np.sqrt(np.clip(1.0 - k[:, 2] ** 2, 0.0, 1.0))      # how much of "down" the wheel's plane holds
     w = np.clip(1.0 - down_in / FLAT, 0.0, 1.0)
-    w = np.where(np.linalg.norm(u_in, axis=1) > 1e-9, w, 0.0)[:, None]
-    return (1.0 - w) * _unit(d_in) + w * _unit(u_in)
+    w = np.where(np.linalg.norm(u_in, axis=1) > 1e-9, w, 0.0)
+    if not (w > 0.0).any():
+        return want_d
+    want_u = _in_range(_wrap_of(u, k, t0), wmax)
+    # the cable's own wrap counts as much as its direction lies in the wheel's plane: a cable hanging (nearly) straight
+    # down past a flat wheel has a wrap that turns round in no time (its few degrees off the vertical point anywhere)
+    mag = np.linalg.norm(d - (d * k).sum(1, keepdims=True) * k, axis=1)
+    # beyond both ends (the cable points out of the open side of a gutter): the turn nearer the lay's end
+    x = _wrap_of(d, k, t0)
+    best = want_d.copy()
+    for turn in (0.0, 2.0 * math.pi, -2.0 * math.pi):
+        c = x + turn
+        out_c = np.maximum(np.maximum(-c, c - wmax), 0.0)
+        out_b = np.maximum(np.maximum(-best, best - wmax), 0.0)
+        nearer = np.abs(np.clip(c, 0.0, wmax) - want_u) < np.abs(np.clip(best, 0.0, wmax) - want_u) - 1e-12
+        best = np.where((out_c > 0.0) & (out_b > 0.0) & nearer, c, best)
+    # both taken into the wheel's range first: the blend of two ends is a point on the wheel between them
+    lo, hi = -0.25 * math.pi, wmax + 0.25 * math.pi
+    a, b = np.clip(best, lo, hi), np.clip(want_u, lo, hi)
+    wd = (1.0 - w) * mag
+    blend = (wd * a + w * b) / np.maximum(wd + w, 1e-300)
+    return np.where(w > 0.0, blend, want_d)
 
 
 def _bend(t, d):
@@ -693,17 +721,49 @@ def hang_off_steady(centre, axis, radius, side, arrive, wrap_max, start, aft, bo
                 if isinstance(v, np.ndarray) and v.shape[:1] == (F,) and key in sub:
                     v[sel[good]] = sub[key][good]
         j = end
+    return _slide(res, fr, (centre, axis, radius, side, arrive, wrap_max), start, aft, bottom_z, length0)
+
+
+SLIDE = 0.1                     # m: the leave point moves at most this far round its wheel between neighbouring frames
+
+
+def _slide(res: dict, fr, wheel, start, aft, bottom_z, length0) -> dict:
+    """Task 0374 (0172's open point 1): the leave point slides round its wheel, at most ``SLIDE`` m between
+    neighbouring frames, instead of jumping. A slack cable on a gutter tipping through flat has two places to lie (its
+    answer folds: the one it lies at goes away and the next is at the other end), and the moment it went its leave
+    point jumped 4–7 m in one frame. Now it keeps the end it was at and slides over to the other in a few frames; the
+    moments on the way are worked out at the wrap they have reached."""
+    psi = res["psi"]
+    F = len(psi)
+    if F < 2:
+        return res
+    r = np.broadcast_to(np.asarray(wheel[2], dtype=float), (F,))
+    step = SLIDE / np.maximum(r, 1e-9)
+    lim = psi.copy()
+    for j in range(1, F):
+        if fr[j] == fr[j - 1] + 1:
+            lim[j] = min(max(psi[j], lim[j - 1] - step[j]), lim[j - 1] + step[j])
+    sel = np.flatnonzero(np.abs(lim - psi) > 1e-9)
+    if not len(sel):
+        return res
+    sub = hang_off(*(_rows(x, sel, F) for x in wheel), start, aft, bottom_z, _rows(length0, sel, F),
+                   psi_fixed=lim[sel])
+    for key, v in res.items():
+        if isinstance(v, np.ndarray) and v.shape[:1] == (F,) and key in sub:
+            v[sel] = sub[key]
     return res
 
 
-def hang_off(centre, axis, radius, side, arrive, wrap_max, start, aft, bottom_z, length0, psi0=None) -> dict:
+def hang_off(centre, axis, radius, side, arrive, wrap_max, start, aft, bottom_z, length0, psi0=None,
+             psi_fixed=None) -> dict:
     """Where the cable leaves its last wheel into the sea, and the catenary from there.
 
     ``length0`` (F,): the cable's length from the arrival point on the wheel to its end S (so from T(ψ) it is
     length0 − r ψ). ``wrap_max`` (F,) or scalar: the wheel's end (a chute ends; a sheave: half a turn).
     Returns ``hang``'s result for T(ψ) plus ``psi`` (F,), ``T`` (F, 3), ``steep`` (F,) the catenary wants to leave
     beyond the wheel's end (it leaves at the end with a kink of ``kink`` rad), ``short`` (F,) it leaves before
-    it arrives (it does not touch the wheel; ψ = 0)."""
+    it arrives (it does not touch the wheel; ψ = 0). ``psi_fixed`` (F,): leave at this wrap (no search; task 0374's
+    slide over time)."""
     centre = np.asarray(centre, dtype=float).reshape(-1, 3)
     F = len(centre)
     k = _unit(np.asarray(axis, dtype=float).reshape(-1, 3) * np.asarray(side, dtype=float).reshape(-1, 1))
@@ -722,10 +782,13 @@ def hang_off(centre, axis, radius, side, arrive, wrap_max, start, aft, bottom_z,
     def at(p):
         T = centre + _rot(rho, k, p) * r[:, None]
         res = hang(T, start, aft, bottom_z, L0 - r * p)
-        return T, res, _in_range(_wrap_of(_way(res, k), k, t0), wmax)
+        return T, res, _way_want(res, k, t0, wmax)
 
     done = np.zeros(F, dtype=bool)
-    for _ in range(FIX_ROUNDS):
+    if psi_fixed is not None:
+        psi = np.clip(np.broadcast_to(np.asarray(psi_fixed, dtype=float), (F,)).astype(float), 0.0, wmax)
+        done[:] = True
+    for _ in range(0 if psi_fixed is not None else FIX_ROUNDS):
         _T, _res, want = at(psi)
         new = np.clip(want, 0.0, wmax)
         done = np.abs(new - psi) < FIX_TOL
