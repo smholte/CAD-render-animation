@@ -1,6 +1,6 @@
 # 0374 – Cable-lay line: slack cables on a gutter, two cables over one sheave, set-down depth, the 7 s sea-cable solve, touch-down drift, drum layers, spline routes, copying cables
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0374-cable-lay-line-fixes`
+**Who:** worker · **Status:** running · **Branch:** `task/0374-cable-lay-line-fixes`
 **Started by:** lead, 28 Nov 2026 (open points of 0078, 0172, 0173, 0174, 0192, 0293 – the owner's main goal is the
 cable-lay line) · **Model:** Opus · effort High (+ an independent tester helper for the row fixes)
 **Area:** Flex + Paths (cables): `blender/flex.py`, `flex_route.py`, `core/flex.py`, `core/flex_fit.py`,
