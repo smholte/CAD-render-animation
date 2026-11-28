@@ -156,8 +156,8 @@ The owner's AI usage is limited; every chat works economically:
 ### Working efficiently with the automatic tests (owner's request, 6 Nov 2026)
 
 GitHub's minutes are free (public repository); the owner's *waiting time* and AI usage are not. Since task 0108
-a full run takes about 12 minutes alone (parallel jobs, task 0108; more while other tasks' runs share GitHub's 20 jobs; a docs-only run about 2), but a task is often run several times. **28 Nov 2026 measured:** a full run is ~32 jobs
-and GitHub Free runs 20 jobs at a time for the whole account. With ≤ 6 tasks a full run took 30–35 min; with more,
+a full run takes about 12 minutes alone (parallel jobs, task 0108; more while other tasks' runs share GitHub's 40 jobs; a docs-only run about 2), but a task is often run several times. **28 Nov 2026 measured:** a full run is ~32 jobs
+and the owner's account (GitHub Pro) runs 40 jobs at a time for all its repositories. With ≤ 6 tasks a full run took 30–35 min; with more,
 55–75 min, and its jobs waited ~10 min on average (up to 24) for a runner. That day: 31 green, 9 red, **14
 cancelled** runs. Every wasted full run costs every other task's waiting time. So:
 - **Take the version number last.** Do not bump the version, write the CHANGELOG heading or touch
@@ -867,8 +867,8 @@ changes only the task list (`TASKS.md`, `tasks/`): that starts no run, and `ci_s
 free runners (4 cores, no graphics card). A newer push to the same branch cancels the older
 run; runs on `main` always finish. Since task 0036 the tests run as parallel jobs: a full run takes about
 12 minutes when it runs alone (task 0108, 13 Nov 2026: 12.4 min, run 43476950544; before it 15–20 min, the demo project's clash check alone 13 min; task 0063: 8.8–11.9;
-task 0036: median 12.8; before that 24–50). One run uses up to 18 jobs at once; GitHub's free plan runs at most 20 jobs
-at a time per account (GitHub's documented limit), so runs of several tasks at once queue behind each other: keep jobs
+task 0036: median 12.8; before that 24–50). One run uses up to 18 jobs at once; the owner's GitHub Pro plan runs at most 40 jobs
+at a time per account (GitHub's documented limit; Free: 20), so runs of several tasks at once queue behind each other: keep jobs
 short and few. **A test longer than ~8 minutes sets the run's length:** split it (by test file; or as the old demo's
 clash check did: windows of frames in 4 processes at once, judged from the animation's first frame so it is as strict
 as one whole check – `tests/clash_windows_child.py`, proved in `tests/test_clash_windows.py`). The first job,

@@ -1,6 +1,6 @@
 # 0383 – CI: full run before the claim, a short catch-up run after it; fewer, balanced jobs
 
-**Who:** worker · **Status:** open · **Branch:** `task/0383-ci-catch-up`
+**Who:** worker · **Status:** running · **Branch:** `task/0383-ci-catch-up`
 **Started by:** lead, 28 Nov 2026 (owner: "is it slower from fighting for GitHub compute?" – yes; 14 cancelled runs)
 · **Model:** Opus · effort High
 **Area:** Quality & delivery lane: `tools/ci_precheck.py`, `tools/ci_groups.py`, `tools/ci_status.py`,
@@ -10,7 +10,7 @@ change them); after that, only `GROUPS`.
 
 ## Why (28 Nov measurement, lead)
 
-- A full run is ~32 jobs. GitHub Free runs 20 at a time for the account. Full runs took 30–35 min in the morning (≤ 6
+- A full run is ~32 jobs. The owner's account is on GitHub Pro: 40 jobs at a time for the account (not 20 – corrected 28 Nov 19:48). Full runs took 30–35 min in the morning (≤ 6
   tasks) and 55–75 min in the afternoon; 0377's jobs waited ~10 min on average (up to 24) for a runner.
 - 31 green, 9 red, **14 cancelled** runs in one day. The real cost is the **version race**: each merge makes every other
   green branch merge `main` and renumber. The precheck sees main's code as "code changed" and starts a full run (a pure
@@ -36,7 +36,7 @@ change them); after that, only `GROUPS`.
   minutes, then pick.
 - **D – stale runs.** A run whose branch already has a newer commit stops at the precheck, for queued runs as well
   (`cancel-in-progress` only covers some cases – check docs, lane and full).
-- **E – fewer, balanced jobs.** Count a full run's jobs. Aim for ≤ 20, so one run fits GitHub Free's limit: merge small
+- **E – fewer, balanced jobs.** Count a full run's jobs. Aim for ≤ 20, so two full runs fit the 40-job limit at once: merge small
   matrix groups and start the slowest first (`tools/ci_times.json`). `ci_real_app.py` `GROUPS` only after 0371 / 0379
   are merged. Measure before and after (`ci_status.py --record`).
 - **F – claim helper.** `tools/ci_status.py --claim` / `--unclaim`: writes or empties `tasks/MERGING.md`, pushes only
