@@ -160,11 +160,11 @@ a full run takes about 12 minutes alone (parallel jobs, task 0108; more while ot
 and the owner's account (GitHub Pro) runs 40 jobs at a time for all its repositories. With ≤ 6 tasks a full run took 30–35 min; with more,
 55–75 min, and its jobs waited ~10 min on average (up to 24) for a runner. That day: 31 green, 9 red, **14
 cancelled** runs. Every wasted full run costs every other task's waiting time. So:
-- **Take the version number last.** Do not bump the version, write the CHANGELOG heading or touch
-  `MIN_*` counts until the branch is finished. Then take the **version claim** (bullet "One merge at a time"
-  below), merge `main` **once**, raise the version to the claimed number and push. Other tasks finish in the same hours: a clash costs a
-  whole extra run – the `precheck` job catches it in about a minute ("someone took your version number: merge
-  main and renumber to 0.2.NN") before any test starts.
+- **Take the version number last.** Do not bump the version or write the CHANGELOG heading until the branch is
+  finished **and its `[full run]` is green**. Then take the **version claim** (bullet "One merge at a time" below),
+  merge `main` **once**, raise the version to the claimed number and push: a short **catch-up** run (task 0383). A
+  clash costs a run – the `precheck` job catches it in about a minute ("someone took your version number: merge main
+  and renumber to 0.2.NN") before any test starts.
 - **Push when the work is ready, not after every edit.** A newer push to the same branch cancels the running
   run. Run the tests of your area locally first; push once with code, tests and guide together. Reports,
   `TASKS.md` and `tasks/` files go in a **separate last push** that touches only those (no run starts).
@@ -173,9 +173,8 @@ cancelled** runs. Every wasted full run costs every other task's waiting time. S
   no real app, no Windows). The precheck lists what it picked and why. A shared file (`props.py`, `ui.py`,
   `reimport.py`, `animation.py`, `handlers.py`, `build.py`, `tour.py`, `pccheck/`, `importer/`, packaging,
   `installer/`, `tools/ci_*`, `.github/`) or a file no test names gives a full run. A lane run is **not a release
-  check** and proves nothing: the full run comes with the version raise. A task that does not raise the version
-  (tools, docs) puts **`[full run]`** in its last code commit's message before merging; so does a worker who wants
-  everything earlier.
+  check** and proves nothing. When the branch is finished, its last code push carries **`[full run]`** in the commit
+  message (version still not raised): that green full run is the basis of the catch-up after the claim (task 0383).
 - **Documentation-only pushes are cheap.** A push that changes only `docs/`, `CHANGELOG.md`, `CLAUDE.md`,
   `README.md`, `TASKS.md`, `tasks/` and at most the version line of the two version files, on top of a commit
   whose run is green, runs mode **docs**: build, tooltip check, guide and their tests, a few minutes.
@@ -184,27 +183,37 @@ cancelled** runs. Every wasted full run costs every other task's waiting time. S
 - **Merge the way that lets GitHub reuse the run.** Merge `main` into your branch, wait for green on *that*
   commit, then fast-forward `main` to exactly that commit (`git push origin HEAD:main`) – no new merge commit,
   no changes after the green run. GitHub then sees that this git tree already ran green (mode **reuse**), runs
-  no tests again, and publishes the release with that run's installer in a few minutes. If `main` moved
-  meanwhile, the fast-forward is refused: merge once more. When `main` moved only by documents (the task list,
-  briefs, reports), that merge + report push gets a docs run (~3 min, task 0170): the precheck finds the branch's
-  own green commit inside the push and sees that only documents differ from it. If `main` brought code: a full run.
-- **One merge at a time (28 Nov 2026 – the version claim).** The claim is one line in `tasks/MERGING.md` on `main`. A
-  `tasks/`-only push starts no run. When your branch is finished and the tests of your area pass:
-  1. `git fetch` and read `tasks/MERGING.md` on `origin/main`. **No claim line:** write
-     `0.2.NN · task NNNN · <branch> · claimed <dd Mon HH:MM>` (NN = the next number after `main` and every release),
-     commit only that file and push it to `main` from a clean checkout of `origin/main`. If the push is refused,
-     another worker was first: fetch and read again.
-  2. **Held by another task:** do not merge `main`, do not raise the version, do not push code. Finish the report and
-     the guide. Check again with one `git fetch` about every 15 min (no tight loop).
-  3. **With the claim:** merge `main` once, raise the version to the claimed number, push once (full run). If it is
-     red, see "A red run". If it is red a second time, empty the claim line (you give up your place) and claim again
-     when it is fixed.
-  4. **Green:** fast-forward `main` (bullet above). In the report push (`tasks/` + TASKS.md only), empty
-     `tasks/MERGING.md`.
+  no tests again, and publishes the release with that run's installer in a few minutes. A green **catch-up** run
+  counts like a full one here. If `main` moved meanwhile, the fast-forward is refused: merge once more (a catch-up
+  again; only documents: a docs run, ~3 min, task 0170).
+- **Catch-up runs (task 0383).** After a green `[full run]` at commit G, a push whose tree is the merge of G and
+  `main` plus only the version lines, version stamps set to the new version (a tour set's `changed=`, a function's or
+  PC-check line's `since=`), the CHANGELOG heading, `tests/data/tour_versions.json` and documents runs mode
+  **catchup**: the tests that name a file `main` brought since it parted from G, every test file / real-app test the
+  branch itself changed, the build and the documentation checks – typically 5–15 jobs, ~15 min. Files every task
+  appends to (the function list, the test tour, the PC check, the CI files) get their own checks; a **core** shared
+  file from `main` (`props.py`, `ui.py`, `reimport.py`, `animation.py`, `handlers.py`, `build.py`, the package's
+  `__init__.py` beyond its version line, `importer/`, `installer/`, packaging), any other code change after the merge, a conflict outside documents that you settled by
+  hand, or `[full run]` in the message → full. **Wait until G's run is green before you push the merge**: a newer push
+  cancels G's run, and a G without a finished green run gives no catch-up.
+- **One merge at a time (28 Nov 2026 – the version claim).** The claim is one line in `tasks/MERGING.md` on `main`
+  (`0.2.NN · task NNNN · <branch> · claimed <dd Mon HH:MM>`, UTC); never edit it by hand – `tools/ci_status.py` does
+  it (task 0383) and pushes only that file to `main` from a worktree of `origin/main` (a `tasks/`-only push starts no
+  run). The order:
+  1. **Build** with lane runs; when the task is done, push once with **`[full run]`** (version not raised) and wait for
+     green.
+  2. **Claim:** `python3 tools/ci_status.py --claim --trailer "<attribution line>" …` (a task that raises no version:
+     `--claim --no-version`). It takes the next number after `main` and every release. **Held by another task:** it
+     says who and since when; do not merge `main`, do not raise the version, do not push code; finish the report and
+     the guide and try again about every 15 min (`--claimed` only shows it).
+  3. **Merge `main` once + raise the version** to the claimed number (both files, CHANGELOG heading, tour / function
+     versions), push once: a **catch-up** run. Red: see "A red run" (fix, push once – a catch-up again if only the
+     merge changed, else full). Red a second time: `--unclaim` (you give up your place) and claim again when fixed.
+  4. **Green:** fast-forward `main` (a reuse run publishes the release).
+  5. **Unclaim:** `python3 tools/ci_status.py --unclaim` right after the fast-forward, then the report push.
 
-  A claim older than 90 min with no push on its branch: the next worker asks the owner (the session may have
-  stopped). A lead sentence for a new task never fixes a version number in advance. Until task 0383 lands, the claim
-  lasts one full run; 0383 makes the step after the claim a short run.
+  A claim older than 90 min with no push on its branch (`--claimed` says so): ask the owner (the session may have
+  stopped) – never take it over. A lead sentence for a new task never fixes a version number in advance.
 - **A red run:** read the failing step with `ci_status.py` (do not re-run blindly). Run **the failing groups
   locally**, fix everything you find and push **once**. Never push one fix at a time: each push cancels the running
   run, and that run has already held runners other tasks were waiting for (28 Nov: 0347 pushed 7× in an hour). A
@@ -867,9 +876,11 @@ changes only the task list (`TASKS.md`, `tasks/`): that starts no run, and `ci_s
 free runners (4 cores, no graphics card). A newer push to the same branch cancels the older
 run; runs on `main` always finish. Since task 0036 the tests run as parallel jobs: a full run takes about
 12 minutes when it runs alone (task 0108, 13 Nov 2026: 12.4 min, run 43476950544; before it 15–20 min, the demo project's clash check alone 13 min; task 0063: 8.8–11.9;
-task 0036: median 12.8; before that 24–50). One run uses up to 18 jobs at once; the owner's GitHub Pro plan runs at most 40 jobs
-at a time per account (GitHub's documented limit; Free: 20), so runs of several tasks at once queue behind each other: keep jobs
-short and few. **A test longer than ~8 minutes sets the run's length:** split it (by test file; or as the old demo's
+task 0036: median 12.8; before that 24–50; 28 Nov 2026 with ~5 tasks at once: 30–75 min). Task 0383: a full run starts
+at most 20 test jobs at once (8 pytest + 1 demo + 10 real-app + the build; then 2 Windows), so two full runs fit the
+owner's GitHub Pro limit of 40 jobs at a time per account (Free: 20); every matrix starts with its slowest group
+(`ci_groups.slowest_first`, from `tools/ci_times.json`). Runs of more tasks queue behind each other: keep jobs short
+and few. **A test longer than ~8 minutes sets the run's length:** split it (by test file; or as the old demo's
 clash check did: windows of frames in 4 processes at once, judged from the animation's first frame so it is as strict
 as one whole check – `tests/clash_windows_child.py`, proved in `tests/test_clash_windows.py`). The first job,
 `precheck`, picks the **mode** of the run (`ci_status.py` prints it):
@@ -894,21 +905,40 @@ as one whole check – `tests/clash_windows_child.py`, proved in `tests/test_cla
   The PC check and the test tour never run in a lane run. Shared files (`FULL_FILES`, `FULL_PREFIXES`) or a file no
   test names → full. The verdict job is called "Tests - verdict (lane run - not a release check)", and such a run is
   never the green basis of a docs or reuse run. Try a mapping: `python3 tools/ci_groups.py --lane <file> …`.
+- **catchup** (task 0383) – a branch push (not `[full run]`) whose nearest branch commit G with a proven run (full,
+  or a catch-up / docs run on one) is followed only by a merge of `main` + version lines / stamps / documents:
+  `git merge-tree G main` equals the pushed tree apart from those (conflicts only in documents allowed). Runs
+  `ci_groups.catchup_plan`: the lane plan of what `main` brought since `merge-base(G, main)` (less its own version
+  lines and stamps; `ci_groups.CATCHUP_REGISTRY`: the function list → `test_functions.py`, `tour.py` → the tour tests +
+  real-app tour / tour2, `pccheck/` → `test_pccheck.py` + real-app pccheck / pccheck2 (heavy: pccheckheavy),
+  `tools/ci_*` / `.github/` → `test_ci_tools.py`; any other shared file → full), plus the test files and real-app
+  tests the branch changed, plus the build
+  with the documentation checks and `test_tour_versions.py`; Windows part A only when `main` brought Windows code. The
+  verdict is "Tests - verdict (catch-up)"; such a run **proves its tree** (docs and reuse runs may stand on it), so
+  `main`'s fast-forward is a reuse. What it can miss: a test that reaches a module `main` changed only indirectly
+  (it does not name it) and fails only with the branch's change – the same blind spot as lane runs, accepted because
+  both sides ran every test green on their own (G's full run, and `main`'s own full or catch-up run); the PC check
+  and the test tour on the combination run at the owner's PC check after the update.
+- **stale** (task 0383) – a branch run whose branch on GitHub has moved on to a commit that changes more than the task
+  list (that push has its own run): the precheck cancels its own run (`actions: write` on that job only) before any test
+  job starts. Measured over 300 runs (24–28 Nov): `cancel-in-progress` already stopped every older branch run once the
+  newer one existed; this closes the gap of the first seconds. `main` is never stopped (a main run publishes its
+  version).
 
 When the precheck fails, nothing else starts. On `main` with a new version, three release jobs follow (below):
 
 | Job | What it does | Time (run 42261621440) |
 | --- | --- | --- |
 | Precheck | `tools/ci_precheck.py`: the two version files agree; a branch that raised the version is newer than `main` and every release and has its CHANGELOG heading (else "someone took your version number: merge main and renumber to …"); `MIN_CHECKS` names every real-app test, `MIN_LINES_FULL` ≥ the PC check's Full lines; every test in exactly one group; `TASKS.md` tables parse; picks the mode and the groups | 0.1 min |
-| Linux - test suite 1 … 9 | pytest, the `tests/test_*.py` files split in 9 groups (`PYTEST_GROUPS`, task 0108) balanced by `tools/ci_times.json` – the slowest of each file's last 3 recorded runs (`tools/ci_groups.py`, a new file joins by itself); one group also runs the packaged self-test (`test_install_linux.py`). A venv cache (by the hash of `tools/requirements-dev.txt`) saves the package install | 7–12 min; `test_air.py` alone in its group (its queued render: 5–11 min, it varies most); `test_demo_clash.py` ~9 min (task 0108) |
-| Linux - make the demo project → Linux - test suite demo 1 | task 0145: the files that open the made demo project (they import `tests/demo_made.py`: `test_demo_project*.py`; task 0247: one group, ~5 min) run in `DEMO_GROUPS` groups of their own (`tools/ci_groups.py`). One job makes the demo once (`python tests/demo_made.py <dir>`) and hands it on as the run artifact `demo-made`; each demo job unpacks it at the same place and sets `FRESING_DEMO_MADE` (not GitHub's cache: keyed on the app's code it would miss at nearly every push). On a chat machine the first demo file of a pytest session makes it, the others reuse it. A new demo check: a `test_demo_project_<topic>.py` with `from demo_made import made`, not a longer file | make ~1.5 min, the demo group ~5 min (task 0247; the cable-lay demo took 3.7 + 4 x 6–10) |
+| Linux - test suite 1 … 8 | pytest, the `tests/test_*.py` files split in 8 groups (`PYTEST_GROUPS`, task 0108; 8 since task 0383) balanced by `tools/ci_times.json` – the slowest of each file's last 3 recorded runs (`tools/ci_groups.py`, a new file joins by itself); one group also runs the packaged self-test (`test_install_linux.py`). A venv cache (by the hash of `tools/requirements-dev.txt`) saves the package install | 16–30 min with 9 groups (28 Nov, run 46173220142), ~28 planned with 8; `test_air.py`'s queued render varies most |
+| Linux - test suite demo 1 | task 0145: the files that open the made demo project (they import `tests/demo_made.py`: `test_demo_project*.py`; task 0247: one group) run in `DEMO_GROUPS` groups of their own (`tools/ci_groups.py`). Each demo job first makes the demo (`python tests/demo_made.py <dir>`, ~1.5 min) and sets `FRESING_DEMO_MADE` (task 0383: the separate make job and its artifact were one more job for one group). On a chat machine the first demo file of a pytest session makes it, the others reuse it. A new demo check: a `test_demo_project_<topic>.py` with `from demo_made import made`, not a longer file | ~4 min (make ~1.5 + checks; the cable-lay demo took 3.7 + 4 x 6–10) |
 | Linux - real app pccheck / pccheck-b / callouts / paths-heavy / tour / tour-b / ui / scenes / motion / machines | `tools/ci_real_app.py --group <name>`, groups in `GROUPS` next to `MIN_CHECKS`: pccheck + pccheck-b = the PC check (Full, from the installed launcher, judged by `tools/ci_check_pccheck.py`) in two halves – `pccheck2` runs `video.labels`, `queue.time_test`, `render.eevee` and `queue.eevee` (+ `import.crane` they need; task 0108), `pccheck` all other Full lines (`tools/ci_pccheck_lines.py`; the precheck fails when they stop adding up to every Full line); machines = milling, cylinder, linkage, waycover, gcode, tourui, doublearm (`ui_test_doublearm.py`, task 0064) … and `paths_test_blender.py` (task 0108); callouts = `ui_test_callouts.py` (its queued video takes 5–10 min, so alone); paths-heavy = the PC check Heavy (scaled down, task 0033); tour + tour-b = the automatic test tour in two halves, every other stop each, both make the tour projects first (`tools/ci_pccheck_lines.py tour1` / `tour2`, task 0108; mode Tour,
 task 0059; its own group since task 0060); the other groups' tests: `GROUPS` in `tools/ci_real_app.py` (`python tools/ci_groups.py` prints every group; task 0108 moved ui2 + faces to motion, rulesets + decals to scenes, paths to machines); Blender 5.2.3 under xvfb, each group installs the extension itself; each test must report at least its number of checks (`MIN_CHECKS`) | pccheck 11–12.4, callouts 5.7–13.8 (with paths), ui 6.5–9.7, scenes 8.2, motion 7.5–9.6 min |
 | Build the Windows installer zip | `tools/build_release.py`, as for a release, plus an "old" build (`--version-as 0.0.1 --template-from tests/data/old_app_template`); installer, old installer and the update listing go to the Windows job; mode docs: also `tooltip_report.py --strict`, `build_guide.py` and the documentation tests | 0.6 min |
 | Windows - install A / B (task 0171: two jobs at once, `-Part a` / `-Part b`, `WINDOWS_PARTS` in `tools/ci_groups.py`) | **A:** `tools/ci_windows_install.ps1`: the old build installed with `Install.bat -UpdateUrl` (local listing in a folder with a space and an accent) updates itself in the app (`update_test_blender.py`: check, Update now, helper, restart); then the current zip unzipped into a folder with a space and an accent, `LOCALAPPDATA` with a space and an accent, `Install.bat` unattended (install, then repair) over it, checks files and shortcuts, runs the self-test and the PC check (the Windows lines of Full, then Heavy scaled down) from their Start-menu shortcuts, then `Uninstall.bat`. **B:** `Install.bat` once, files, the PC check Heavy (scaled
 down) from its Start-menu shortcut. The one job took 15–23 min (Heavy 9–11, Full 6–8, self-test 2–2.5, the rest ~1.5).
 **Which PC-check lines run where (task 0063):** Linux runs all Full lines (the two halves above); Windows runs all Full lines except `video.labels`, `queue.time_test`, `queue.video`, `scene.turntable`, `tour.make`, `looks.materials`, `milling.coolant`, `milling.toolpath`, `motion.fade` (task 0108) (long renders of the app's own code, `WINDOWS_SKIPS` in `tools/ci_pccheck_lines.py`) – the Windows-specific parts (install, start, import, CPU render, the queue's background Blender, update check, the launch from the shortcut, the report) stay | A and B ~12 min each (one job: 15–23); start after the build |
-| Tests - verdict | sums up: full = every job above green, docs = build green, reuse = precheck green; the release jobs need it | < 0.1 min |
+| Tests - verdict | sums up: full = every job above green, docs = build green, reuse = precheck green, lane / catchup = every planned job green (catchup: and the build); stale fails; the release jobs need it | < 0.1 min |
 | Publish the release (only `main` with a new version, all tests green) | `tools/release_tools.py`: tag `v<version>`, installer, extension, `index.json` (full download addresses), `changelog.json`, CHANGELOG section as text; not "latest" yet | < 1 min |
 | Windows - an installed old version updates itself from the release | the old build, update address = the release's own `index.json`, must find and install it | 2-3 min |
 | Offer the release to the apps | only after that check: marks it "latest", the address every installed app asks | < 1 min |
@@ -930,6 +960,8 @@ python3 tools/ci_status.py --branch main --wait  # run of the newest commit on m
 python3 tools/ci_status.py --run <id> --log "Windows"   # whole log of the jobs matching "Windows"
 python3 tools/ci_status.py --run <id> --record   # a green run's times -> tools/ci_times.json (balances groups)
 python3 tools/ci_precheck.py                   # the precheck's checks, on a chat machine (before pushing)
+python3 tools/ci_status.py --claimed            # the version claim on main and its age (task 0383)
+python3 tools/ci_status.py --claim / --unclaim  # take / give back the claim (section 2, "One merge at a time")
 ```
 
 It only shows the run of exactly that commit (never an older one), prints its mode (full / docs / reuse),

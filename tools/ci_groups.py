@@ -190,6 +190,29 @@ REALPACK_TESTS = "tests/real_pack/"                        # the with-pack tests
 SELFTEST_FILES = {"fresing_render/selftest.py"}            # the packaged self-test runs in the lane run too
 LANE_GROUP_SECS = 600.0                                    # a lane run's pytest groups: about 10 minutes each
 LANE_SKIP_REALAPP = {"pccheck", "pccheck2", "pccheckheavy", "tour", "tour2"}   # cover everything: full run only
+# Task 0383: shared files that every feature task appends its own entries to (the function list, the test tour, the PC
+# check, the CI counts). When MAIN brings one in a catch-up, it ran every test on main already; what is new is only its
+# meeting with the branch, so it gets its own checks instead of a full run: (test files, real-app tests).
+CATCHUP_REGISTRY = {
+    "fresing_render/core/functions.py": ({"tests/test_functions.py"}, set()),
+    "fresing_render/blender/tour.py": ({"tests/test_tour.py", "tests/test_tour_clash.py", "tests/test_tour_versions.py"},
+                                       {"tour", "tour2"}),
+    "fresing_render/blender/ops_tour.py": ({"tests/test_tour.py"}, {"tour", "tour2"}),
+    "fresing_render/blender/ui_tour.py": ({"tests/test_tour.py"}, {"tour", "tour2"}),
+}
+CATCHUP_REGISTRY_PREFIXES = {
+    "fresing_render/pccheck/heavy": ({"tests/test_pccheck.py"}, {"pccheckheavy"}),
+    "fresing_render/pccheck/": ({"tests/test_pccheck.py"}, {"pccheck", "pccheck2"}),
+    "tools/ci_": ({"tests/test_ci_tools.py"}, set()),
+    ".github/": ({"tests/test_ci_tools.py"}, set()),
+}
+
+
+def catchup_registry(path: str) -> tuple[set, set] | None:
+    """(test files, real-app tests) for a registry-like shared file main brought in a catch-up, None for a core one."""
+    if path in CATCHUP_REGISTRY:
+        return CATCHUP_REGISTRY[path]
+    return next((v for k, v in CATCHUP_REGISTRY_PREFIXES.items() if path.startswith(k)), None)
 
 
 def _keys(path: str) -> set[str]:
@@ -245,7 +268,17 @@ def lane_plan(files: list[str], root: str = ROOT, times: dict | None = None, ext
             why.append(f"{f}: the real assets pack's job")
             continue
         if f in FULL_FILES or f.startswith(FULL_PREFIXES):
-            full.append(f"{f} is shared by every lane")
+            reg = catchup_registry(f) if catchup else None
+            if reg is None:
+                full.append(f"{f} is shared by every lane")
+                continue
+            hit = {x for x in reg[0] if x in texts}        # its own checks; a tools/ci_x.py also the tests naming ci_x
+            if f.startswith("tools/ci_"):
+                hit |= {x for x, txt in texts.items() if _names(txt, _keys(f))}
+            picked |= hit
+            real |= reg[1]
+            why.append(f"{f} (main appends to it): {len(hit)} test file{'s' if len(hit) != 1 else ''}"
+                       + (f", real app {', '.join(sorted(reg[1]))}" if reg[1] else ""))
             continue
         if f in NO_TESTS or f.startswith(NO_TESTS):
             continue

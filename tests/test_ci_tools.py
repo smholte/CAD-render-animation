@@ -1104,3 +1104,21 @@ def test_matrices_start_with_the_slowest_and_one_full_run_takes_at_most_20_jobs_
     # task 0383: GitHub Pro runs 40 jobs at once – two full runs side by side: the test jobs that start together
     at_once = len(G.matrix_pytest()) + len(G.matrix_demo()) + len(G.matrix_real_app()) + 1       # + the build
     assert at_once <= 20, at_once
+
+
+def test_catchup_plan_registry_files_from_main_get_their_own_checks_core_files_stay_full():
+    """Feature tasks append to the function list, the test tour, the PC check and the CI counts: brought by main in a
+    catch-up they get their own checks; props / reimport / the importer still make it full. In a lane run all stay full."""
+    G = _groups()
+    plan = G.catchup_plan(["fresing_render/blender/tour.py", "fresing_render/core/functions.py",
+                           "fresing_render/pccheck/checks.py", "tools/ci_check_pccheck.py"], [])
+    assert not plan["full"], plan["why"]
+    files = _plan_files(plan)
+    assert {"tests/test_tour.py", "tests/test_functions.py", "tests/test_pccheck.py", "tests/test_ci_tools.py"} <= files
+    real = {t for g in plan["realapp"] for t in g["tests"].split(",")}
+    assert {"tour", "tour2", "pccheck", "pccheck2"} <= real and "pccheckheavy" not in real
+    assert plan["build"]
+    for core in ("fresing_render/blender/props.py", "fresing_render/blender/reimport.py",
+                 "fresing_render/importer/step_reader.py", "fresing_render/blender/handlers.py", "installer/Install.bat"):
+        assert G.catchup_plan(["fresing_render/blender/tour.py", core], [])["full"], core
+    assert G.lane_plan(["fresing_render/blender/tour.py"])["full"]
