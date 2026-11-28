@@ -394,9 +394,21 @@ def outrigger_set(root: Asm, kit: Kit, prefix: str, xs, side_x: float, pad_in: f
 # ---------------------------------------------------------------------------------------------------------------------
 # Mass groups, writing
 
+HOLLOW = ("CAB", "BONNET")     # parts drawn as solid blocks that are mostly air: their volume counts at HOLLOW_SHARE
+HOLLOW_SHARE = 0.15
+
+
+def _weight(name: str) -> float:
+    """How much of a part's volume counts for its group's centre of gravity: a cab or a bonnet drawn as a solid block
+    is mostly air (task 0349: AT-40's solid cab put its carrier's centre of gravity 4.2 m forward of the slew axis,
+    past the front outriggers)."""
+    return HOLLOW_SHARE if any(w in name.upper().split() for w in HOLLOW) else 1.0
+
+
 def group_cogs(root: Asm, groups: dict) -> dict:
-    """Group -> centre of volume [x, y, z] in m of the parts under the group's ``parts`` (sub-assembly or part names
-    on their path), less those under its ``exclude``."""
+    """Group -> centre of mass [x, y, z] in m of the parts under the group's ``parts`` (sub-assembly or part names
+    on their path), less those under its ``exclude``: every part's volume, a cab's or a bonnet's at ``HOLLOW_SHARE``
+    (``_weight``)."""
     from OCP.BRepGProp import BRepGProp
     from OCP.GProp import GProp_GProps
     acc = {k: [0.0, np.zeros(3)] for k in groups}
@@ -411,7 +423,7 @@ def group_cogs(root: Asm, groups: dict) -> dict:
                     gp = GProp_GProps()
                     BRepGProp.VolumeProperties_s(node.shape, gp)
                     c = gp.CentreOfMass()
-                    props[id(node)] = (gp.Mass(), np.array([c.X(), c.Y(), c.Z(), 1.0]))
+                    props[id(node)] = (gp.Mass() * _weight(node.name), np.array([c.X(), c.Y(), c.Z(), 1.0]))
                 v, c = props[id(node)]
                 acc[k][0] += v
                 acc[k][1] += v * (W @ c)[:3]

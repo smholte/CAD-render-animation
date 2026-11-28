@@ -36,7 +36,8 @@ def build(c: C.Knuckle):
     fh = W / 2 - tw - 80.0
     bw = p["beam_w"]
     # the stabiliser beams run through the chassis (task 0214): chassis + boxes one solid
-    K.put(tr, Part("TRUCK CHASSIS", K.frame_with_boxes(g.box(front + 300.0, -fh, deck - 330.0, rear - front - 300.0,
+    x0 = min(front + 300.0, p["out_x"][0] - C.box_half(bw) - 60.0)        # under the front stabiliser box (0349)
+    K.put(tr, Part("TRUCK CHASSIS", K.frame_with_boxes(g.box(x0, -fh, deck - 330.0, rear - x0,
                                                              2 * fh, 330.0), p["out_x"], bw, 1.3 * bw, p["beam_z"], W),
                    K.CARRIER_GREY))
     cab_x1 = front + p["cab_len"]

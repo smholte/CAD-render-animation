@@ -6,8 +6,13 @@ model with the shape real charts have, then rounded down:
 - **strength**: the boom and its luffing gear carry ``rated`` at the class's shortest radius; further out the moment
   about the luff pin limits it (capacity x (radius - pin) = constant), a longer boom carries less (a power of
   shortest / this boom);
-- **tipping**: the 75 % rule over the outrigger / track edge on the weakest side (360° slew): stabilising moment of
-  carrier, superstructure and counterweight against the load and the boom's own moment;
+- **tipping**: the 75 % rule over the outrigger / track edge on the weakest side (360° slew). A mobile and a
+  knuckle-boom crane (task 0349): the load whose resultant with the crane's own masses – the carrier / truck where its
+  centre of gravity is, the superstructure / column, counterweight and boom turned with the slew – reaches the edge of
+  the real outrigger base (its centre need not be the slew axis), the smallest over every slew angle; the masses'
+  centres from the made solids (``cogs``, what the equipment file says) or, while the numbers are typed, estimated
+  from the layout. A crawler: stabilising moment of lower and upper works and counterweight against the load and the
+  boom's own moment over the nearer track edge;
 - the smaller of the two, never more than the class number, never more than a shorter boom (or fewer extensions) at
   the same radius; rows where less than ``MIN_ROW`` t is left are not in the chart.
 
@@ -18,6 +23,8 @@ file's units).
 from __future__ import annotations
 
 import math
+
+import numpy as np
 
 from ..core import lifting
 from . import classes as C
@@ -103,6 +110,61 @@ BACK_RESERVE = 0.15    # unloaded, boom steepest and shortest: the crane's centr
                        # tipping distance inside the supports, or the configuration is not charted (backward stability)
 
 
+SLEW_STEPS = 72        # slew angles tried for the weakest direction (every 5°; the corners' angles are added)
+
+
+def _turned(fixed, turning, th):
+    """(mass, x, y) arrays of the crane's masses at slew angles ``th`` (radians, (K,)): ``fixed`` [(t, x, y)] stay,
+    ``turning`` [(t, u, v)] – in the upper's frame, u along the boom from the slew axis – turn with the slew."""
+    c, s = np.cos(th)[:, None], np.sin(th)[:, None]
+    mf = np.array([m for m, _x, _y in fixed] + [m for m, _u, _v in turning], float)
+    xs = [np.full(len(th), x) for _m, x, _y in fixed] + [u * c[:, 0] - v * s[:, 0] for _m, u, v in turning]
+    ys = [np.full(len(th), y) for _m, _x, y in fixed] + [u * s[:, 0] + v * c[:, 0] for _m, u, v in turning]
+    return mf, np.stack(xs, axis=1), np.stack(ys, axis=1)
+
+
+def _angles(base) -> np.ndarray:
+    cx, a, b = base
+    th = np.radians(np.arange(SLEW_STEPS) * 360.0 / SLEW_STEPS)
+    corners = [math.atan2(sy * b, cx + sx * a) for sx in (-1, 1) for sy in (-1, 1)]
+    return np.concatenate([th, np.array(corners) % (2 * math.pi)])
+
+
+def base_margins(fixed, turning, base) -> np.ndarray:
+    """The share of the base (``base_margin`` of core.lifting_path: 1 in the middle, 0 on the edge) the crane's own
+    centre of gravity keeps at every slew angle tried."""
+    cx, a, b = base
+    th = _angles(base)
+    m, x, y = _turned(fixed, turning, th)
+    gx, gy = (x * m).sum(axis=1) / m.sum(), (y * m).sum(axis=1) / m.sum()
+    return np.minimum(1.0 - np.abs(gx - cx) / a, 1.0 - np.abs(gy) / b)
+
+
+def tip_load(fixed, turning, r: float, base) -> float:
+    """The smallest load (t) at radius ``r`` (m, from the slew axis at x = y = 0, in the boom's direction) whose
+    resultant with the crane's masses reaches the edge of the base ``(cx, a, b)`` (the rectangle |x − cx| ≤ a,
+    |y| ≤ b), over every slew angle tried: 0 when the crane alone already stands outside it."""
+    cx, a, b = base
+    th = _angles(base)
+    m, x, y = _turned(fixed, turning, th)
+    M0 = float(m.sum())
+    gx, gy = (x * m).sum(axis=1) / M0, (y * m).sum(axis=1) / M0
+    if np.any(np.abs(gx - cx) >= a) or np.any(np.abs(gy) >= b):
+        return 0.0
+    dx, dy = r * np.cos(th) - gx, r * np.sin(th) - gy
+    big = 1e9
+    with np.errstate(divide="ignore", invalid="ignore"):
+        sx = np.where(dx > 1e-12, (cx + a - gx) / dx, np.where(dx < -1e-12, (cx - a - gx) / dx, big))
+        sy = np.where(dy > 1e-12, (b - gy) / dy, np.where(dy < -1e-12, (-b - gy) / dy, big))
+    sh = np.minimum(sx, sy)                    # the share of the way from the crane's CoG to the load: the edge
+    if np.any(sh >= 1.0 - 1e-12):              # the load itself stands inside the base that way: no tipping there
+        sh = np.where(sh >= 1.0 - 1e-12, np.inf, sh)
+    s_min = float(np.min(sh))
+    if not math.isfinite(s_min):
+        return math.inf
+    return M0 * s_min / (1.0 - s_min)
+
+
 def _back_ok(masses_at: list, e: float) -> bool:
     """(mass t, x m from the slew axis, + = towards the boom) of the unloaded crane, boom over the tipping line at e
     behind it: True when its centre of gravity lies at least BACK_RESERVE x e in front of that line."""
@@ -114,23 +176,46 @@ def _back_ok(masses_at: list, e: float) -> bool:
 # ---------------------------------------------------------------------------------------------------------------------
 # Mobile telescopic
 
-def mobile(c: C.Mobile) -> list:
+def _xy(cogs, key, default):
+    v = (cogs or {}).get(key)
+    return (float(v[0]), float(v[1])) if v is not None else default
+
+
+def mobile_masses(c: C.Mobile, cogs: dict | None = None, L=None):
+    """(fixed, turning without the boom, the outrigger boxes' x (front, rear) m) of a mobile crane: the carrier where
+    its centre of gravity is (``cogs``: the made solids'; else the middle of the carrier, an estimate), the
+    superstructure and the counterweight turning with the slew."""
+    L = L or C.layout(c)
+    p = L.pts
+    est = ((p["front"] + p["rear"]) / 2000.0, 0.0)
+    fixed = [(c.mass_carrier, *_xy(cogs, "carrier", est))]
+    turning = [(c.mass_upper, *_xy(cogs, "superstructure", (0.0, 0.0))),
+               (None, *_xy(cogs, "counterweight", (-c.cw_x / 1000.0, 0.0)))]
+    return fixed, turning, tuple(x / 1000.0 for x in p["out_x"])
+
+
+def _base(out_x, spread_m: float):
+    xf, xr = out_x
+    return ((xf + xr) / 2.0, abs(xf - xr) / 2.0, spread_m / 2.0)
+
+
+def mobile(c: C.Mobile, cogs: dict | None = None) -> list:
     L = C.layout(c)
     xp = L.pts["xp"] / 1000.0                      # luff pin (negative: behind the slew axis)
-    a = c.span_x / 2000.0
     L0 = c.L0 / 1000.0
     Lmax = c.Lmax / 1000.0
     booms = [math.ceil((L0 + k * (Lmax - L0) / 5.0) * 100 - 1e-6) / 100 for k in range(6)]
     r_rated = 3.0
+    fixed, turn0, out_x = mobile_masses(c, cogs, L)
     charts = []
     for spread in c.spread:
-        e = min(spread / 2000.0, a)                # the weakest tipping line (360°)
+        base = _base(out_x, spread / 1000.0)
         for cw in c.counterweights:
-            stab = (c.mass_carrier + c.mass_upper) * e + cw * (e + c.cw_x / 1000.0)
+            turning = [(m if m is not None else cw, u, v) for m, u, v in turn0]
+            turning = [t for t in turning if t[0] > 0]
             for Lb in booms:
-                boom_x = xp + 0.42 * Lb * math.cos(math.radians(c.luff_max))
-                if not _back_ok([(c.mass_carrier + c.mass_upper, 0.0), (cw, -c.cw_x / 1000.0),
-                                 (c.mass_boom, boom_x)], e):
+                steep = [(c.mass_boom, xp + 0.42 * Lb * math.cos(math.radians(c.luff_max)), 0.0)]
+                if float(np.min(base_margins(fixed, turning + steep, base))) < BACK_RESERVE:
                     continue
                 r_min = max(r_rated, xp + Lb * math.cos(math.radians(c.luff_max)))
                 r_max = xp + Lb * math.cos(math.radians(10.0))
@@ -139,8 +224,7 @@ def mobile(c: C.Mobile) -> list:
                     strength = c.rated * (r_rated - xp) / (r - xp) * (L0 / Lb) ** 0.8
                     strength -= 0.15 * c.mass_boom * (Lb / Lmax) * (r - r_rated) / Lb    # the boom's own weight
                     bx = xp + 0.42 * (r - xp)                  # the boom's centre of gravity, from the slew axis
-                    over = c.mass_boom * max(0.0, bx - e)
-                    tip = STAB_MOBILE * (stab - over) / (r - e) if r > e else math.inf
+                    tip = STAB_MOBILE * tip_load(fixed, turning + [(c.mass_boom, bx, 0.0)], r, base)
                     rows.append((r, min(c.rated, strength, tip)))
                 ch = _chart({"boom": Lb, "counterweight": cw, "outriggers": round(spread / 1000.0, 2)}, rows, c)
                 if ch:
@@ -224,14 +308,27 @@ def _cap_shorter_jib(jib_charts: list) -> None:
 # ---------------------------------------------------------------------------------------------------------------------
 # Knuckle boom
 
-def knuckle(c: C.Knuckle) -> list:
+KB_TRUCK_EST = 0.40       # the truck's centre of gravity while the numbers are typed: this share from its front to its rear
+
+
+def knuckle_masses(c: C.Knuckle, cogs: dict | None = None, L=None):
+    """(fixed, turning without the booms, the stabiliser boxes' x) of a knuckle-boom crane (``mobile_masses``)."""
+    L = L or C.layout(c)
+    p = L.pts
+    est = ((p["front"] + KB_TRUCK_EST * (p["rear"] - p["front"])) / 1000.0, 0.0)
+    fixed = [(c.mass_truck, *_xy(cogs, "truck", est))]
+    turning = [(c.mass_column, *_xy(cogs, "column", (0.0, 0.0)))]
+    return fixed, turning, tuple(x / 1000.0 for x in p["out_x"])
+
+
+def knuckle(c: C.Knuckle, cogs: dict | None = None) -> list:
     """By outreach: ``boom`` in the configuration is the outreach with that many extensions out (so ``pick_chart``
     takes the next longer one); the chart's name says so."""
     charts = []
     base_reach = (c.main_len + c.outer_len) / 1000.0
+    fixed, turning, out_x = knuckle_masses(c, cogs)
     for spread in c.spread:
-        e = spread / 2000.0
-        stab = (c.mass_truck + c.mass_column) * e
+        base = _base(out_x, spread / 1000.0)
         for k in range(c.extensions + 1):
             reach = math.floor((base_reach + k * c.ext_stroke / 1000.0) * 100 + 1e-6) / 100
             m_booms = c.mass_main + c.mass_outer
@@ -242,8 +339,7 @@ def knuckle(c: C.Knuckle) -> list:
                 radii.append(reach)
             for r in radii:
                 strength = moment / r
-                over = m_booms * max(0.0, 0.40 * r - e)
-                tip = STAB_KNUCKLE * (stab - over) / (r - e) if r > e else math.inf
+                tip = STAB_KNUCKLE * tip_load(fixed, turning + [(m_booms, 0.40 * r, 0.0)], r, base)
                 rows.append((r, min(c.max_cap, strength, tip)))
             label = (f"SAMPLE – 360°, outreach {reach:g} m ({k} of {c.extensions} extensions out), "
                      f"stabilisers {spread / 1000.0:g} m")
@@ -254,9 +350,13 @@ def knuckle(c: C.Knuckle) -> list:
     return charts
 
 
-def charts_of(name_or_cls) -> list:
+def charts_of(name_or_cls, cogs: dict | None = None) -> list:
+    """The class's SAMPLE charts; ``cogs`` (group -> [x, y, z] m, the made solids') for a mobile or knuckle-boom crane's
+    tipping (task 0349), else estimated from the layout."""
     c = C.CLASSES[name_or_cls] if isinstance(name_or_cls, str) else name_or_cls
-    return {"AT": mobile, "CC": crawler, "KB": knuckle}[c.kind](c)
+    if c.kind == "CC":
+        return crawler(c)
+    return {"AT": mobile, "KB": knuckle}[c.kind](c, cogs)
 
 
 def as_charts(chart_dicts: list) -> list:

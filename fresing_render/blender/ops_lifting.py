@@ -870,7 +870,7 @@ class FRESING_OT_lifting_path_go(bpy.types.Operator):
     """Shows the worst moment of this check: the timeline goes to its frame, the crane and the load stand there"""
     bl_idname = "fresing.lifting_path_go"
     bl_label = "Go there"
-    bl_options = {"REGISTER"}
+    bl_options = {"REGISTER", "UNDO"}                  # it may build the animation (0380 row 1)
 
     check: StringProperty(options={"SKIP_SAVE"})
 
@@ -884,10 +884,35 @@ class FRESING_OT_lifting_path_go(bpy.types.Operator):
         return {"FINISHED"}
 
 
+class FRESING_OT_lifting_plan_sheet(bpy.types.Operator):
+    """Writes the lift's plan sheet and opens it in your browser to print: the plan view (exclusion zone, reach
+    rings, the ground footprint coloured by pressure, the load's path), the range diagram and every check with its
+    worst moment. It goes to the project's outputs folder"""
+    bl_idname = "fresing.lifting_plan_sheet"
+    bl_label = "Plan sheet…"
+    bl_options = {"REGISTER"}
+
+    show: BoolProperty(default=True, options={"SKIP_SAVE"})
+
+    def execute(self, context):
+        from . import files, lifting_zones
+        try:
+            path = lifting_zones.plan_sheet(context.scene)
+        except (ValueError, OSError, lifting.LR.ReachError) as exc:
+            self.report({"WARNING"}, str(exc))
+            return {"CANCELLED"}
+        lifting.plan(context.scene).message = f"Plan sheet: {path}"
+        if self.show and not bpy.app.background:
+            files.open_path(path)
+        self.report({"INFO"}, f"Plan sheet written: {os.path.basename(path)}")
+        return {"FINISHED"}
+
+
 CLASSES = (FRESING_OT_lifting_understand, FRESING_OT_lifting_library, FRESING_OT_lifting_pick,
            FRESING_OT_lifting_place, FRESING_OT_lifting_move, FRESING_OT_lifting_remove, FRESING_OT_lifting_select,
            FRESING_OT_lifting_load_select, FRESING_OT_lifting_pose, FRESING_OT_lifting_setup_value, FRESING_OT_lifting_load_selected,
            FRESING_OT_lifting_box, FRESING_OT_lifting_load_remove, FRESING_OT_lifting_load_refresh,
            FRESING_OT_lifting_cog_move, FRESING_OT_lifting_cog_back, FRESING_OT_lifting_hook_here,
            FRESING_OT_lifting_hook_above, FRESING_OT_lifting_set_down_point, FRESING_OT_lifting_path_propose,
-           FRESING_OT_lifting_path_use, FRESING_OT_lifting_path_check, FRESING_OT_lifting_path_go)
+           FRESING_OT_lifting_path_use, FRESING_OT_lifting_path_check, FRESING_OT_lifting_path_go,
+           FRESING_OT_lifting_plan_sheet)

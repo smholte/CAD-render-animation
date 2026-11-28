@@ -723,6 +723,16 @@ fn(id="lifting.data_box", short="Lift data box", title="Lift data box in renders
    "worst so far", family="lifting", panel="FRESING_PT_lifting_path", prop="data_box", guide="lifting-data-box",
    tour=("lifting_path",), pccheck=("lifting.path",), since="0.2.269", workspaces=_LIFT)
 
+fn(id="lifting.clearance", short="Clearance", title="Clearance along the lift: the boom, the load and the rigging kept "
+   "clear of everything else", family="lifting", panel="FRESING_PT_lifting_zones", prop="clearance_m",
+   guide="lifting-zones", tour=("lifting_zones",), pccheck=("lifting.zones",), since="0.2.275", workspaces=_LIFT)
+fn(id="lifting.zones", short="Lift zones", title="Reach rings, exclusion zone and ground footprint coloured by pressure",
+   family="lifting", panel="FRESING_PT_lifting_zones", prop="show_zone", guide="lifting-zones",
+   tour=("lifting_zones",), pccheck=("lifting.zones",), since="0.2.275", workspaces=_LIFT)
+fn(id="lifting.sheet", short="Plan sheet", title="Plan sheet to print: plan view, range diagram, every check",
+   family="lifting", panel="FRESING_PT_lifting_zones", button="fresing.lifting_plan_sheet", guide="lifting-zones",
+   tour=("lifting_zones",), pccheck=("lifting.zones",), since="0.2.275", workspaces=_LIFT)
+
 fn(id="lifting.make", short="Make a crane", title="Make a crane from numbers (type, start from a class, Make)", family="lifting",
    panel="FRESING_PT_lifting_equipment", button="fresing.lifting_make", guide="lifting-make", tour=("lifting_make",),
    pccheck=("lifting.make",), since="0.2.159", workspaces=_LIFT)

@@ -514,9 +514,10 @@ def remove(scene, crane) -> dict:
     s = scene.fresing
     name, p = crane.name, prefix(crane)
     root = crane.root
-    gone = {"cables": 0, "tracks": 0, "cylinders": 0, "poses": 0, "joints": 0, "objects": 0}
+    gone = {"cables": 0, "tracks": 0, "cylinders": 0, "poses": 0, "joints": 0, "objects": 0, "animations": 0}
     if animation.has_keys(scene):
         animation.clear_keys(scene)
+    gone["animations"] = _remove_lift_paths(scene, crane)        # 0380 row 25: the proposed lift goes with its crane
     from . import lifting_rig, lifting_rope           # task 0232: a load on its hook is set down, its rope goes
     lifting_rig.on_crane_removed(scene, crane)
     gone["objects"] += lifting_rope.unreeve(scene, crane, keep_cad=True)
@@ -604,6 +605,25 @@ def remove(scene, crane) -> dict:
     forget()
     _update()
     return gone
+
+
+def _remove_lift_paths(scene, crane) -> int:
+    """The proposed lift paths (Lift path & checks) that move this crane's joints: removed, with the plan's path and
+    its checks. Your own animations stay."""
+    from . import lifting_path
+    s = scene.fresing
+    p = prefix(crane)
+    L = plan(scene)
+    n = 0
+    for i in reversed(range(len(s.animations))):
+        a = s.animations[i]
+        if lifting_path.is_proposed(a) and any(b.joint.startswith(p) for b in a.blocks):
+            if L.path_anim == a.name:
+                L.path_anim, L.path_result = "", ""
+            s.animations.remove(i)
+            n += 1
+    s.animations_index = max(0, min(s.animations_index, len(s.animations) - 1))
+    return n
 
 
 def pose_names(crane) -> list:
@@ -794,6 +814,8 @@ def forget() -> None:
     try:
         from . import lifting_path              # task 0348: the live rows go with the readout
         lifting_path.forget()
+        from . import lifting_zones             # task 0349: the clearance and the drawing with them
+        lifting_zones.forget()
     except ImportError:
         pass
     _READ.clear()
@@ -1376,10 +1398,13 @@ def register():
         bpy.app.handlers.load_post.append(_load_post)
     from . import lifting_path                  # task 0348: the use bar beside the hook
     lifting_path.register()
+    from . import lifting_zones                 # task 0349: reach rings, exclusion zone, ground footprint
+    lifting_zones.register()
 
 
 def unregister():
-    from . import lifting_path
+    from . import lifting_path, lifting_zones
+    lifting_zones.unregister()
     lifting_path.unregister()
     if _DRAW["handle"] is not None:
         bpy.types.SpaceView3D.draw_handler_remove(_DRAW["handle"], "WINDOW")
