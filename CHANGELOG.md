@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.271 – 28 Nov 2026 – Lifting plan: clearance, reach rings, exclusion zone, ground footprint, plan sheet (task 0349)
+## 0.2.272 – 28 Nov 2026 – Lifting plan: clearance, reach rings, exclusion zone, ground footprint, plan sheet (task 0349)
 
 - **8 Lifting plan > Clearance & zones** (new): how close the **boom, the load and the rigging** come to everything else
   in the project – checked now and along the whole path, where **Lift path & checks** gets a row **Clearance** with its
