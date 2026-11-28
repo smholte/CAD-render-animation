@@ -1,6 +1,6 @@
 # 0355 – Assets pack P2: bring, keep and update pack items in a project (invisible)
 
-**Who:** worker · **Status:** running (28 Nov 2026) · **Branch:** `task/0355-assets-bring-keep-update`
+**Who:** worker · **Status:** done (28 Nov 2026, 0.2.271) · **Branch:** `task/0355-assets-bring-keep-update`
 **Started by:** lead, 25 Nov 2026 23:3x (0344's P2; owner's picks 23:17) · **Model:** Opus · effort High · Claude Code
 on the web, environment "CAD-render-animation" · **independent review** (a helper agent that did not write the code tries
 to break it – section 2, "Subagents")
@@ -109,10 +109,79 @@ files; never his employer's name.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 28 Nov 2026 · 0.2.271
 
-**What changed:**
+**What changed:** no visible change. New `blender/assets.py` (the engine) and `core/assets_keep.py` (its plain rules);
+additive: `props.py` scene fields `assets_source` / `assets_version`, `materials.py` helpers `look_src_of`,
+`set_look_src`, `look_src_matches` (`fr_look_src`; `build_nodes` / `is_current` untouched), one `register()` line in
+`__init__.py`. Tests `tests/test_assets_bring.py` (22, Blender as a module) and `tests/test_assets_keep.py` (7).
 
-**Tested and measured** (name the machine and the model):
+**Interface (0357, 0359, 0360–0363 call these – `from fresing_render.blender import assets`)**
+- **Ask:** `assets.get(scene, "<kind>:<id>", bring=True) -> Answer(source, id, datablock)` – `source` "project" (the
+  project's own copy), "pack" (just brought) or "code" (build today's look for `answer.id` / `answer.code_id`; a
+  pack-only id answers with its fallback's id, "" = nobody knows it). Never raises. `bring=False` in a draw. A copy
+  has no users when brought: **use it at once** (Blender does not save a datablock nothing uses; the next ask brings
+  it again). The copy is the item's own datablock: material / finish → the node group "FRP <id>", light / hdri → an
+  image (named "FRP <kind> <id>" unless the kind names it), prop → the object, environment → the collection.
+- **Source:** `assets.source(scene)` ("pack" / "code"), `assets.version(scene)`, `assets.new_source()`,
+  `assets.is_new_project()`. New project: answers `new_source()` until its first save (`save_pre`) or first bring writes
+  it; a scene made later takes the file's stored source; an opened file without the field stays "code".
+- **Switch / company folder:** `assets.SWITCH["read"] = <function → bool>` (0357; default on, a failing reader = on),
+  `assets.FOLDER["read"] = <function → folder>` (0358).
+- **Registry:** `assets.registry()` (read once, warmed in a helper thread at `register`), `assets.forget()` (after a
+  pack update is put in place – also clears the session's refused items), `assets.note()` (ONE line: this session's
+  bring problem `NOTE_BRING`, else the registry's note).
+- **Update:** `assets.changes(scene) -> [assets_keep.Change(id, kind, what "newer" | "code", old, new, text)]`;
+  `assets.apply(scene, backup=True, undo="") -> Result(done, failed, backup, note)` – `compat.blocked` → nothing;
+  backup first through `backups.make(force=True, note=False)` (no backup → nothing changes, `NOTE_BACKUP`); `undo=` the
+  step's name when called outside an operator (0359's operator with `UNDO` passes ""). Items whose pack row says they
+  did not change since the copy's version (`changed` / `since`, or the same sha256) are only re-stamped.
+- **Kinds:** `assets.register_kind(kind, name=, after_bring=, swap=, code_changes=, code_apply=)`,
+  `unregister_kind`. Default swap: `user_remap` (node groups: group materials keep their colour / wear / rust / Adjust
+  / finish; `fr_look_src` follows); objects keep every placed copy and take the new mesh. **0362 should register its
+  own swap for environments** (the default `user_remap` of a collection puts back the pack's module layout).
+- **Stamps:** `assets.stamp_of(idb)`; `fr_asset` = {id, pack, version, contract, sha} + name, file, of, part, space
+  (`core/assets_keep.py`). `materials.look_src_of / set_look_src / look_src_matches` for 0360's `is_current`.
+- **Rule for the pack's makers (0356):** a datablock's name inside a pack file is shared with another item only if it is
+  that item's own datablock (e.g. "FRP cast_iron" in an environment's file); other names are kept per file.
+
+**Tested and measured** (4-core web machine, Linux, Blender 5.2.3 as a module, 0354's test pack):
+- Every kind brought, used, saved, opened alone in another folder by a plain Blender with the pack hidden: no library,
+  every picture packed (2k), same Cycles picture as with the pack (mean colour within 0.01, no pink, not black); the
+  same for a backup from `Backups` and the queue's copy; update 1.0.0 → 1.1.0 (paint_satin 0.36 → 0.42, cast iron's new
+  roughness picture, the colour picture not packed twice, the group's orange and wear kept), Ctrl+Z gives 1.0.0 back,
+  the updated project complete on a client; a broken pack (missing picture, damaged .blend, a script node) → nothing
+  left, the code look, one note; new / opened / old (0.2.195) projects' source; no pack → every code id answers code,
+  nothing written; a background Blender finds the pack by `FRESING_ASSETS` and stamps the same; a pack project without
+  the pack keeps its copies.
+- **Times:** bring one item 0.7 ms (a light picture) – 5.6 ms (cast iron, two pictures), sha256 check included; a
+  40-group project with a world and an environment (5 items brought): +37 ms over the same project without the pack;
+  save 13 vs 8 ms, open 18 vs 13 ms; size 2.35 MB vs 0.14 MB (the test pack's 2k pictures and light EXR). A question
+  answered from memory: 7 µs (looks); on 11,228 objects a prop question 0.4 ms (Blender's `len()` of the object list
+  walks it), a bring 35–62 ms there (the before / after list of all datablocks). The reviewer measured `apply` of 2
+  looks on 11,000 parts: 0.42 s without the backup.
+- Hot path: 1,400 questions for existing copies opened no file, looked at no folder, appended nothing (test).
+- Local: 29 new tests in 19 s; the neighbours (`test_assets_*`, `test_backups_blender`, `test_compat*`,
+  `test_materials_look`) 215 passed. GitHub: see below.
+
+**Independent review** (a helper agent that did not write the code, 28 Nov): 9 findings, 8 reproduced, all fixed with a
+regression test each – parts of two pack files with the same name merged (now shared only within a file or as an
+item's own datablock); a prop update put every placed copy on one spot (objects now keep their copies and take the new
+mesh); a shared picture kept the first item's colour space (key now bytes + colour space + alpha); a refused item was
+tried again at every ask (remembered per session); a scene made after the first save read "code"; two picture items
+with the same bytes became one; a race between the start-up read and `forget()`; brought items have no users (the rule
+is now in the interface); packed pictures in a pack file, a font file, a failed update's version and note, the user's
+duplicate of a pack node group answering for the pack copy (Blender's weak reference to the pack file tells the
+original). Held up: Python drivers, script nodes (also nested), pictures outside the pack, UDIM, linked libraries –
+refused with nothing left behind; undo / redo of a bring and of `apply`; the index after opening files one after
+another; Recover keeps a project "code". Not tried: the Client view's lock (needs the real app; the engine adds no
+operator – 0357 / 0359 put their buttons on `lock.ALLOWED` or not).
 
 **Open points / follow-up tasks:**
+- 0362: register a `swap` for environments (keep the code layout's placing) and people.
+- 0356: check the pack rule above (one name = one datablock across files only for an item's own datablock) and that no
+  pack picture is packed inside a `.blend`.
+- 0354's report said the test pack's other files are byte-equal between 1.0.0 and 1.1.0: true for pictures, not for the
+  `.blend` files (Blender writes them differently each time) – the update therefore reads each row's `changed` /
+  `since`.
+- No PC-check line, tour stop or function entry (nothing visible yet) – 0357 adds `assets.pack`.
