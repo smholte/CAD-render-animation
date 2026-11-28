@@ -88,10 +88,85 @@ its makers (0365); real looks; licence texts. Never the owner's files; never his
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:**
+**Chat / date:** Claude Code on the web, 28 Nov 2026 · no version raised (tools / CI task, `[full run]` commits)
 
 **What changed:**
+- **`tools/assets_check.py`** (new) – the one set of pack checks, on a pack folder or `FresingAssets-<v>.zip`:
+  zip safety (one top folder, no `..`, no links, name = pack.json's version); pack.json through `core/assets_pack.read`
+  with **no note** (every left-out row named with its reason); `verify` (size + sha256), no unlisted file, data files
+  only (`.blend .exr .hdr .png .jpg .jpeg .tx .txt`); `LICENSE-ASSETS.txt` inside, listed, not empty; code twin / named
+  `fallback` (`Registry.refused`); 256 px picker picture for every item; picture sizes from the head (PNG / JPEG / EXR):
+  ≤ its 1k / 2k / 4k, every 1k / 4k has its 2k variant, 4k only for hdri, light / hdri EXRs 2:1; set budgets (problem),
+  pack > 300 MB (warning); `cost` given for every item with a code twin (> 1.3 x without `approved_slower` is already a
+  left-out row). Then a **Blender child** (the venv's `bpy`, or `--blender <binary>`): every `.blend` holds its
+  datablock, **data only** (no Text, no Python driver beyond simple expressions, no OSL Script node, no linked library,
+  pictures relative + listed + in the row's `textures`, none packed), the kind's contract (sockets, no BSDF / Output /
+  forbidden node inside – also in nested groups –, finish reads `fr_fx_*` + `fr_pixel_angle`, prop `fr_lod` FACE 1 / 2
+  and floor at z = 0, environment collection not empty), appends into an empty project with readable pictures, and
+  **a small Cycles render of every item** (64 px, 8 samples; plane + ortho camera for groups, framed objects with a
+  transparent film for props / environments, the world for light / hdri pictures) – pink > 2 % or mean < 0.01 = a
+  problem. Output `OK – …` or `PROBLEM:` / `WARNING:` lines, exit 1. Also `--pin` (checks the pin, prints key=value for
+  CI), `--fetch <tag>` (downloads a release's zip; checks pre-release, `LICENSE-ASSETS.txt` beside it, `assets.json`
+  against the zip), `--listing <zip>` (writes `assets.json`). (Brief: "one render per kind" – every item is rendered,
+  0.3 s each: the first try only rendered the first look of a kind and missed a black second one.)
+- **`tests/test_assets_check.py`** (new, 51 tests, ~35 s): the test pack passes with renders of all 6 kinds; one broken
+  copy per check (4 zip, 3 pack.json, 4 files, 2 licence, 2 twin, 6 pictures, 2 size, 2 cost, 6 pin, 12 broken
+  `.blend`s made by a Blender child, pink, black, fetch, listing).
+- **`tests/real_pack/test_real_pack.py`** (new): the app's with-pack tests on a REAL pack (`FRESING_ASSETS_REAL`); in no
+  pytest group, skipped without the variable; plug-in tasks add their real-pack checks here.
+- **`tests.yml`**: `push: branches: ["**"], tags-ignore: ["assets-*"]` (GitHub applies no paths filter to tag pushes,
+  and a tags filter alone stops branch runs – so every branch and every tag but `assets-*`, as before);
+  job **"Linux - real assets pack"** (`if: needs.precheck.outputs.realpack == 'true'`: pin read with `--pin`, cache key
+  `assets-<version>-<sha256>`, on a miss `curl` + `sha256sum -c`, `assets_check.py`, `tests/real_pack` with
+  `--max-skipped 0`) – self-contained, 0358's Windows steps go into a job of their own; verdict needs it (`rp_ok`: must
+  pass when planned, skipped otherwise).
+- **`tools/ci_precheck.py`**: rule "every release whose tag does not start with `v` is a pre-release"
+  (`check_release_kinds`; today's drafts site-kit / stress-model / movements_steps are pre-releases → pass);
+  output `realpack` = pin exists and (full run, or a lane run that changed the pack code). **`tools/ci_groups.py`**:
+  `REALPACK_FILES` (`core/assets_pack.py`, `core/assets_registry.py`, `tools/assets_check.py`) and `tests/real_pack/`
+  mark a lane plan `realpack`.
+- **`.github/workflows/assets-check.yml`** "Check an assets pack" (by hand, input = tag): `--fetch`, every check,
+  `tests/real_pack`. **`.github/workflows/assets-release.yml`** "Release an assets pack" (by hand, main only) + 
+  **`docs/ASSETS-RELEASE.md`** (owner's deploy-key steps) – step 6's fallback, see below.
+- CLAUDE.md section 5: "Assets pack checks" (for the lead to review); test_ci_tools.py: 5 new tests.
 
-**Tested and measured** (name the machine and the model):
+**Step 5 / step 6 – the upload test:** the tag filter was merged to `main` first (f2fdf08). Then the one-time test
+(create pre-release `assets-0.0.1-test`, upload 1 MB of zeros, download it back, compare, delete release + tag) was
+**refused by this session's own safety check before any call reached GitHub** ("destructive or unwanted action") –
+nothing was created, nothing needs deleting. As the brief says, not retried another way. Instead the key route:
+`assets-release.yml` clones `fresing-assets-src` with a read-only deploy key (the only secret,
+`ASSETS_SRC_DEPLOY_KEY`), builds with its `tools/build_pack.py`, runs the public checks, deletes the working files and
+publishes with the workflow's own token (`contents: write` in that job only); inputs reach the shell through `env`
+only; no artifact, no `set -x`, the build log stays on the runner. The owner's one-time steps: `docs/ASSETS-RELEASE.md`.
+Not run yet (needs the private repository and the key) – its first real use is 0365. Whether a tag made by the
+workflow's own token starts a run is moot (GITHUB_TOKEN starts none, and `assets-*` is ignored anyway).
+
+**How 0365 builds, checks and uploads a pack (exact commands):**
+1. In the session (both repositories attached, public one beside the private one), Blender 5.2.3 as `~/venv` bpy:
+   `~/venv/bin/python ../fresing-assets-src/tools/build_pack.py --version 1.0.0 --out dist` → `dist/Fresing Assets/`
+   + `dist/FresingAssets-1.0.0.zip` (0365 writes this maker; the workflow calls it with exactly these arguments).
+2. `~/venv/bin/python tools/assets_check.py dist/FresingAssets-1.0.0.zip` → `OK – every pack check passed`;
+   `FRESING_ASSETS_REAL="dist/Fresing Assets" ~/venv/bin/python -m pytest tests/real_pack -q` → all pass.
+3. Push the working files to `fresing-assets-src` main; the owner (once) adds the deploy key and secret
+   (`docs/ASSETS-RELEASE.md`), then runs **Actions → Release an assets pack** (version `1.0.0`, one line on what is new).
+4. **Actions → Check an assets pack** → `assets-1.0.0` (green before any pin).
+5. A branch moves `installer/assets_pin.json` (0358's file; fields as in the docstring of `assets_check.py`:
+   `--listing` output + `"tag"`): its full run runs "Linux - real assets pack" on the cached download.
+
+**Tested and measured** (4-core web machine, Linux, Blender 5.2.3 as a module and the real binary):
+- Test pack 1.0.0 (23 files, 3.5 MB): every check incl. 7 renders in **3 s** (bpy module) / 6 s (real Blender
+  `--blender`). `tests/test_assets_check.py` 51 passed in ~35 s; `test_ci_tools.py` 69 passed.
+- GitHub: run 46137032967 (6472daf, full, 29 min, green, "real assets pack" skipped – no pin); then the merge of main
+  (only task files) fast-forwarded to `main` (f2fdf08); run of 2aeaff1 (release route): see the last line.
+- No job uses the private repository or a secret except `assets-release.yml` (by hand, never run yet).
 
 **Open points / follow-up tasks:**
+- 0358: write `installer/assets_pin.json` in the format `read_pin` checks (version, tag, file, url, sha256, bytes,
+  licence_id) – `assets_check.py --listing` + `"tag"` gives it; the "real assets pack" job then runs by itself.
+- 0365: `tools/build_pack.py --version <v> --out <dir>` in the private repository (the workflow's contract); the owner's
+  deploy-key steps before the first release.
+- The render check judges "pink / black" only; whether a look is *right* stays the owner's pick page.
+- The precheck reads the newest 100 releases only (as before for versions); an old non-`v` release beyond them is not
+  checked.
+- No independent review (no Windows code; CI-only workflows) – the lead may want one of `assets-release.yml` before its
+  first use, since it is the one place a secret is used.
