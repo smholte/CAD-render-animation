@@ -5557,7 +5557,7 @@ stop("lifting_path", MOTION, "lifting", "Lifting: lift path and checks",
      "moment; the lift data box beside the hook block shows the load, the radius, the crane use and the worst status so far; a use bar "
      "sits beside the hook in the 3D view.",
      where="8 Lifting plan > Lift path & checks", since="0.2.269", check=_check_lifting_path, setup=_lift_path)
-stop("lifting_zones", MOTION, "lifting", "Lifting: clearance and zones on the ground",
+stop("lifting_zones", MOTION, "lifting", "Lifting: clearance and zones",
      "The same lift seen from above. On the ground: a red dashed outline – the exclusion zone round the crane's tail "
      "swing, its outriggers and the skid's path, 1 m wider; two rings round the slew axis – red where the chart still "
      "carries the skid, amber within your 75 % limit; the four mats coloured by the pressure under them. 8 Lifting plan "
