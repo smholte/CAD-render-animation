@@ -721,6 +721,24 @@ def _pose(wi: Matrix, ob, tip, axis) -> tuple:
     return (o.x, o.y, o.z), (d.x, d.y, d.z)
 
 
+
+def movers_above(wp) -> list:
+    """The objects that move something above the workpiece's own mover, nearest first (its mover itself first): a
+    4th axis -> [A, the X table, the Y saddle]; a 3-axis table -> [X, Y]. Read with the paths (``fr_chain_m``: the
+    coolant liquid's charts ride on them, task 0347). [] when the workpiece does not move."""
+    from . import chips as chipsmod
+    cache: dict = {}
+    out = []
+    p = wp
+    while p is not None:
+        m = chipsmod.mover(p, cache)
+        ob = bpy.data.objects.get(m) if m else None
+        if ob is None:
+            break
+        out.append(ob)
+        p = ob.parent
+    return out
+
 def sample(scene, progress=None) -> int:
     """Read every bit's tip and axis relative to the workpiece at each frame (and between frames where
     a cutting move is curved). Stores the path on the bits. Returns the number of samples."""
@@ -775,6 +793,8 @@ def sample(scene, progress=None) -> int:
         from . import chips as chipsmod
         car = chipsmod.carrier(scene, wp)           # what carries a turning 4th axis (chips, task 0096)
         car_m = []
+        chain = movers_above(wp)                    # every mover above the workpiece's own (the liquid, task 0347)
+        chain_m = []
         prev, prev_t = None, float(f0)
         total = f1 - f0 + 1
         for n, f in enumerate(range(f0, f1 + 1)):
@@ -793,6 +813,8 @@ def sample(scene, progress=None) -> int:
             wp_m.append([v for row in wp.matrix_world for v in row])
             if car is not None:
                 car_m.append([v for row in car.matrix_world for v in row])
+            if chain:
+                chain_m.append([v for c in chain for row in c.matrix_world for v in row])
             if nozzle:
                 o, d = air.nozzle_pose(scene)
                 air_o.append(o)
@@ -826,6 +848,13 @@ def sample(scene, progress=None) -> int:
         store_array(s, "fr_carrier_m", car_m)
     elif "fr_carrier_m" in s:
         del s["fr_carrier_m"]
+    if chain_m:
+        store_array(s, "fr_chain_m", chain_m)
+        s["fr_chain"] = "\n".join(c.name for c in chain)
+    else:
+        s["fr_chain"] = ""                         # (read: nothing above the workpiece moves)
+        if "fr_chain_m" in s:
+            del s["fr_chain_m"]
     if nozzle:
         store_array(s, "fr_air_o", air_o)
         store_array(s, "fr_air_d", air_d)
