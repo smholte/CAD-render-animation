@@ -190,14 +190,14 @@ def test_trunnion_tilt_spills_the_pools_to_the_low_side(five):
     after = v[k]
     assert after[0] < 0.5 * before[0], (before, after)                 # the C table spilled …
     assert v[m9 - st.f0: k + 1, 1].max() > before[1] + 5.0              # … onto the cradle
-    # what is left on the table lies on its low side
+    # what is left on the table moved to its low side (most of it lies in the T-slots, which hold it)
     rd, beds = liquid._open(sc)
-    sc.frame_set(tilt)
-    d = rd.read(tilt)[0][0]
     cell, x0, y0 = beds.geom[0]
-    ys = y0 + np.arange(d.shape[0]) * cell
-    if d.sum() > 0:
-        ymean = float((d.sum(axis=1) * ys).sum() / d.sum())
-        M = st.mats[0][tilt - st.f0]
-        low = -1.0 if (M[:3, :3] @ np.array([0.0, 1.0, 0.0]))[2] > 0 else 1.0     # the chart's y side that is lower
-        assert ymean * low > 0.01, (ymean, low)
+
+    def ymean(f):
+        d = rd.read(int(f))[0][0]
+        ys = y0 + np.arange(d.shape[0]) * cell
+        return float((d.sum(axis=1) * ys).sum() / max(float(d.sum()), 1e-12))
+    M = st.mats[0][tilt - st.f0]
+    low = -1.0 if (M[:3, :3] @ np.array([0.0, 1.0, 0.0]))[2] > 0 else 1.0       # the chart's y side that is lower
+    assert (ymean(tilt) - ymean(m9 + 6)) * low > 0.002, (ymean(m9 + 6), ymean(tilt), low)

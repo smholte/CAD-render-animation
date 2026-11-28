@@ -45,7 +45,7 @@ from ..core import liquid as core
 from ..core import liquid_cache, liquid_pool
 from . import build, coolant, machining
 
-VERSION = 2                          # of the bake: a change here bakes old projects' liquid again (2: task 0347)
+VERSION = 3                          # of the bake: a change here bakes old projects' liquid again (2: task 0347)
 COLLECTION = "FR Coolant liquid"
 OBJ_TABLE = "FR coolant liquid (table)"
 OBJ_TRAY = "FR coolant liquid (tray)"
@@ -59,6 +59,7 @@ DETAIL = {"DRAFT": (4e-3, 10e-3), "NORMAL": (2e-3, 5e-3)}
 SHOW = 0.1e-3                        # a cell shows liquid from this depth (the 0.04 mm film is the wet sheen)
 LIFT = 0.05e-3                       # the sheet a hair over the surface (no flicker on the bed)
 WAVE_DEPTH = 0.01                    # m: deep pools (T-slots, pockets) carry waves as if 10 mm deep (core: wave_depth)
+BAR_DRIP = 0.5                       # the bar's charts: liquid drips off them when tilted more than 60 deg (task 0347)
 CUT_EVERY = 4                        # frames: the cut block's top is read again at most this often while it is cut
 TRAY_REACH = 0.15                    # m round where the table goes: the still parts there are the tray chart
 TRAY_WORDS = ("TRAY", "DRAIN")       # still parts named so are taken whole into the tray chart (the drain may lie
@@ -713,7 +714,10 @@ def _bar_charts(st: Setup, sv, cell, carry, to_obj, follow) -> None:
         C = _frame(o, u, n)
         base = np.full((len(ys), len(xs)), np.nan)
         pl = Plan(f"bar {k + 1}", C, xs, ys, z_from, base, cut=True, to_obj=to_obj @ C, follow=follow)
-        _add(st, pl, core.Chart(pl.name, base.copy(), cell, float(xs[0]), float(ys[0]), open_edges=True), carry)
+        # (steeper than 60 deg it drips off: a strip of the bar on its side has no gravity pressing the liquid onto
+        # it, nothing evens it out and it stood in columns 2-4 cm thick)
+        _add(st, pl, core.Chart(pl.name, base.copy(), cell, float(xs[0]), float(ys[0]), open_edges=True,
+                                drip_below=BAR_DRIP), carry)
 
 
 def _cast_in(bvh, pl: Plan, xs, ys) -> np.ndarray:
