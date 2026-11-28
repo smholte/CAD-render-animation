@@ -5,11 +5,29 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.276 – 28 Nov 2026 – Start and windows: the welcome fits the splash, a new window is tidied, keys count as work (task 0377)
+## 0.2.277 – 28 Nov 2026 – Start and windows: the welcome fits the splash, a new window is tidied, keys count as work (task 0377)
 
 - The welcome box on the start picture no longer cuts off its text and buttons: the lines wrap and the buttons fit.
 - A new main window (Window > New Main Window) or another Blender workspace is tidied at once, not at the next load.
 - Typing shortcuts counts as working in My usage, also without moving the mouse (stays on your PC).
+
+## 0.2.276 – 28 Nov 2026 – Coolant liquid on the 4th axis and the trunnion; its six checks in the test tour (task 0347)
+
+- **Coolant liquid on a 4th axis:** with "Liquid on the machine" ticked, the coolant now lies on the turning bar
+  itself – it fills a pocket cut in the bar, runs round the bar and drips onto the table, which carries it into the
+  chip tray. When the bar turns, a pocket tips over and empties, and what is underneath drips off.
+- **On a trunnion:** the liquid lies on the C table with the block, on the cradle and on the table. When the cradle
+  tilts, the pools run to its low side and spill over the table's edge onto the cradle and on down.
+- Nothing to set: the app finds what carries the block (the bar's axis, the C table, the cradle, the table) by itself.
+- **The wet sheen came back:** changing the look of a group that gets wet (the block, the table) took the coolant's
+  wet sheen off it until coolant was switched off and on. It now comes back at the next frame.
+- **Test tour:** new set "Coolant liquid – six checks" (a closed pocket holds, an open slot drains, a tilted plate
+  spills at the right angle, a tray empties down its drain, a box sloshes at its period, nothing leaks through a
+  wall), and the stops "Coolant liquid on the 4th axis" and "… on the trunnion".
+- **PC check (Heavy):** "Milling: coolant liquid on the 4th axis, a long program" – how long it takes on your PC and
+  how big the work-out is on disk.
+- The 4th-axis, trunnion, double-arm, enclosure and toolpath test models got the corrected chip tray of the test
+  mill (task 0346).
 
 ## 0.2.275 – 28 Nov 2026 – Lifting plan: clearance, reach rings, exclusion zone, ground footprint, plan sheet (task 0349)
 

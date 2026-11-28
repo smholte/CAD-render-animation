@@ -3808,8 +3808,24 @@ whole table wet): Draft about 16 s, Normal about 50 s; on disk about 0.8 MB (Dra
 of video. A PC with more cores is quicker (the work is shared over all its cores); how long a 10-minute program
 takes on your PC is the PC check's Heavy line "Milling: coolant liquid of a 10-minute program".
 
-Not yet: the 4th and 5th axis (next), chips carried by the liquid, the air blast pushing it out of a pocket,
-liquid in a T-slot's undercut (only what the top shows counts), the web 3D model.
+**On a 4th axis** (a bar turning on a rotary table) the liquid lies on the bar itself – in four strips round it
+(top, front, bottom, back as it stands at the start) that turn with it – and on the table under it. It fills a
+pocket cut in the bar, runs round the bar and drips onto the table; when the bar turns, a pocket tips over and
+empties, and what is underneath drips off. **On a trunnion** (a cradle that tilts, a C table that turns) it lies on
+the C table with the block, on the cradle and on the table: when the cradle tilts, the pools run to its low side
+and spill onto the cradle, the table and into the tray. Nothing to set: the app finds the levels from what moves
+the block.
+
+On the turning bar a full flood stands as a film a few mm thick (more than on a real bar): the liquid is worked out
+as layers on surfaces, and 14 l/min on a bar 50 mm across is a lot for that. A lower Flow shows a thinner film.
+
+**The six checks** of the liquid (test tour, set "Coolant liquid – six checks"): a closed pocket fills and holds
+its volume, an open slot drains at its end, a plate tilted slowly spills at the angle geometry says, a sloped
+tray empties down its drain, a box stopped hard sloshes at its natural period, nothing gets through a wall one
+square thick. Each stop shows its number.
+
+Not yet: chips carried by the liquid, the air blast pushing it out of a pocket, liquid in a T-slot's undercut (only
+what the top shows counts), the web 3D model.
 
 
 <a id="toolpath"></a>

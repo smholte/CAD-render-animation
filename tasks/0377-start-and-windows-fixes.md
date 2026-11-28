@@ -43,7 +43,7 @@ already sat below the Fresing picture; the real problem was the cut-off text. (B
 handler) notes the windows and the screen each shows; a change (new main window, another workspace) asks for the
 tidy-up (`editors.request`, from a timer). (C) the presence keymap also takes ~80 keyboard keys (letters, digits, F-keys,
 arrows, Enter, Tab, Space …): they only mark presence, always pass on to Blender, nothing is stored or sent.
-Version 0.2.276.
+Version 0.2.277.
 
 **Tested and measured** (4-core web machine, Blender 5.2.3 under xvfb): splash pictures made before and after at
 1920 x 1080 and 2560 x 1440 (after: all lines whole at both). Unit tests: `test_editors.py` (new window / workspace

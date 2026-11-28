@@ -744,6 +744,45 @@ def heavy_liquid(ctx):
             f"drain")
 
 
+@line("heavy.liquid4", "Milling: coolant liquid on the 4th axis, a long program", "0.2.276", (H,), expected=900,
+      what="The 4th-axis test mill cuts six pockets round its bar and three wrapped grooves with flood coolant, the "
+           "program fitted to 5 minutes (7,200 frames); 'Liquid on the machine' at Detail Normal (four charts round "
+           "the bar, the table, the tray) is worked out with all helper processes",
+      shows="How long the liquid of a 4th-axis program takes on this PC and how big its bake is on disk (the charts "
+            "round the bar change at every frame while it turns)",
+      not_shown="The trunnion (its charts are the same kind as the 3-axis table's)")
+def heavy_liquid4(ctx):
+    from ..blender import liquid, machining
+    machining._RUNTIME.clear()
+    liquid.forget()
+    scene = ctx.fresh(os.path.join(DATA, "test_4axis.step"))
+    seconds = 16.0 if small() else 300.0
+    detail = "DRAFT" if small() else "NORMAL"
+    t0 = time.time()
+    _a, r = liquid.set_up_test_rotary(scene, os.path.join(ctx.work, "liquid4_heavy"), fit=seconds, detail=detail,
+                                      text=liquid.long_program_4(6))
+    ctx.metric("build and read the motion", time.time() - t0, "s")
+    _check(not r["warnings"], "; ".join(r["warnings"][:2]))
+    _check(liquid.problem(scene) == "", liquid.problem(scene))
+    t0 = time.time()
+    info = liquid.bake_now(scene)
+    bake = time.time() - t0
+    _check(info is not None and "frames" in info, "the liquid was not worked out")
+    ctx.metric("liquid bake", bake, "s")
+    ctx.metric("frames", info["frames"], "")
+    ctx.metric("cells", sum(info["cells"]), "")
+    ctx.metric("per frame", bake * 1000.0 / max(1, info["frames"]), "ms/frame")
+    ctx.metric("helpers", info["helpers"], "")
+    ctx.metric("bake on disk", info["mb"], "MB")
+    ctx.metric("bake on disk per minute", info["mb"] * 60.0 / max(seconds, 1.0), "MB/min")
+    tot = info["totals"]
+    _check(tot["poured"] > 0.0 and tot["on_charts"] + tot["drained"] > 0.0, "no liquid on the machine")
+    _memory(ctx)
+    return (f"{info['frames']:,} frames, {sum(info['cells']):,} cells ({detail.title()}): {bake / 60.0:.1f} min with "
+            f"{info['helpers']} helpers, {info['mb']:.0f} MB ({info['mb'] * 60.0 / max(seconds, 1.0):.0f} MB a "
+            f"minute of program)")
+
+
 @line("heavy.playback", "Big machine: playback under load", "0.2.32", (H,), requires=("heavy.import",), expected=60,
       what="Three joints with a coupling move the 3,000-part machine through a 10 s animation; every frame is set "
            "and evaluated one after the other",
