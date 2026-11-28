@@ -30,6 +30,9 @@ from ..core import vessel_work as core
 
 STEP_TAG = "fr_vw_step"                 # on the scene: a Vessel at work step was built
 LAYOUT_KEY = "fr_vw_layout"             # on the sea object: the layout the water material was built with
+BUILT_KEY = "fr_vw_built"               # on the scene: what of the panel the last Build's keys were made from (0375)
+STALE = ("Vessel at work changed after Build: the built animation still showed the vessel as before (its propellers, "
+         "wake and jets were keyed at Build). It was taken off: press Build again")
 WORDS = ("propel", "screw", "schroef", "schraube", "helice", "hélice")
 
 
@@ -229,8 +232,32 @@ def pose(scene) -> int:
     return moved
 
 
+def build_key(scene) -> str:
+    """What of the panel a Build's keys depend on (task 0375): the setting (only "still" when the vessel lies still)
+    and, when anything turns or a step changes it, the thrusters' rows. Two keys that differ = the keys are old."""
+    st = setting(scene)
+    mode = core.effective_mode(st)
+    steps = any(True for _b in _steps(scene))
+    out: list = [mode] if mode == "STILL" else [mode, round(float(st.speed), 4), st.side, round(float(st.thrust), 4)]
+    if mode != "STILL" or steps:
+        out.append([[r.joint, r.kind, r.steer, round(float(r.rpm), 4), bool(r.reverse)] for r in rows(scene)])
+    return json.dumps(out)
+
+
+def stale(scene) -> bool:
+    """The animation is built and its Vessel at work keys were made from another setting of the panel (task 0375)."""
+    was = scene.get(BUILT_KEY)
+    return bool(scene.fresing.anim_baked) and was is not None and was != build_key(scene)
+
+
 def changed(scene, layout: bool = False) -> None:
-    """A setting of the panel changed: channels, steer joints, and the sea when what it needs changed."""
+    """A setting of the panel changed: channels, steer joints, and the sea when what it needs changed. After Build
+    (task 0375, 0192's open point): keys made from another setting would show the old vessel – the built animation
+    comes off ("Build again"), as for any other change of what Build keyed."""
+    if stale(scene):
+        from . import animation
+        animation.clear_keys(scene)                 # (its after_clear syncs the channels and poses the steer joints)
+        scene.fresing.last_message = STALE
     sync(scene)
     if pose(scene):
         try:
@@ -370,6 +397,7 @@ def bake(scene, anim, blocks, frame_of, ease, jkeys: dict, jstate: dict, f_end: 
     """Keys of what the vessel does over the animation: the channels (while a step changes them) and the propellers' and
     steer joints' values (the whole animation, whenever a propeller turns at all). Returns warnings."""
     warnings: list[str] = []
+    scene[BUILT_KEY] = build_key(scene)     # (task 0375: a later change of the panel takes these keys off)
     rs = rows(scene)
     lay = stored_layout(scene) or layout(scene)
     ths = thrusters(scene, lay)
@@ -458,6 +486,8 @@ def bake(scene, anim, blocks, frame_of, ease, jkeys: dict, jstate: dict, f_end: 
 
 def after_clear(scene) -> None:
     """'Clear keys': the channels and the steer joints go back to the panel's setting."""
+    if BUILT_KEY in scene:
+        del scene[BUILT_KEY]
     if scene.get(STEP_TAG):
         del scene[STEP_TAG]
         from . import animation

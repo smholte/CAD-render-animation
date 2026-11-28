@@ -19,6 +19,12 @@ frame was still +2.3 ms on the test vessel (~60 sums over 290,000 points), one t
 - **Live** (the rippled seabed and its stones: they slide aft under the vessel with the cable's lay, the box stays
   with the vessel): the points inside the box (world) are let down, worked out in the nodes when the seabed moves.
 - **Exact** (the Simple sea and seabed: a few big faces): a thin slab is cut by the box (Mesh Boolean).
+- **Hole** (the Detailed seabed, task 0375): the live way, and its plain square under the rippled patch (one face
+  2 km wide with no point in the box: letting points down left it over the ground cut's pit) is a ring round a middle
+  piece. Its points carry ``fr_plain`` = (end, side, kind): the ring's inner corners (kind 1) go onto the box's
+  corners, the middle piece's (kind 2) too and down under the pit – a hole exactly the box's shape that follows the
+  box however far the seabed slid. A render takes the mesh as made: the middle piece fills the ring, one plain square.
+  (Cutting it exactly – Separate + Boolean + Join – cost +3.6 ms a frame on the test vessel; this costs nothing more.)
 """
 
 from __future__ import annotations
@@ -27,13 +33,14 @@ import bpy
 import numpy as np
 from mathutils import Matrix
 
-GROUP = "FR view cut 3"            # (0.2.153's "FR view cut" had other inputs: ``refresh`` swaps it)
+GROUP = "FR view cut 4"            # (0.2.153's "FR view cut" had other inputs, 0.2.157's "… 3" no Split: swapped)
 MOD = "FR view cut"
 OLD_GROUP = "FR view cut"
 ATTR = "fr_view_cut"                # point attribute: the stored way's offset (object coordinates)
 SLAB = 0.05                         # m: the thin slab under a Simple surface (the cut wall one sees)
 HEIGHT = 2000.0                     # m: the exact way's box reaches this far up and down from the object
-STORED, LIVE, EXACT = 0, 1, 2
+PLAIN = "fr_plain"                  # point attribute: the Hole way's (end ±1, side ±1, kind 1 / 2) (task 0375)
+STORED, LIVE, EXACT, HOLE = 0, 1, 2, 3
 
 _INPUTS = (("Origin", "NodeSocketVector"), ("Direction", "NodeSocketVector"), ("Size", "NodeSocketVector"),
            ("Drop", "NodeSocketFloat"), ("Way", "NodeSocketInt"))
@@ -206,10 +213,25 @@ def _group() -> bpy.types.NodeTree:
                b.math("MULTIPLY", length, 0.5))                   # < 0 between the box's ends
     s = b.math("SUBTRACT", b.math("ABSOLUTE", b.vec("DOT_PRODUCT", d, v_l.outputs[0])), half)   # < 0 between its sides
     inside = b.math("LESS_THAN", b.math("MAXIMUM", a, s), 0.0)
+    let_down = b.comb(0.0, 0.0, b.math("MULTIPLY", inside, b.math("MULTIPLY", gin.outputs["Drop"], -1.0)))
     live = b.new("GeometryNodeSetPosition")
     b.put(live.inputs["Geometry"], geo)
-    b.put(live.inputs["Offset"], b.comb(0.0, 0.0, b.math("MULTIPLY", inside,
-                                                             b.math("MULTIPLY", gin.outputs["Drop"], -1.0))))
+    b.put(live.inputs["Offset"], let_down)
+
+    # --- hole: the live way, and the plain square's ring corners / middle piece onto the box's corners (task 0375)
+    plain = b.new("GeometryNodeInputNamedAttribute", data_type="FLOAT_VECTOR")
+    plain.inputs["Name"].default_value = PLAIN
+    pk = b.sep(plain.outputs["Attribute"])
+    pos = b.new("GeometryNodeInputPosition").outputs[0]
+    corner = b.vec("ADD", mid.outputs[0],
+                   b.vec("ADD", b.scale(u_l.outputs[0], b.math("MULTIPLY", pk["X"], b.math("MULTIPLY", length, 0.5))),
+                         b.scale(v_l.outputs[0], b.math("MULTIPLY", pk["Y"], half))))
+    to_corner = b.sep(b.vec("SUBTRACT", corner, pos))
+    under = b.math("MULTIPLY", b.math("GREATER_THAN", pk["Z"], 1.5), b.math("MULTIPLY", gin.outputs["Drop"], -1.0))
+    hole = b.new("GeometryNodeSetPosition")             # (after the live one: only its few points worked out)
+    b.put(hole.inputs["Geometry"], live.outputs[0])
+    b.put(hole.inputs["Selection"], b.math("GREATER_THAN", pk["Z"], 0.5))
+    b.put(hole.inputs["Offset"], b.comb(to_corner["X"], to_corner["Y"], under))
 
     # --- exact: a slab, the box taken away
     ext = b.new("GeometryNodeExtrudeMesh", mode="FACES")
@@ -246,8 +268,12 @@ def _group() -> bpy.types.NodeTree:
     is_exact = b.new("FunctionNodeCompare", data_type="INT", operation="EQUAL")
     b.put(is_exact.inputs["A"], way)
     is_exact.inputs["B"].default_value = EXACT
+    is_hole = b.new("FunctionNodeCompare", data_type="INT", operation="EQUAL")
+    b.put(is_hole.inputs["A"], way)
+    is_hole.inputs["B"].default_value = HOLE
     out = b.switch(is_exact.outputs[0], b.switch(is_live.outputs[0], stored.outputs[0], live.outputs[0]),
                    boo.outputs["Mesh"])
+    out = b.switch(is_hole.outputs[0], out, hole.outputs[0])
     b.put(gout.inputs["Geometry"], out)
     return ng
 
@@ -259,7 +285,7 @@ def _ids(mod) -> dict:
 
 def set_cut(ob, box, drop: float = 1.0, way: int = STORED, band=1.0) -> None:
     """The box open in the 3D view on ``ob`` (Solid and Material Preview): a viewport-only modifier, last in the stack.
-    ``box`` None takes it off. ``drop`` (m): how far the points inside go down; ``way``: STORED / LIVE / EXACT (see the
+    ``box`` None takes it off. ``drop`` (m): how far the points inside go down; ``way``: STORED / LIVE / EXACT / HOLE (see the
     module's text); ``band``: the stored way's reach round the box (``store``)."""
     mod = ob.modifiers.get(MOD)
     if box is None:
