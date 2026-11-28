@@ -114,6 +114,56 @@ def test_nothing_of_the_sea_is_seen_in_the_box(scene, detailed):
     assert len(outer) > 100 and np.abs(outer[:, 2] - level).max() < 8.0      # the sea outside is still there
 
 
+def test_the_plain_seabed_square_leaves_the_pit_open(scene):
+    """Task 0375 (0202's open point): in Detailed the plain seabed square 6 cm under the rippled patch is one face 2 km
+    wide with no point in the box: letting points down left it over the ground cut's pit in the 3D view. It is cut
+    exactly now; rays straight down into the box meet no seabed above the pit's bottom, outside it they do."""
+    from mathutils import Vector
+    box = _build(scene, True)
+    bottom = _bottom(scene)
+    bed = _env("seabed")[0]
+    assert bed.data.attributes.get(sea_view_cut.PLAIN) is not None
+    assert bed.modifiers[MOD].node_group.name == sea_view_cut.GROUP
+    deps = bpy.context.evaluated_depsgraph_get()
+    ev = bed.evaluated_get(deps)
+    inv = ev.matrix_world.inverted()
+    o = np.array(box["origin"][:2])
+    u = np.array(box["dir"][:2]) / np.linalg.norm(box["dir"][:2])
+    v = np.array([-u[1], u[0]])
+    L, W = float(box["length"]), float(box["width"]) / 2
+
+    def hit_z(a, b):
+        p = o + a * u + b * v
+        start = inv @ Vector((p[0], p[1], 500.0))
+        down = (inv.to_3x3() @ Vector((0.0, 0.0, -1.0))).normalized()
+        ok, loc, _n, _i = ev.ray_cast(start, down, depsgraph=deps)
+        return (ev.matrix_world @ loc).z if ok else None
+    level = surroundings.seabed_z(scene)
+
+    def check():
+        for a in np.linspace(0.1, 0.9, 5) * L:
+            for b in np.linspace(-0.8, 0.8, 5) * W:
+                z = hit_z(a, b)
+                assert z is None or z < bottom - 0.5, (a, b, z, bottom)
+        for a, b in ((-30.0, 0.0), (L + 30.0, 0.0), (0.5 * L, W + 30.0), (-400.0, 300.0)):
+            z = hit_z(a, b)
+            assert z is not None and abs(z - level) < 0.5, (a, b, z, level)     # the seabed outside is still there
+    check()
+    # the seabed slides aft with the lay, far past its rippled patch: the hole stays with the box
+    mover = bpy.data.objects.get(surroundings.SEABED_MOTION)
+    if mover is None:
+        mover = bpy.data.objects.new(surroundings.SEABED_MOTION, None)
+        scene.collection.objects.link(mover)
+    surroundings.follow_seabed_motion(bed)
+    mover.location = (float(u[0]) * 150.0, float(u[1]) * 150.0, 0.0)
+    bpy.context.view_layer.update()
+    deps.update()
+    ev = bed.evaluated_get(deps)
+    inv = ev.matrix_world.inverted()
+    assert (np.array(ev.matrix_world.translation)[:2] @ u) > 100.0
+    check()
+
+
 def test_the_edge_is_straight_and_the_wall_stands_on_it(scene):
     """No spikes: every face that reaches from the surface down into the box has all its corners on the box's outline
     (the points round the box are put onto its walls), and no face at the surface reaches into the box."""

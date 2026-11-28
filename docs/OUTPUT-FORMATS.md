@@ -5,7 +5,7 @@ For the Fresing Viewer (task V1) and anyone else who reads these files. The rule
 
 ## The rule (same for every output)
 
-- A format number is a **whole number of 1 or more**. **No number = format 1** (everything written before 0.2.274).
+- A format number is a **whole number of 1 or more**. **No number = format 1** (everything written before 0.2.275).
   Anything else (text, 0, a fraction, true) is "not a number": say so, never guess.
 - A reader says what **it reads** (`reads`). A number **below** it: read as it is. **Equal**: read. **Above**: read
   what can be read, show what you can, and say **once**, plainly: *"Made by a newer Fresing Render – update to open
