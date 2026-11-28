@@ -835,7 +835,7 @@ def propose(rig: LR.Rig, data: dict, values: dict, target, clearance_mm: float =
             hv = vals[hoist] if k == SUB and hoist in vals else _hoist_for(rig, q, z_clear)
             nxt[hoist] = min(max(hv, lo), hi)
             ease = "EASE_IN" if k == 1 else ("EASE_OUT" if k == SUB else "LINEAR")
-            steps.append(Step("luff", words, nxt, round(max(total / SUB, 0.3), 2), ease))
+            steps.append(Step("luff", f"{words} {k}/{SUB}", nxt, round(max(total / SUB, 0.3), 2), ease))
             now.update(nxt)
     elif hoist in vals and abs(vals[hoist] - now.get(hoist, 0.0)) > 1.0:
         nxt = {hoist: vals[hoist]}

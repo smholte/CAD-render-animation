@@ -22,6 +22,9 @@ installer of that version was built from.
 - **Set up a crane > Check** no longer reports a cylinder's own rod in its barrel as a clash (the CC-750's pendants in
   the pose "Steep").
 - **Make a crane… with Replace** shows the new picture at once.
+- **Lift path fixes** (bug hunt 9): Ctrl+Z after **Go there** no longer closes the app; a key of the lift changed by
+  hand says "Changed since it was checked"; the luff / telescope pieces are numbered; removing a crane removes its
+  proposed lift path.
 
 ## 0.2.273 – 28 Nov 2026 – Groundwork for the Fresing assets pack: looks kept inside the project (task 0355)
 

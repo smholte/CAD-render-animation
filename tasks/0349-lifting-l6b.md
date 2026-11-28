@@ -104,6 +104,20 @@ owns the lines it names). Whoever merges second updates its branch to `main`; ve
   (index-based leave-out, the reach words, the pick rule). 71 pass + 1 xfail.
 - GitHub: see the last line of the report.
 
+**Task 0380's fix group F1 (owner's request, 28 Nov)** – the rows of bug hunt 9 on the lift path, `tests/test_lifting_0380.py`:
+- **Row 1 – crash** (Check along the path → Go there → Ctrl+Z → segfault): the cached checks' line pull held the crane
+  that the undo freed. `undo_post` / `redo_post` now drop the lifting caches (readouts, checks, live rows, clearance);
+  the line pull looks the crane up by name when asked (gone: grey "no longer in the plan"); **Go there** has its own
+  undo step. Tested on the module (the handlers, a line pull after the crane is removed); the real-app Ctrl+Z was not
+  repeated.
+- **Row 10** (C5 "outside its outriggers" while C1 25–39 %): the AT-40's file, fixed by Part 2a. The 0380 lift (the
+  example to −2, 4.5, 0): with the old file the test fails exactly as reported (frame 259, C1 25 %, C5 "outside the
+  base"); with the new one no moment is outside and the worst C5 moment equals a hand calculation.
+- **Row 11** (a key changed by hand did not date the checks): the check stores the built keys' print; while the path's
+  animation is the one built, a changed key makes it "Changed since it was checked".
+- **Row 25**: the luff / telescope pieces are named "Luff / telescope 1/6 … 6/6", the message says "N steps (M joint
+  moves)"; Remove the crane removes its proposed lift path (and the plan's path and checks); your own animations stay.
+
 **Pictures** (`tasks/0349_page/`): `1_zones_top.png` (the 3D view from above: exclusion zone, red / amber reach rings,
 the mats coloured), `2_plan_sheet.png` (the printed plan: plan view, range diagram, checks), `3_panel.png`.
 

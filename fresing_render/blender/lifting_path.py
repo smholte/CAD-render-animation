@@ -60,8 +60,20 @@ def numbers(scene, crane, load, clearance: bool = True) -> P.Plan:
                   spread=None if crane.spread_from_pose else float(crane.outriggers),
                   hung=hung, rig_checks=(r or {}).get("checks", []), rig_stale=bool(hung and RG.stale(scene, load)),
                   allowable_pa=L.allowable_kpa * 1000.0 if L.allowable_kpa > 0 else None, mat=mat,
-                  line_pull=lambda g, s=scene, c=crane: lifting.line_pull(s, c, g),
+                  line_pull=_line_pull(crane.name),
                   clearance=_clearance(scene, crane, load) if clearance else None)
+
+
+def _line_pull(name: str):
+    """gross kg -> C10 for the crane named ``name``, looked up when it is asked (0380 row 1: the cached checks held the
+    crane itself; after Ctrl+Z it was freed and the use bar's redraw crashed Blender)."""
+    def pull(gross):
+        scene = bpy.context.scene
+        crane = next((c for c in lifting.plan(scene).cranes if c.name == name), None) if scene is not None else None
+        if crane is None:
+            raise ValueError("the crane is no longer in the plan")
+        return lifting.line_pull(scene, crane, gross)
+    return pull
 
 
 def _clearance(scene, crane, load):
@@ -249,7 +261,8 @@ def propose(scene, crane=None, load=None, point=None) -> P.Proposal:
     L.path_anim = a.name
     L.path_result = ""
     secs = sum(s.seconds for s in pr.steps)
-    L.message = (f"Lift path: {len(pr.steps)} steps, {secs:.0f} s, in the animation '{a.name}' (6 Animation). "
+    L.message = (f"Lift path: {len(pr.steps)} steps ({len(a.blocks)} joint moves), {secs:.0f} s, in the animation "
+                 f"'{a.name}' (6 Animation). "
                  + " ".join(pr.notes)).strip()
     return pr
 
@@ -380,7 +393,8 @@ def check(scene, crane=None, load=None, build: bool = True, reference: bool = Fa
     found = P.search(lambda t: ck.at(at_vals(t)), f0, f1, keys=keys, step=0.01, inner=1,
                      spacing=max(float(a.fps) / 5.0, 1.0))          # the grid at least every 0.2 s
     t_search = time.perf_counter() - t0
-    out = {"key": _key_now(scene, crane, load, a), "anim": a.name, "crane": crane.name,
+    out = {"key": _key_now(scene, crane, load, a), "keys": keys_print(scene, crane), "anim": a.name,
+           "crane": crane.name,
            "load": load.name if load is not None else "", "frames": [f0, f1],
            "rows": [r.to_dict() for r in P.ordered(found.worst)],
            "moments": [[round(t, 3), st] for t, st in found.moments],
@@ -414,8 +428,27 @@ def rows(scene) -> list:
     return [P.Row.from_dict(d) for d in (r or {}).get("rows", [])]
 
 
+def keys_print(scene, crane) -> str:
+    """The built keys of the crane's driven joints as text (0380 row 11: a key changed by hand in the timeline or the
+    Graph Editor left the checks as they were)."""
+    from . import paths
+    p = lifting.prefix(crane)
+    rows = []
+    for j in scene.fresing.joints:
+        if not j.name.startswith(p) or j.follows or j.motion is None:
+            continue
+        fc = next((c for c in paths._fcurves(j.motion) if c.data_path == joints.COUPLING_PATH), None)
+        if fc is None:
+            continue
+        rows.append([j.name] + [(round(k.co[0], 4), round(k.co[1], 7), k.interpolation,
+                                 round(k.handle_left[1], 7), round(k.handle_right[1], 7))
+                                for k in fc.keyframe_points])
+    return json.dumps(rows, default=str)
+
+
 def stale(scene) -> bool:
-    """The checks along the path no longer fit the path, the crane, the load or the plan."""
+    """The checks along the path no longer fit the path, the crane, the load or the plan – or, while the path's
+    animation is the one built, its keys were changed by hand."""
     r = result(scene)
     if r is None:
         return False
@@ -424,7 +457,11 @@ def stale(scene) -> bool:
     a = _anim_named(scene, r.get("anim", ""))
     if crane is None or a is None or (r.get("load") and load is None):
         return True
-    return _key_now(scene, crane, load, a) != r.get("key")
+    if _key_now(scene, crane, load, a) != r.get("key"):
+        return True
+    if scene.fresing.anim_baked == a.name and r.get("keys") is not None:
+        return keys_print(scene, crane) != r["keys"]
+    return False
 
 
 def go_to(scene, check_id: str) -> float | None:
@@ -599,21 +636,28 @@ def _draw_bar():
     gpu.state.blend_set("NONE")
 
 
+_HANDLERS = ("load_post", "undo_post", "redo_post")
+
+
 def register():
     if _DRAW["handle"] is None and not bpy.app.background:
         _DRAW["handle"] = bpy.types.SpaceView3D.draw_handler_add(_draw_bar, (), "WINDOW", "POST_PIXEL")
-    if _load_post not in bpy.app.handlers.load_post:
-        bpy.app.handlers.load_post.append(_load_post)
+    for h in _HANDLERS:                      # 0380 row 1: undo / redo replace the datablocks the caches pointed at
+        lst = getattr(bpy.app.handlers, h)
+        if _load_post not in lst:
+            lst.append(_load_post)
 
 
 def unregister():
     if _DRAW["handle"] is not None:
         bpy.types.SpaceView3D.draw_handler_remove(_DRAW["handle"], "WINDOW")
         _DRAW["handle"] = None
-    if _load_post in bpy.app.handlers.load_post:
-        bpy.app.handlers.load_post.remove(_load_post)
+    for h in _HANDLERS:
+        lst = getattr(bpy.app.handlers, h)
+        if _load_post in lst:
+            lst.remove(_load_post)
 
 
 @bpy.app.handlers.persistent
-def _load_post(_dummy=None):
-    forget()
+def _load_post(*_args):
+    lifting.forget()                         # its readouts, these checks and the clearance (lifting_zones) with them

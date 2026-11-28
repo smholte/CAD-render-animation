@@ -870,7 +870,7 @@ class FRESING_OT_lifting_path_go(bpy.types.Operator):
     """Shows the worst moment of this check: the timeline goes to its frame, the crane and the load stand there"""
     bl_idname = "fresing.lifting_path_go"
     bl_label = "Go there"
-    bl_options = {"REGISTER"}
+    bl_options = {"REGISTER", "UNDO"}                  # it may build the animation (0380 row 1)
 
     check: StringProperty(options={"SKIP_SAVE"})
 
