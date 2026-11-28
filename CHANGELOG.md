@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.274 – 28 Nov 2026 – PC check: weld speed in Heavy, memory of the helper programs in Stress (task 0379)
+## 0.2.275 – 28 Nov 2026 – PC check: weld speed in Heavy, memory of the helper programs in Stress (task 0379)
 
 - **PC check, Heavy: a new step "Welded frame: how fast the welds are found".** It makes an invented welded frame (300
   welds as solid beads in the file, 301 parts; deleted afterwards), imports it and then reads a second revision in with
@@ -16,6 +16,15 @@ installer of that version was built from.
   table has a new column **with helpers MB** (the peak of the app and its helper programs together) and the numbers say
   how much of that peak was the helpers' and how many ran at once. The column **peak memory MB** keeps the app's own
   peak, so it still compares with your earlier Stress runs.
+## 0.2.274 – 28 Nov 2026 – Sea fixes: the seabed open over the ground cut, a quicker sea change with spray, Vessel at work after Build (task 0375)
+
+- **Open sea, Detailed, cut-away with the ground:** in the 3D view the plain seabed round the rippled patch no longer
+  covers the pit in the box – also when the seabed has slid far by under a sailing vessel. Renders are unchanged.
+- **A sea change with spray** (Weather & time, Beaufort 5.5 and up) is quicker: the spray is kept and only gets its
+  new numbers – about 0.3 s instead of 0.9 s on the test vessel (Simple), 0.6 s instead of 1.0 s (Detailed).
+- **Vessel at work after Build:** changing what the vessel does, its speed or a thruster after Build took nothing
+  off – the video still showed the vessel as before. Now the built animation is taken off and the app says so:
+  press Build & play again.
 
 ## 0.2.273 – 28 Nov 2026 – Groundwork for the Fresing assets pack: looks kept inside the project (task 0355)
 

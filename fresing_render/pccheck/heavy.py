@@ -1223,7 +1223,7 @@ def make_weld_frame(path: str, cells: int, revision: str = "A") -> dict:
         raise RuntimeError("the welded test frame's maker gave no numbers: " + r.stdout.strip()[-200:]) from None
 
 
-@line("heavy.welds", "Welded frame: how fast the welds are found", "0.2.274", (H,), expected=90,
+@line("heavy.welds", "Welded frame: how fast the welds are found", "0.2.275", (H,), expected=90,
       what="Writes an invented welded frame (100 cells = 300 welds as solid beads in the file, 301 parts) and imports it; "
            "then a second revision (every tenth cell's fin taller) is read in with Model update. The time of finding and "
            "making the welds is read at the import and at the update, with the helper programs that worked on it",

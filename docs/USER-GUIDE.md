@@ -3036,7 +3036,9 @@ waterline, the seabed further away, the cable beyond the box.
 
 The box is open in the 3D view too – in Solid view and in Material Preview – not only in a render: inside it the sea,
 its foam and (with the ground) the seabed and its stones are let down out of sight, with a straight wall along the box's
-edge (only in the view; a render is made as before). It follows the box when you change its numbers.
+edge (only in the view; a render is made as before). It follows the box when you change its numbers, and with the
+ground cut the plain seabed round the rippled patch (Detailed) stays open over the box however far the seabed slides
+by under a sailing vessel.
 
 <img class="wide" src="img/view_sea_cutaway.jpg" alt="The cable from the stern horn down to the seabed, seen from above the stern quarter through the cut-away">
 
@@ -4577,7 +4579,9 @@ The line under it says what the water shows; the panel's header shows "Ahead 8 k
 panel's setting, or the step before) and changes to its own over the step's time: from **Ahead** to **Sideways** the
 vessel slows, the wake fades, the azimuths swing round and the jets grow. **Build & play** turns the propellers – each
 as fast as its load, speeding up and slowing down with the steps – and steers the azimuths. A propeller that another
-step already moves (a Run motor step) is left to that step; Build says so. Saved scenes keep what the vessel does.
+step already moves (a Run motor step) is left to that step; Build says so. Saved scenes keep what the vessel does. Change the panel after
+Build (what the vessel does, the speed, a thruster) and the built animation is taken off, as it would still show the
+vessel as before: press **Build & play** again.
 
 It plays with "Auto Run Python Scripts" off, in EEVEE and Cycles and in the render queue. The waves and jets are drawn
 in the water's surface (light and shading, no real height): from low over the water the bow wave looks flat. No bubbles

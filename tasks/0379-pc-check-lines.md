@@ -38,7 +38,7 @@ owns the lines it names). Whoever merges second updates its branch to `main`; ve
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web (Sonnet), 28 Nov 2026. Released as 0.2.274.
+**Chat / date:** Claude Code on the web (Sonnet), 28 Nov 2026. Released as 0.2.275.
 
 **What changed:**
 - **A – Heavy line `heavy.welds`** ("Welded frame: how fast the welds are found"). `pccheck/heavy_welds.py` (a program of
