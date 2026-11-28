@@ -70,7 +70,6 @@ BEND_TOL = 1e-8                 # rad: the free bend is settled when a round cha
 BEND_ROUNDS = 80                # rounds of the fixed point on the free bend's turn
 FLAT = 0.2                      # a wheel whose plane holds less of "down" than this lies (nearly) flat (as paths_sea.FLAT)
 BED_GAP = 1e-3                  # m: a free bend ends at least this far over the cable's middle on the seabed
-PILE_EASE = 1.0                 # m: a piled cable's wrap is read from straight down once this much has piled up
 BED_BAND = 2.0                  # m: a free bend ending this near the seabed bends in the catenary's plane at the wheel
 BIGHT_TURN = math.radians(45.0)  # a bight's feet turn this far off the lay line when no bend radius is known
 BIGHT_TURN_MAX = math.radians(140.0)  # … and at most this far (beyond 150° its feet would cross: a loop)
@@ -587,11 +586,9 @@ def _way_want(res: dict, k, t0, wmax) -> np.ndarray:
     Task 0374: the two WRAPS are blended, not the two directions – where they point opposite ways (a gutter tipped about
     the lay line: "down" at its near end, the lay at its far end) a blend of directions passed through nothing and the
     leave point jumped from one end to the other in one step; the wraps' blend goes over the gutter from end to end."""
-    # a piled cable reads its wrap from straight down (task 0172) – eased in over its first ``PILE_EASE`` m of piled
-    # cable (task 0374): where it just piles up, its real direction (down and sideways to its touch-down beside T) and
-    # "down" differ by up to 90°, and the leave point jumped by them in one step
-    q = np.where(res["kind"] == PILED, np.clip(res["excess"] / PILE_EASE, 0.0, 1.0), 0.0)[:, None]
-    d = _unit((1.0 - q) * res["direction"] + q * np.array([0.0, 0.0, -1.0]), np.array([0.0, 0.0, -1.0]))
+    # a piled cable reads its wrap from straight down (task 0172). (Task 0374 tried easing that in over the first metre
+    # piled: it gave a second answer near "stretched" and the moments flickered between them – the slide does the job)
+    d = np.where((res["kind"] == PILED)[:, None], np.array([0.0, 0.0, -1.0]), res["direction"])
     want_d = _in_range(_wrap_of(d, k, t0), wmax)
     u = res["u"]
     u_in = u - (u * k).sum(1, keepdims=True) * k
@@ -691,6 +688,13 @@ def _rows(x, sel, F: int):
     if a.ndim == 1 and a.shape[0] == F:        # (only the per-moment inputs come here: start and aft never do)
         return a[sel]
     return x
+
+
+def _vec_rows(x, sel, F: int):
+    """The rows ``sel`` of a point or direction given per moment ((F, 3)); one given for all ((3,)) as it is – also when
+    there are exactly 3 moments (task 0374's tester: ``_rows`` took a (3,) vector for one number per moment then)."""
+    a = np.asarray(x, dtype=float)
+    return a[sel] if a.ndim == 2 and a.shape[0] == F else x
 
 
 def hang_off_steady(centre, axis, radius, side, arrive, wrap_max, start, aft, bottom_z, length0,
@@ -808,7 +812,7 @@ def hang_off(centre, axis, radius, side, arrive, wrap_max, start, aft, bottom_z,
             res = hang(T, start, aft, bottom_z, L0 - r * p)
             return T, res, _way_want(res, k, t0, wmax)
         T = centre[sel] + _rot(rho[sel], k[sel], p) * r[sel, None]
-        res = hang(T, _rows(start, sel, F), _rows(aft, sel, F), bottom_z, L0[sel] - r[sel] * p)
+        res = hang(T, _vec_rows(start, sel, F), _vec_rows(aft, sel, F), bottom_z, L0[sel] - r[sel] * p)
         return T, res, _way_want(res, k[sel], t0[sel], wmax[sel])
 
     # (task 0374: each round works out only the moments still moving – the others are settled; before, every round
@@ -841,6 +845,8 @@ def hang_off(centre, axis, radius, side, arrive, wrap_max, start, aft, bottom_z,
         psi[act] = 0.5 * (lo + hi)
     T, res, want = at(psi)
     steep, short = want > wmax + 1e-9, want < -1e-9
+    if psi_fixed is not None:                   # (slid there: it lies on the wheel unless it is at an end – the tester)
+        steep, short = steep & (psi >= wmax - 1e-12), short & (psi <= 1e-12)
     tangent = np.cross(k, _rot(rho, k, psi))
     # the free bend from the wheel's tangent to the catenary's direction (task 0125): the catenary starts where it ends
     theta, m = _bend(tangent, res["direction"])
@@ -859,7 +865,7 @@ def hang_off(centre, axis, radius, side, arrive, wrap_max, start, aft, bottom_z,
         for _ in range(BEND_ROUNDS):
             Ta, ta, ra, th, ma = T[act], tangent[act], r[act], theta[act], m[act]
             top = Ta + ra[:, None] * (np.sin(th)[:, None] * ta + (1.0 - np.cos(th))[:, None] * ma)
-            sub = hang(top, _rows(start, act, F), aft, bottom_z, (L1 - r * theta)[act])
+            sub = hang(top, _vec_rows(start, act, F), aft, bottom_z, (L1 - r * theta)[act])
             want, m_E = _bend(ta, sub["direction"])
             beta = np.clip(1.0 - (top[:, 2] - floor) / BED_BAND, 0.0, 1.0)[:, None]
             m_new = (1.0 - beta) * m_E + beta * m_T[act]

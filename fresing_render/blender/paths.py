@@ -3808,6 +3808,9 @@ def remove(scene, index: int) -> None:
             drawn.delete_object(made)
         s.cables.remove(index_of(scene, item))
         s.cables_index = max(0, min(s.cables_index, len(s.cables) - 1))
+        for k in range(len(s.cables)):          # (task 0374's tester: a third cable's note named the one gone)
+            if any(c.note.startswith(SHARED) for c in s.cables[k].contacts):
+                _notes_of_joints(scene, s.cables[k], {})
     finally:
         _STATE["busy"] -= 1
     forget()
