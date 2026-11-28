@@ -88,10 +88,10 @@ def test_search_finds_by_words_and_key():
 def test_the_key_sheet_has_every_group_and_marks_a_changed_key():
     rows = [K.Row(g, f"What {g} <does>", "Ctrl+K") for g in K.GROUP_KEYS]
     rows.append(K.Row("own", "Render the picture", "F9", id="render_image", default="F12"))
-    page = K.sheet_html(rows, "0.2.275", "2026-11-25")
+    page = K.sheet_html(rows, "0.2.999", "2026-11-25")
     for _g, title in K.GROUPS:
         assert K.html.escape(title) in page
     assert "&lt;does&gt;" in page and "<does>" not in page
     assert "yours; was F12" in page
-    assert "@page { size: A4" in page and "0.2.275" in page
+    assert "@page { size: A4" in page and "0.2.999" in page
     assert page.startswith("<!doctype html>")
