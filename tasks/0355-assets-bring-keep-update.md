@@ -1,6 +1,6 @@
 # 0355 – Assets pack P2: bring, keep and update pack items in a project (invisible)
 
-**Who:** worker · **Status:** done (28 Nov 2026, 0.2.271) · **Branch:** `task/0355-assets-bring-keep-update`
+**Who:** worker · **Status:** done (28 Nov 2026, 0.2.272) · **Branch:** `task/0355-assets-bring-keep-update`
 **Started by:** lead, 25 Nov 2026 23:3x (0344's P2; owner's picks 23:17) · **Model:** Opus · effort High · Claude Code
 on the web, environment "CAD-render-animation" · **independent review** (a helper agent that did not write the code tries
 to break it – section 2, "Subagents")
@@ -109,7 +109,7 @@ files; never his employer's name.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web, 28 Nov 2026 · 0.2.271
+**Chat / date:** Claude Code on the web, 28 Nov 2026 · 0.2.272
 
 **What changed:** no visible change. New `blender/assets.py` (the engine) and `core/assets_keep.py` (its plain rules);
 additive: `props.py` scene fields `assets_source` / `assets_version`, `materials.py` helpers `look_src_of`,

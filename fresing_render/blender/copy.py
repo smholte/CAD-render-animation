@@ -19,8 +19,9 @@ what was left out.
 **The rule for what reaches outside the copy** (said in the Place window after a paste): it is *left out* – the copy
 moves by itself. A joint that also moves parts outside the copy, a cylinder or hose with a pin or end outside, and a
 coupling to a joint outside the copy are not copied (the copied joint then moves by itself). A joint that sat on a
-part or joint outside the copy sits on the copy itself. Cables, drums, tracks, trail lines, animation steps and
-cameras stay with the original (add them again on the copy).
+part or joint outside the copy sits on the copy itself. A cable read from CAD whose parts, wheels and ends are all in
+the copy comes along with its drum (task 0374: read again on the copied parts); drawn cables, cables into the sea,
+tracks, trail lines, animation steps and cameras stay with the original (add them again on the copy).
 
 **Names**: the copy of a model, subassembly or parts is "<name> (2)", "(3)" …; so are its joints, cylinders,
 mechanisms, way covers and hoses. Its part IDs get a scope of their own (``~N/…``, as a second import of the same STEP,
@@ -160,6 +161,9 @@ def _select(scene, objs_in, names, out: dict) -> None:
     from . import cylinders, linkages
     s = scene.fresing
     left = out["left"]
+    uids_in = {_uid(o) for o in objs_in if _uid(o)}
+    remade = {it.name for it in s.cables if _cable_stays(it, uids_in) is None}       # (task 0374: read again)
+    remade_j = {it.joint for it in s.cables if it.name in remade and it.joint}
     # joints: every moving part in the copy; a joint made by a cable or track belongs to it (not copied with it)
     j_in = []
     for j in s.joints:
@@ -171,7 +175,8 @@ def _select(scene, objs_in, names, out: dict) -> None:
         inside = [m for m in mem if m.name in names]
         if len(inside) == len(mem):
             if j.motion is not None and (j.motion.get("fr_cable") or j.motion.get("fr_track")):
-                left.append(f"Joint '{j.name}' belongs to a cable or track, which is not copied")
+                if j.motion.get("fr_cable") not in remade:          # (a cable read again makes its own)
+                    left.append(f"Joint '{j.name}' belongs to a cable or track, which is not copied")
                 continue
             j_in.append(j.name)
         elif inside:
@@ -190,7 +195,7 @@ def _select(scene, objs_in, names, out: dict) -> None:
     out["_joints"] = [j.name for j in s.joints if j.name in j_in]          # in the list's order
     for name in out["_joints"]:
         j = joints.find(scene, name)
-        if j.follows and j.follows not in j_in:
+        if j.follows and j.follows not in j_in and j.follows not in remade_j:   # (a cable read again couples it)
             left.append(f"Joint '{name}' follows '{j.follows}', which is not in the copy: its copy moves by itself")
     # cylinders: barrel, rod, stages and both pins' parts in the copy
     cyl = []
@@ -242,20 +247,52 @@ def _select(scene, objs_in, names, out: dict) -> None:
     out["_welds"], weld_left = welds.for_copy(scene, names)
     left += weld_left
     uids = {_uid(o) for o in objs_in if _uid(o)}
-    for coll, word in ((s.cables, "Cable"), (s.spools, "Drum"), (s.tracks, "Track")):
-        for it in coll:
-            used = {getattr(it, "part_uid", ""), getattr(it, "chain_uid", ""), getattr(it, "coil_uid", "")}
-            used |= {getattr(w, "part_uid", "") for w in getattr(it, "wheels", ())}
-            used |= {c.part_uid for c in getattr(it, "contacts", ())}
-            if used & uids:
-                left.append(f"{word} '{it.name}' is not copied: add it again on the copy")
+    out["_cables"], out["_spools"] = [], []
+    copied = set()
+    for i, it in enumerate(s.cables):           # task 0374: a cable read from CAD comes along when all of it does
+        why = _cable_stays(it, uids)
+        if why is None:
+            out["_cables"].append(i)
+            copied.add(it.name)
+        elif why:
+            left.append(f"Cable '{it.name}' is not copied ({why}): add it again on the copy")
+    for i, it in enumerate(s.spools):
+        used = {it.part_uid, it.coil_uid} - {""}
+        if not used & uids:
+            continue
+        if it.cable in copied and used <= uids:
+            out["_spools"].append(i)
+        else:
+            left.append(f"Drum '{it.name}' is not copied ({'its cable stays' if it.cable not in copied else 'a part of it is outside the copy'}): add it again on the copy")
+    for it in s.tracks:
+        used = {getattr(it, "part_uid", ""), getattr(it, "chain_uid", "")}
+        used |= {getattr(w, "part_uid", "") for w in getattr(it, "wheels", ())}
+        if used & uids:
+            left.append(f"Track '{it.name}' is not copied: add it again on the copy")
+
+
+def _cable_stays(it, uids: set):
+    """Why the cable ``it`` is not copied with parts ``uids`` (a few words), '' when it has nothing in the copy, None
+    when it comes along: read from CAD, its part, every part it runs over and both ends' parts in the copy, not into
+    the sea (task 0374)."""
+    used = {it.part_uid} | {c.part_uid for c in it.contacts} | {it.a_uid, it.b_uid}
+    used -= {""}
+    if not used & uids:
+        return ""
+    if it.drawn:
+        return "drawn in the app"
+    if it.b_kind == "SEA":
+        return "it hangs into the sea"
+    if not it.part_uid or not used <= uids:
+        return "a part it runs over or ends on is outside the copy"
+    return None
 
 
 def plan(scene, objs) -> dict:
     """What a paste of ``objs`` makes: per copy its name, parts and set-up, and the lines of what is left out."""
     tree = logic.Tree(scene)
     out = {"copies": [], "left": [], "parts": 0, "joints": 0, "cylinders": 0, "mechanisms": 0, "way_covers": 0,
-           "hoses": 0, "labels": 0, "welds": 0}
+           "hoses": 0, "labels": 0, "welds": 0, "cables": 0, "drums": 0}
     for g in groups(scene, objs):
         objs_in = _objects(scene, g, tree)
         names = {o.name for o in objs_in}
@@ -270,7 +307,8 @@ def plan(scene, objs) -> dict:
         out["left"] += one["left"]
         out["parts"] += one["parts"]
         for k, key in (("joints", "_joints"), ("cylinders", "_cylinders"), ("mechanisms", "_mechanisms"),
-                       ("way_covers", "_covers"), ("hoses", "_flex"), ("labels", "_labels"), ("welds", "_welds")):
+                       ("way_covers", "_covers"), ("hoses", "_flex"), ("labels", "_labels"), ("welds", "_welds"),
+                       ("cables", "_cables"), ("drums", "_spools")):
             out[k] += len(one[key])
     return out
 
@@ -279,7 +317,8 @@ def summary(p: dict) -> list:
     """The lines a paste says: what came along, what was left out (the rule) and that it moves by itself."""
     bits = [plural(p.get("parts", 0), "part")]
     for key, word in (("joints", "joint"), ("cylinders", "cylinder"), ("mechanisms", "mechanism"),
-                      ("way_covers", "way cover"), ("hoses", "hose"), ("labels", "label"), ("welds", "weld")):
+                      ("way_covers", "way cover"), ("hoses", "hose"), ("labels", "label"), ("welds", "weld"),
+                      ("cables", "cable"), ("drums", "drum")):
         n = int(p.get(key, 0) or 0)
         if n:
             bits.append(plural(n, word))
@@ -473,6 +512,7 @@ def _snapshot(scene, p) -> dict:
             "joints": [j.name for j in s.joints], "cylinders": [c.name for c in s.cylinders],
             "mechanisms": [m.name for m in s.mechanisms], "flex": len(s.flex), "callouts": len(s.callouts),
             "waycovers": len(s.waycovers), "welds": [it.key for it in scene.fresing_welds.items],
+            "cables": len(s.cables), "spools": len(s.spools),
             "groups": {c["root"]: bpy.data.objects[c["root"]].get(GROUP) for c in p["copies"]}}
 
 
@@ -488,6 +528,11 @@ def _roll_back(scene, before: dict) -> None:
         j = joints.find(scene, name)
         if j is not None:
             joints.remove(scene, j)
+    from . import paths, spool
+    for i in reversed(range(before.get("spools", len(s.spools)), len(s.spools))):
+        spool.remove(scene, i)
+    for i in reversed(range(before.get("cables", len(s.cables)), len(s.cables))):
+        paths.remove(scene, i)
     for i in reversed(range(before["flex"], len(s.flex))):
         flex.remove(scene, i)
     for coll, n in ((s.callouts, before["callouts"]), (s.waycovers, before["waycovers"])):
@@ -584,6 +629,7 @@ def _paste(scene, p, at) -> dict:
             one["weld_keys"] = welds.copy_to(scene, one.get("_welds", []), copies)
             one["copy_root"] = top.name
             one["name"] = name
+            one["_map"] = {n: c.name for n, c in copies.items()}
             p["roots"].append(top.name)
             p["names"].append(name)
         try:
@@ -603,6 +649,11 @@ def _paste(scene, p, at) -> dict:
             place.move(scene, [top], D)
         build.set_mat(top, build.PROP_REST_BASIS, top.matrix_basis)
         placed.append(place.bounds(scene, top))
+    # 5. cables and drums (task 0374): read again on the copied parts once the copy stands beside the original (the
+    # reading looks for the round parts near the cable: on top of the original it would find the original's too)
+    for one in p["copies"]:
+        p["notes"] += _cables(scene, one, p)
+    p["cables"], p["drums"] = p.get("cables_made", 0), p.get("drums_made", 0)
     _tidy(scene)
     LAST.clear()
     LAST.update(p)
@@ -668,6 +719,77 @@ def _flex(scene, one, copies, uids, by_uid) -> list:
         flex.forget()
         return flex._rebuild(scene) or []
     return []
+
+
+def _cables(scene, one, p) -> list:
+    """The cables and drums that come along (``_select``): made again on the copy with their own create functions –
+    the cable read from its copied part (its own speed joint, sheaves' joints, couplings), its look, typed diameter
+    and stripe pitch as the original's; a drum added on the copied barrel and coil. One that cannot be made is said."""
+    if not one.get("_cables"):
+        return []
+    from . import paths, spool
+    s = scene.fresing
+    m = one.get("_map", {})
+
+    def copy_of(ob):
+        return bpy.data.objects.get(m.get(ob.name, "")) if ob is not None else None
+
+    srcs = []
+    for i in one["_cables"]:
+        it = s.cables[i]
+        srcs.append({"name": it.name, "part": copy_of(it.part), "look": it.look, "pitch": float(it.pitch),
+                     "diameter": float(it.diameter), "cad": float(it.cad_diameter), "reverse": bool(it.reverse),
+                     "enabled": bool(it.enabled)})
+    drums = []
+    for i in one.get("_spools", ()):
+        sp = s.spools[i]
+        drums.append({"name": sp.name, "kind": sp.kind, "cable": sp.cable, "part": copy_of(sp.part),
+                      "coil": copy_of(sp.coil)})
+    notes, new_names = [], {}
+    taken = {it.name for it in s.cables}
+    for d in srcs:
+        if d["part"] is None:
+            p["left"].append(f"Cable '{d['name']}' is not copied (its part did not come along): add it again on the copy")
+            continue
+        name = next_name(d["name"], taken)
+        taken.add(name)
+        try:
+            item = paths.add_cable(scene, name)
+            name = item.name
+            with paths._quiet(item):
+                item.look = d["look"]
+                item.reverse = d["reverse"]
+            item["look_was"] = d["look"]
+            notes += paths.read_cad(scene, paths.find(scene, name), d["part"])
+            item = paths.find(scene, name)
+            with paths._quiet(item):
+                if d["pitch"] > 0.0:
+                    item.pitch = d["pitch"]
+            if abs(d["diameter"] - d["cad"]) > paths.USER_CHANGE:
+                item.diameter = d["diameter"]
+            if not d["enabled"]:
+                item.enabled = False
+            new_names[d["name"]] = name
+            p["cables_made"] = p.get("cables_made", 0) + 1
+        except Exception as exc:  # noqa: BLE001 - a cable that cannot be read again never stops a paste
+            it = paths.find(scene, name)
+            if it is not None:
+                paths.remove(scene, paths.index_of(scene, it))
+            p["left"].append(f"Cable '{d['name']}' could not be copied ({exc}): add it again on the copy")
+    taken = {sp.name for sp in s.spools}
+    for d in drums:
+        cable = new_names.get(d["cable"])
+        if cable is None or d["part"] is None:
+            p["left"].append(f"Drum '{d['name']}' is not copied (its cable did not come along): add it again on the copy")
+            continue
+        name = next_name(d["name"], taken)
+        taken.add(name)
+        try:
+            spool.add(scene, d["kind"], d["part"], cable, name=name, coil=d["coil"])
+            p["drums_made"] = p.get("drums_made", 0) + 1
+        except Exception as exc:  # noqa: BLE001
+            p["left"].append(f"Drum '{d['name']}' could not be copied ({exc}): add it again on the copy")
+    return notes
 
 
 def _labels(scene, one, copies) -> None:
