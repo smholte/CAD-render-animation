@@ -185,6 +185,42 @@ def main():
             u.DestroyWindow(hwnd)
     ai.set_process_app_id()
     check("process app ID", ai.process_app_id() == ai.APP_ID, ai.process_app_id())
+    memory_family(ai)
+
+
+def memory_family(ai):
+    """Task 0379 (Windows-only code of the Stress run's memory column): ``stress.family_memory_mb`` finds a child
+    program of this one with Toolhelp, reads its working set, and stops counting it when it ends."""
+    import subprocess
+    import time
+    base = ai.__name__.rsplit(".", 1)[0]
+    stress = importlib.import_module(base + ".pccheck.stress")
+    runner = importlib.import_module(base + ".importer.runner")
+    own0, helpers0, count0 = stress.family_memory_mb()
+    check("memory: this program's own size is read", own0 > 20, f"{own0:.0f} MB")
+    code = ("import time\nb = bytearray(200 * 2**20)\n"
+            "for i in range(0, len(b), 4096): b[i] = 1\n"
+            "print('up', flush=True)\ntime.sleep(120)\n")
+    child = subprocess.Popen([runner.python_executable(), "-c", code], stdout=subprocess.PIPE, text=True,
+                             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    try:
+        said = child.stdout.readline().strip()
+        check("memory: the helper program holds its 200 MB", said == "up", said)
+        own, helpers, count = stress.family_memory_mb()
+        check("memory: a child program is counted with its working set", helpers - helpers0 >= 150 and count > count0,
+              f"helpers {helpers0:.0f} -> {helpers:.0f} MB, {count0} -> {count} programs")
+        with stress.MemoryWatch(every=0.05) as watch:
+            time.sleep(0.4)
+        check("memory: the watch keeps the peak of the sum with its two parts",
+              watch.helpers_seen and watch.peak_total >= watch.peak + 150 and watch.at_peak[1] >= 150
+              and watch.most_helpers >= 1, f"{watch.metrics()}")
+    finally:
+        child.kill()
+        child.wait()
+    time.sleep(0.3)
+    gone = stress.family_memory_mb()
+    check("memory: an ended child program is not counted any more", gone[1] < helpers0 + 100 and gone[2] <= count0,
+          f"{gone[1]:.0f} MB, {gone[2]} programs")
 
 
 try:

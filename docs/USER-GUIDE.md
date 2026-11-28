@@ -6586,7 +6586,12 @@ with your last Heavy run. In its text block you also find the peak memory. The s
 time goes** imports the machine once more and times each stage: the reader's parse, transfer, meshing (with how many
 helper programs, the biggest part and all parts' meshing added up) and cache, then the app's meshes, objects, sorting,
 structure, bounds, surroundings and the first picture of the Solid view. It also says which stages run on one core:
-paste its numbers to the lead – they decide whether the reader is split over more cores.
+paste its numbers to the lead – they decide whether the reader is split over more cores. The step **Welded frame: how
+fast the welds are found** makes an invented welded frame (100 cells, 300 welds as solid beads in the file, 301 parts;
+deleted afterwards), imports it and then reads a second revision in with **Model update** (every tenth cell's fin
+taller). It says how long finding and making the welds took at the import and at the update, how many helper programs
+worked on it, and that all 300 welds were kept – on the 4-core test machine about 5 s at the import and 8 s at the update,
+so your PC with more cores should be faster.
 
 **To stop a Heavy check** that takes too long: in the app **Help > Cancel Fresing Render PC check**
 (shown only while a check runs), or press **Ctrl+C** in the black window. A picture that is being
@@ -6610,10 +6615,14 @@ and a model update where about 1 % of the parts changed.
    in it too.
 
 **Reading the stress table.** One row per action: **mark** (*pass*, *slow* or *failed*), **seconds**, the
-**limit** (a step that takes longer is *slow*), **peak memory MB** (the most memory the app used during that step;
-the import's helper programs come on top), **previous s** and **change** (your last Stress run on this PC) and
+**limit** (a step that takes longer is *slow*), **peak memory MB** (the most memory the app itself used during that
+step), **with helpers MB** (the most the app and its helper programs used together – the STEP reader and its meshing
+helpers, the weld helpers; the two peaks need not come at the same moment, so it is the peak of the sum; a page that two
+programs share is counted twice; empty when no helper program ran), **previous s** and **change** (your last Stress run
+on this PC) and
 **slower than before** = "yes" when a step took more than 15 % longer than last time. **numbers** holds the
-step's own measurements (for example triangles, frames, file size). The first Stress run has nothing to compare
+step's own measurements (for example triangles, frames, file size, and for a step with helper programs how much of the
+memory peak was theirs and how many ran at once). The first Stress run has nothing to compare
 with yet. A *slow* or *failed* step is where the app needs work; the lead turns it into a task.
 
 **With your own model (optional).** Drag a STEP file onto **PC check (quick)** in the app's Tools folder,

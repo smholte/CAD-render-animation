@@ -454,8 +454,11 @@ def text_block(run: Run, secrets=()) -> str:
 # ---------------------------------------------------------------------------
 
 STRESS_TABLE_NAME = "Fresing Render stress table.csv"
-TABLE_COLUMNS = ("line", "title", "mark", "seconds", "limit s", "peak memory MB", "previous s", "change",
-                 "slower than before", "numbers")
+TABLE_COLUMNS = ("line", "title", "mark", "seconds", "limit s", "peak memory MB", "with helpers MB", "previous s",
+                 "change", "slower than before", "numbers")
+# the memory metrics have their own columns (task 0379: the app alone, and the app with the helper programs below it)
+MEMORY_METRICS = ("peak memory", "peak memory with helper programs", "  at that moment: the app",
+                  "  at that moment: helper programs", "helper programs, most at once")
 
 
 def mark_of(r: Result) -> str:
@@ -474,9 +477,16 @@ def stress_rows(run: Run) -> list:
         if r.status == RUNNING:
             continue
         mem = r.metrics.get("peak memory", (None, ""))[0]
-        nums = "; ".join(f"{k} {v[0]} {v[1]}".strip() for k, v in r.metrics.items() if k != "peak memory")
+        both = r.metrics.get("peak memory with helper programs", (None, ""))[0]
+        nums = "; ".join(f"{k} {v[0]} {v[1]}".strip() for k, v in r.metrics.items() if k not in MEMORY_METRICS)
+        split = r.metrics.get("  at that moment: helper programs")
+        if split is not None and both is not None:
+            n = r.metrics.get("helper programs, most at once", (0, ""))[0]
+            nums = (nums + "; " if nums else "") + (f"at the memory peak the helper programs held {split[0]} MB "
+                                                    f"({n} at most at once)")
         rows.append({"line": r.id, "title": r.title, "mark": mark_of(r), "seconds": round(r.seconds, 1),
                      "limit s": r.limit or "", "peak memory MB": "" if mem is None else mem,
+                     "with helpers MB": "" if both is None else both,
                      "previous s": "" if r.reference is None else round(r.reference, 1),
                      "change": change_text(r.seconds, r.reference),
                      "slower than before": "yes" if "slower" in r.flags else "",
@@ -502,10 +512,11 @@ def stress_csv(run: Run) -> str:
 def stress_text(run: Run) -> str:
     """The table as plain text for the text block and the console."""
     rows = stress_rows(run)
-    out = [f"{'line':24} {'mark':7} {'s':>8} {'limit':>6} {'MB':>7} {'before':>8} {'change':>7}"]
+    out = [f"{'line':24} {'mark':7} {'s':>8} {'limit':>6} {'MB':>7} {'+helpers':>8} {'before':>8} {'change':>7}"]
     for row in rows:
         out.append(f"{row['line']:24} {row['mark']:7} {row['seconds']:>8} {str(row['limit s']):>6} "
-                   f"{str(row['peak memory MB']):>7} {str(row['previous s']):>8} {row['change']:>7}")
+                   f"{str(row['peak memory MB']):>7} {str(row['with helpers MB']):>8} {str(row['previous s']):>8} "
+                   f"{row['change']:>7}")
     return "\n".join(out)
 
 

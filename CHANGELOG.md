@@ -5,6 +5,18 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.274 – 28 Nov 2026 – PC check: weld speed in Heavy, memory of the helper programs in Stress (task 0379)
+
+- **PC check, Heavy: a new step "Welded frame: how fast the welds are found".** It makes an invented welded frame (300
+  welds as solid beads in the file, 301 parts; deleted afterwards), imports it and then reads a second revision in with
+  Model update. It says how long finding and making the welds took at the import and at the update, how many helper
+  programs worked on it, and that every weld was kept. On the 4-core test machine: 5 s at the import, 8 s at the update.
+- **PC check, Stress: the memory column now counts the helper programs too.** Until now the table showed only the app's
+  own peak memory; the STEP reader and its meshing helpers (and the weld helpers) came on top and were not counted. The
+  table has a new column **with helpers MB** (the peak of the app and its helper programs together) and the numbers say
+  how much of that peak was the helpers' and how many ran at once. The column **peak memory MB** keeps the app's own
+  peak, so it still compares with your earlier Stress runs.
+
 ## 0.2.273 – 28 Nov 2026 – Groundwork for the Fresing assets pack: looks kept inside the project (task 0355)
 
 - No visible change. Under the hood the app can now bring a look from the Fresing assets pack into a project as the

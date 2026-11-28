@@ -77,19 +77,180 @@ def current_memory_mb() -> float:
     return 0.0
 
 
+def descendants(pairs, root: int) -> list:
+    """The pids below ``root`` in a list of (pid, parent pid): children, their children … (no recursion, a cycle from
+    a reused pid ends it). Plain data, so it is tested without any process."""
+    kids: dict = {}
+    for pid, ppid in pairs:
+        if pid != ppid:
+            kids.setdefault(ppid, []).append(pid)
+    out, seen, todo = [], {root}, [root]
+    while todo:
+        for k in kids.get(todo.pop(), ()):
+            if k not in seen:
+                seen.add(k)
+                out.append(k)
+                todo.append(k)
+    return out
+
+
+def _linux_family() -> tuple:
+    """(own MB, helper programs' MB, how many) from /proc: the resident size of every process below this one."""
+    me = os.getpid()
+    page = os.sysconf("SC_PAGE_SIZE") / 2 ** 20
+    sizes, pairs = {}, []
+    try:
+        names = os.listdir("/proc")
+    except OSError:
+        return 0.0, 0.0, 0
+    for name in names:
+        if not name.isdigit():
+            continue
+        try:
+            with open(f"/proc/{name}/stat", encoding="utf-8", errors="replace") as fh:
+                rest = fh.read().rsplit(")", 1)[1].split()    # the name in () may hold spaces; ppid is the 2nd field
+            with open(f"/proc/{name}/statm", encoding="ascii") as fh:
+                sizes[int(name)] = int(fh.read().split()[1]) * page
+            pairs.append((int(name), int(rest[1])))
+        except (OSError, IndexError, ValueError):
+            continue                                            # the process ended while we looked
+    kids = descendants(pairs, me)
+    return sizes.get(me, 0.0), sum(sizes.get(k, 0.0) for k in kids), len(kids)
+
+
+def _windows_family() -> tuple:
+    """(own MB, helper programs' MB, how many) on Windows: the process list (Toolhelp) gives every pid with its
+    parent; a child counts only when it started after its parent (a reused pid does not make a stranger a helper);
+    each one's working set from GetProcessMemoryInfo. Windows-only code (task 0379)."""
+    import ctypes
+    from ctypes import wintypes
+
+    class ENTRY(ctypes.Structure):
+        _fields_ = [("dwSize", wintypes.DWORD), ("cntUsage", wintypes.DWORD), ("th32ProcessID", wintypes.DWORD),
+                    ("th32DefaultHeapID", ctypes.c_size_t), ("th32ModuleID", wintypes.DWORD),
+                    ("cntThreads", wintypes.DWORD), ("th32ParentProcessID", wintypes.DWORD),
+                    ("pcPriClassBase", wintypes.LONG), ("dwFlags", wintypes.DWORD),
+                    ("szExeFile", ctypes.c_wchar * 260)]
+
+    class COUNTERS(ctypes.Structure):
+        _fields_ = [("cb", wintypes.DWORD), ("PageFaultCount", wintypes.DWORD),
+                    ("PeakWorkingSetSize", ctypes.c_size_t), ("WorkingSetSize", ctypes.c_size_t),
+                    ("QuotaPeakPagedPoolUsage", ctypes.c_size_t), ("QuotaPagedPoolUsage", ctypes.c_size_t),
+                    ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t), ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+                    ("PagefileUsage", ctypes.c_size_t), ("PeakPagefileUsage", ctypes.c_size_t)]
+
+    try:
+        k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        psapi = ctypes.WinDLL("psapi", use_last_error=True)
+        k32.CreateToolhelp32Snapshot.argtypes = [wintypes.DWORD, wintypes.DWORD]
+        k32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
+        k32.Process32FirstW.argtypes = [wintypes.HANDLE, ctypes.POINTER(ENTRY)]
+        k32.Process32FirstW.restype = wintypes.BOOL
+        k32.Process32NextW.argtypes = [wintypes.HANDLE, ctypes.POINTER(ENTRY)]
+        k32.Process32NextW.restype = wintypes.BOOL
+        k32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+        k32.OpenProcess.restype = wintypes.HANDLE
+        k32.CloseHandle.argtypes = [wintypes.HANDLE]
+        k32.GetProcessTimes.argtypes = [wintypes.HANDLE] + [ctypes.POINTER(wintypes.FILETIME)] * 4
+        k32.GetProcessTimes.restype = wintypes.BOOL
+        k32.GetCurrentProcessId.restype = wintypes.DWORD
+        psapi.GetProcessMemoryInfo.argtypes = [wintypes.HANDLE, ctypes.POINTER(COUNTERS), wintypes.DWORD]
+        psapi.GetProcessMemoryInfo.restype = wintypes.BOOL
+        me = int(k32.GetCurrentProcessId())
+        snap = k32.CreateToolhelp32Snapshot(0x2, 0)                        # TH32CS_SNAPPROCESS
+        if not snap or snap == wintypes.HANDLE(-1).value:
+            return 0.0, 0.0, 0
+        pairs = []
+        try:
+            e = ENTRY()
+            e.dwSize = ctypes.sizeof(ENTRY)
+            ok = k32.Process32FirstW(snap, ctypes.byref(e))
+            while ok:
+                pairs.append((int(e.th32ProcessID), int(e.th32ParentProcessID)))
+                ok = k32.Process32NextW(snap, ctypes.byref(e))
+        finally:
+            k32.CloseHandle(snap)
+
+        def info(pid):
+            """(working set MB, start time) of a process, or None (gone, or not ours to look at)."""
+            h = k32.OpenProcess(0x1000, False, pid)                        # PROCESS_QUERY_LIMITED_INFORMATION
+            if not h:
+                return None
+            try:
+                c = COUNTERS()
+                c.cb = ctypes.sizeof(COUNTERS)
+                a, b, c2, d = (wintypes.FILETIME() for _ in range(4))
+                if not psapi.GetProcessMemoryInfo(h, ctypes.byref(c), c.cb):
+                    return None
+                started = 0
+                if k32.GetProcessTimes(h, ctypes.byref(a), ctypes.byref(b), ctypes.byref(c2), ctypes.byref(d)):
+                    started = (a.dwHighDateTime << 32) | a.dwLowDateTime
+                return c.WorkingSetSize / 2 ** 20, started
+            finally:
+                k32.CloseHandle(h)
+
+        mine = info(me)
+        own = mine[0] if mine else 0.0
+        kids = descendants(pairs, me)
+        parent_of = dict(pairs)
+        started = {me: mine[1] if mine else 0}
+        total, count = 0.0, 0
+        for pid in kids:                                                   # parents come before their children
+            got = info(pid)
+            if got is None:
+                continue
+            started[pid] = got[1]
+            before = started.get(parent_of.get(pid, 0), 0)
+            if before and got[1] and got[1] < before:
+                continue                                                   # older than its "parent": a reused pid
+            total += got[0]
+            count += 1
+        return own, total, count
+    except Exception:  # noqa: BLE001 - a memory reading must never stop a line
+        return 0.0, 0.0, 0
+
+
+def family_memory_mb() -> tuple:
+    """(this program's memory, the helper programs' memory below it, how many helpers), MB now: the STEP reader and
+    its meshing helpers, the weld and liquid helpers, a background Blender. Task 0379. Each program's own working set /
+    resident size, so a page two of them share is counted twice."""
+    if sys.platform == "win32":
+        return _windows_family()
+    if sys.platform.startswith("linux"):
+        return _linux_family()
+    return current_memory_mb(), 0.0, 0
+
+
 class MemoryWatch:
     """The highest memory use while a line runs (sampled four times a second in a thread): the program's own peak
-    since its start (``peak_memory_mb``) says nothing about one line once an earlier line used more."""
+    since its start (``peak_memory_mb``) says nothing about one line once an earlier line used more. Since task 0379 it
+    also adds up the helper programs below this one (``peak_total``, the peak of the SUM – the two peaks need not fall
+    at the same moment – with its two parts, and the most helpers at once)."""
 
     def __init__(self, every: float = 0.25):
         self.every = every
-        self.peak = current_memory_mb()
+        own, helpers, count = family_memory_mb()
+        self.peak = own or current_memory_mb()
+        self.peak_total = own + helpers
+        self.at_peak = (own, helpers)
+        self.most_helpers = count
+        self.helpers_seen = helpers > 0
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._loop, daemon=True)
 
+    def _sample(self) -> None:
+        own, helpers, count = family_memory_mb()
+        if own:
+            self.peak = max(self.peak, own)
+        if own + helpers > self.peak_total:
+            self.peak_total = own + helpers
+            self.at_peak = (own, helpers)
+        self.most_helpers = max(self.most_helpers, count)
+        self.helpers_seen = self.helpers_seen or helpers > 0
+
     def _loop(self):
         while not self._stop.wait(self.every):
-            self.peak = max(self.peak, current_memory_mb())
+            self._sample()
 
     def __enter__(self):
         self._thread.start()
@@ -98,8 +259,21 @@ class MemoryWatch:
     def __exit__(self, *_exc):
         self._stop.set()
         self._thread.join(timeout=2.0)
+        self._sample()
         self.peak = max(self.peak, current_memory_mb())
         return False
+
+    def metrics(self) -> list:
+        """[(name, value, unit)] for a line: the app's own peak (the table's column, as before) and the family's."""
+        out = []
+        if self.peak:
+            out.append(("peak memory", round(self.peak), "MB"))
+        if self.peak_total and self.helpers_seen:
+            out.append(("peak memory with helper programs", round(self.peak_total), "MB"))
+            out.append(("  at that moment: the app", round(self.at_peak[0]), "MB"))
+            out.append(("  at that moment: helper programs", round(self.at_peak[1]), "MB"))
+            out.append(("helper programs, most at once", self.most_helpers, ""))
+        return out
 
 
 def stress_line(id: str, title: str, expected: int, limit: float, what: str, shows: str, not_shown: str,
@@ -112,8 +286,10 @@ def stress_line(id: str, title: str, expected: int, limit: float, what: str, sho
                 try:
                     return fn(ctx)
                 finally:
-                    if w.peak and ctx.result is not None:
-                        ctx.metric("peak memory", round(max(w.peak, current_memory_mb())), "MB")
+                    if ctx.result is not None:
+                        w._sample()
+                        for name, value, unit in w.metrics():
+                            ctx.metric(name, value, unit)
         return line(id, title, SINCE, (S,), requires=requires, what=what, expected=expected, shows=shows,
                     not_shown=not_shown, limit=limit)(run)
     return deco
@@ -245,7 +421,7 @@ def _import(ctx, quality: str):
 @stress_line("stress.import_draft", "Stress model: import at Draft", 50, 100, requires=("stress.model",),
              what="Reads the stress model's STEP file at Draft detail on all cores, builds the objects and sorts them",
              shows="How long a very big model takes to come in at the lightest detail, and the memory it needs",
-             not_shown="The memory of the reader's helper programs (only the app's own)")
+             not_shown="Graphics-card memory (not readable here); a page two programs share counts twice")
 def stress_import_draft(ctx):
     _scene, parts, placed = _import(ctx, "draft")
     return f"{len(parts)} parts, {placed / 1e6:.1f} M triangles"

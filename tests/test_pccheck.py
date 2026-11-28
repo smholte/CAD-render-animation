@@ -427,6 +427,35 @@ def test_heavy_lines_are_registered_and_explained():
     assert chk.MIN_LINES_HEAVY <= len(lines)
 
 
+def test_heavy_has_a_weld_speed_line_with_its_own_maker(tmp_path, monkeypatch):
+    """Task 0379: the weld finding of tasks 0319 / 0368 is timed in Heavy on a frame made at run time (``tools/`` is not
+    shipped): 100 cells = 300 welds, scaled down 12 cells; revision B changes every 10th cell's fin."""
+    import json
+    import subprocess
+    import sys
+    from fresing_render.pccheck import heavy
+    ln = next(ln for ln in _checks().LINES if ln.id == "heavy.welds")
+    assert ln.modes == ("heavy",) and ln.what and ln.shows and ln.not_shown
+    monkeypatch.delenv(heavy.SMALL_ENV, raising=False)
+    assert heavy.weld_cells() == 100
+    monkeypatch.setenv(heavy.SMALL_ENV, "1")
+    assert heavy.weld_cells() == 12
+    pytest.importorskip("OCP")
+    script = os.path.join(ROOT, "fresing_render", "pccheck", "heavy_welds.py")
+    got = {}
+    for rev in ("A", "B"):
+        out = tmp_path / f"w_{rev}.step"
+        r = subprocess.run([sys.executable, script, str(out), "12", "--revision", rev], capture_output=True, text=True,
+                           timeout=300, check=True)
+        got[rev] = json.loads(r.stdout.strip().splitlines()[-1])
+        assert out.stat().st_size > 50_000
+    assert got["A"]["welds"] == got["B"]["welds"] == 36 and got["A"]["parts"] == 37
+    assert got["A"]["changed_placed"] == 0 and got["B"]["changed_placed"] == 2        # cells 0 and 10
+    text = (tmp_path / "w_A.step").read_text(encoding="latin-1")
+    assert "Welded Steel Mild" in text and "Paint - Enamel Glossy (Blue)" in text    # as Inventor writes them
+    assert "CELL 11 FIN" in text and "'Welds'" in text
+
+
 def test_heavy_with_an_own_model_adds_the_own_heavy_lines():
     from fresing_render.pccheck import runner
     lines = _checks().LINES

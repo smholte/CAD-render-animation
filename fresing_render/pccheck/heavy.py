@@ -1188,3 +1188,106 @@ def heavy_spool(ctx):
     _memory(ctx)
     return (f"{float(sp.wound) / 1000.0:.1f} km in {path.layer_count} layers (Ø {d * 1000:.0f} mm), "
             f"{len(layers)} full layers drawn once")
+
+
+# ---------------------------------------------------------------------------
+# welds from the CAD file (task 0379: the speed claims of tasks 0319 / 0323 / 0368, measured on this PC)
+# ---------------------------------------------------------------------------
+
+def weld_cells() -> int:
+    """Cells of the invented welded frame, 3 welds each: 100 = 300 welds (task 0368's frame), scaled down 12 = 36."""
+    return 12 if small() else 100
+
+
+def make_weld_frame(path: str, cells: int, revision: str = "A") -> dict:
+    """``heavy_welds.py`` as its own program (Blender's Python with the bundled OpenCascade, like the big machine);
+    returns its numbers (welds, parts, changed parts …)."""
+    import json
+
+    from ..importer import runner as import_runner
+    env = dict(os.environ)
+    for var in ("PYTHONHOME", "PYTHONSTARTUP", "PYTHONUSERBASE"):
+        env.pop(var, None)
+    env["PYTHONPATH"] = os.pathsep.join(p for p in sys.path if p and os.path.isdir(p))
+    env["PYTHONUNBUFFERED"] = "1"
+    env["PYTHONIOENCODING"] = "utf-8"
+    script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "heavy_welds.py")
+    r = subprocess.run([import_runner.python_executable(), script, path, str(cells), "--revision", revision],
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, timeout=900,
+                       creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    if r.returncode != 0 or not os.path.isfile(path):
+        raise RuntimeError("the welded test frame could not be written: " + (r.stderr or r.stdout).strip()[-300:])
+    try:
+        return json.loads(r.stdout.strip().splitlines()[-1])
+    except (ValueError, IndexError):
+        raise RuntimeError("the welded test frame's maker gave no numbers: " + r.stdout.strip()[-200:]) from None
+
+
+@line("heavy.welds", "Welded frame: how fast the welds are found", "0.2.274", (H,), expected=90,
+      what="Writes an invented welded frame (100 cells = 300 welds as solid beads in the file, 301 parts) and imports it; "
+           "then a second revision (every tenth cell's fin taller) is read in with Model update. The time of finding and "
+           "making the welds is read at the import and at the update, with the helper programs that worked on it",
+      shows="How long the weld finding takes on this PC with its cores (about 7 s on the 4-core test machine for 300 "
+            "welds, 17 s on one core), at the import and at a model update, and that every weld is kept",
+      not_shown="Welds with no name or a different shape in the CAD file (found by shape: slower), a square groove "
+                "round a pipe, your own models")
+def heavy_welds(ctx):
+    import bpy
+
+    from ..blender import build, weld_cad
+    cells = weld_cells()
+    out_a = os.path.join(ctx.work, "heavy_welds_a.step")
+    out_b = os.path.join(ctx.work, "heavy_welds_b.step")
+    t0 = time.time()
+    info = make_weld_frame(out_a, cells, "A")
+    info_b = make_weld_frame(out_b, cells, "B")
+    ctx.metric("make (both revisions)", time.time() - t0, "s")
+    ctx.metric("welds in the file", info["welds"], "")
+    ctx.metric("parts in the file", info["parts"], "")
+    weld_cad.LAST.clear()
+    t0 = time.time()
+    scene = ctx.fresh(out_a, quality="normal", read_again=True)
+    ctx.metric("import, whole", time.time() - t0, "s")
+    got = dict(weld_cad.LAST)
+    st = weld_cad.stats(scene)
+    _check(not got.get("error"), f"finding the welds failed: {got.get('error')}")
+    _check(st["welds"] == info["welds"] and not st["lost"],
+           f"{st['welds']} welds found, {st['lost']} lost, not the {info['welds']} in the file")
+    ctx.metric("import: welds found and made", float(got.get("seconds", 0.0)), "s")
+    for key, name in (("find_s", "  finding"), ("items_s", "  weld items"), ("beads_s", "  beads and heat zones")):
+        if key in got:
+            ctx.metric(name, float(got[key]), "s")
+    helpers_in = int(got.get("helpers", 0) or 0)
+    ctx.metric("  helper programs", helpers_in, "")
+    # the model update: the same frame, a taller fin in every tenth cell
+    spent = [0.0]
+    real = weld_cad.carry_over
+
+    def timed(*a, **k):
+        t = time.perf_counter()
+        try:
+            return real(*a, **k)
+        finally:
+            spent[0] += time.perf_counter() - t
+    roots = build.model_roots(scene)
+    _check(bool(roots), "no model in the project")
+    weld_cad.carry_over = timed
+    try:
+        t0 = time.time()
+        res = bpy.ops.fresing.import_step(filepath=out_b, quality="normal", update_root=roots[0].name)
+        secs = time.time() - t0
+    finally:
+        weld_cad.carry_over = real
+    _check(res == {"FINISHED"}, f"the model update returned {res}: {scene.fresing.last_message}")
+    _update()
+    scene = bpy.context.scene
+    st2 = weld_cad.stats(scene)
+    _check(st2["welds"] == info["welds"] and not st2["lost"],
+           f"{st2['welds']} welds after the update, {st2['lost']} lost, not {info['welds']}")
+    ctx.metric("parts changed", info_b["changed_placed"], "")
+    ctx.metric("model update, whole", secs, "s")
+    ctx.metric("update: welds carried over", spent[0], "s")
+    _memory(ctx)
+    return (f"{info['welds']} welds in {info['parts']} parts: found and made in {float(got.get('seconds', 0.0)):.1f} s "
+            f"at the import ({helpers_in} helper program{'s' if helpers_in != 1 else ''}), {spent[0]:.1f} s at the "
+            f"model update ({info_b['changed_placed']} parts changed); all {st2['welds']} kept")

@@ -9,6 +9,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 
 import pytest
 
@@ -144,6 +145,22 @@ def test_a_line_over_its_limit_is_slow_and_the_table_says_so():
     assert "over limit" in core.text_block(run)
 
 
+def test_the_table_has_its_own_column_for_the_memory_with_the_helper_programs():
+    """Task 0379: the app's own peak stays in its column (it is compared with earlier runs); the peak of the sum of the
+    app and its helper programs has another one and its split goes into the numbers."""
+    run = _run([_res("s.a", seconds=3, limit=60, metrics={
+        "peak memory": (1500, "MB"), "peak memory with helper programs": (4100, "MB"),
+        "  at that moment: the app": (1400, "MB"), "  at that moment: helper programs": (2700, "MB"),
+        "helper programs, most at once": (11, ""), "import": (9.9, "s")}),
+                _res("s.b", seconds=1, limit=60, metrics={"peak memory": (900, "MB")})])
+    rows = {r["line"]: r for r in core.stress_rows(run)}
+    assert rows["s.a"]["peak memory MB"] == 1500 and rows["s.a"]["with helpers MB"] == 4100
+    assert rows["s.a"]["numbers"] == "import 9.9 s; at the memory peak the helper programs held 2700 MB (11 at most at once)"
+    assert rows["s.b"]["with helpers MB"] == "" and rows["s.b"]["numbers"] == ""
+    assert "with helpers MB" in core.stress_csv(run).splitlines()[0]
+    assert "+helpers" in core.stress_text(run) and "4100" in core.stress_text(run)
+
+
 # ---------------------------------------------------------------------------
 # the lines and where Stress starts
 # ---------------------------------------------------------------------------
@@ -203,3 +220,53 @@ def test_the_memory_watch_sees_a_peak_in_between():
         time.sleep(0.2)
         blob.close()
     assert w.peak >= stress.current_memory_mb() + 100
+
+
+def test_helper_programs_are_the_pids_below_this_one():
+    from fresing_render.pccheck import stress
+    pairs = [(1, 0), (10, 1), (11, 10), (12, 10), (13, 12), (20, 1), (21, 20), (30, 30), (31, 32), (32, 31)]
+    assert sorted(stress.descendants(pairs, 10)) == [11, 12, 13]
+    assert stress.descendants(pairs, 20) == [21]
+    assert stress.descendants(pairs, 99) == []
+    assert stress.descendants([(5, 5), (6, 5)], 5) == [6]          # a process that is its own parent is no loop
+    assert sorted(stress.descendants([(31, 32), (32, 31)], 31)) == [32]   # a cycle (a reused pid) ends
+
+
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="the family is read from /proc here; Windows: CI")
+def test_the_memory_watch_adds_the_helper_programs_below_it():
+    """Task 0379: a helper process holding 200 MB shows in the sum, not in the app's own peak; both parts and the
+    count are kept. The helper is a plain child (the STEP reader and its meshing helpers are children too)."""
+    from fresing_render.pccheck import stress
+    code = ("import mmap,time\n"
+            "m=mmap.mmap(-1,200*2**20)\n"
+            "for i in range(0,len(m),mmap.PAGESIZE): m[i]=1\n"
+            "print('up',flush=True)\n"
+            "time.sleep(60)\n")
+    own0, helpers0, count0 = stress.family_memory_mb()
+    assert own0 > 10                                                # (other tests may leave children: count0)
+    child = subprocess.Popen([sys.executable, "-c", code], stdout=subprocess.PIPE, text=True)
+    try:
+        assert child.stdout.readline().strip() == "up"
+        with stress.MemoryWatch(every=0.02) as w:
+            time.sleep(0.2)
+        own, helpers, count = stress.family_memory_mb()
+        assert helpers >= 150 and count >= count0 + 1 and own > 10
+        assert w.helpers_seen and w.most_helpers >= 1
+        assert w.peak_total >= w.peak + 150 and w.at_peak[1] >= 150
+        names = [m[0] for m in w.metrics()]
+        assert names[:2] == ["peak memory", "peak memory with helper programs"] and len(names) == 5
+        got = {m[0]: m[1] for m in w.metrics()}
+        assert abs(got["  at that moment: the app"] + got["  at that moment: helper programs"]
+                   - got["peak memory with helper programs"]) <= 1
+    finally:
+        child.kill()
+        child.wait()
+    time.sleep(0.1)
+    assert stress.family_memory_mb()[1] < 100                      # the child has gone: nothing of it counts
+
+
+def test_a_line_without_helpers_reports_only_its_own_peak():
+    from fresing_render.pccheck import stress
+    w = stress.MemoryWatch()
+    w.helpers_seen, w.peak, w.peak_total = False, 800.0, 800.0
+    assert w.metrics() == [("peak memory", 800, "MB")]
