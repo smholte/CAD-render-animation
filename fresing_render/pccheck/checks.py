@@ -654,7 +654,7 @@ def lifting_path(ctx):
             f"{out['every']['evaluations']} frames; worst {worst}")
 
 
-@line("lifting.zones", "Lifting plan: clearance, reach rings, exclusion zone, ground footprint, plan sheet", "0.2.272",
+@line("lifting.zones", "Lifting plan: clearance, reach rings, exclusion zone, ground footprint, plan sheet", "0.2.274",
       what="The pump skid hung on the AT-40 and lifted 5 m away (as lifting.path), a wall put up beside the hook "
            "block: the clearance row names the wall and agrees with the true gap; along the path the row has its "
            "worst moment; the exclusion zone holds the crane's tail swing, its mats and the whole path; the reach "

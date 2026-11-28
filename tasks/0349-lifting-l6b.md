@@ -49,7 +49,7 @@ owns the lines it names). Whoever merges second updates its branch to `main`; ve
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web (Opus · High), 28 Nov 2026 · released as **0.2.272**
+**Chat / date:** Claude Code on the web (Opus · High), 28 Nov 2026 · released as **0.2.274**
 
 **What changed:**
 - **Part 2a – the AT / KB samples fit their charts** (`lifting_model/classes.py`, `charts.py`, `common.py`,
