@@ -110,7 +110,7 @@ def test_4th_axis_charts_round_the_bar(four):
 
 def test_4th_axis_sheet_lies_on_the_bar(four):
     """Drawn where it lies: the sheet of the top chart, at a frame the bar has turned, is on the bar's surface (its
-    world points 22 … 37 mm from the A axis, as the bar is in the world at that frame)."""
+    world points 22 … 31.5 mm from the A axis, as the bar is in the world at that frame)."""
     sc, _info = four
     st = liquid.gather(sc)
     fr, v = volumes(sc)
@@ -129,8 +129,8 @@ def test_4th_axis_sheet_lies_on_the_bar(four):
     ow, uw = M[:3, :3] @ o + M[:3, 3], M[:3, :3] @ u
     rel = w - ow
     r = np.linalg.norm(rel - (rel @ uw)[:, None] * uw[None], axis=1)
-    # (the flood stands a few mm on the bar: the height field carries a film at critical depth, ~5 mm at 14 l/min)
-    assert r.min() > 21.5 * MM and r.max() < 37 * MM and np.percentile(r, 90) < 33 * MM, (r.min(), r.max())
+    # (the flood stands a few mm on the bar – a film at critical depth, ~5 mm at 14 l/min; drawn at most 6 mm)
+    assert r.min() > 21.5 * MM and r.max() < 25 * MM + liquid.BAR_SHOW_MAX + 0.5 * MM, (r.min(), r.max())
     # the bar has turned by then: the chart's own up is not the world's up
     a = joints.get_value(sc.fresing.joints["Rotary A"])
     assert abs(a) > 0.1

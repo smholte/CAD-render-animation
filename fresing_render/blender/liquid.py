@@ -60,6 +60,9 @@ SHOW = 0.1e-3                        # a cell shows liquid from this depth (the 
 LIFT = 0.05e-3                       # the sheet a hair over the surface (no flicker on the bed)
 WAVE_DEPTH = 0.01                    # m: deep pools (T-slots, pockets) carry waves as if 10 mm deep (core: wave_depth)
 BAR_DRIP = 0.5                       # the bar's charts: liquid drips off them when tilted more than 60 deg (task 0347)
+BAR_SHOW_MAX = 6e-3                  # m: the bar's charts are drawn at most this thick – on a strip on its side single
+                                     # cells can hold columns of 2-4 cm in some frames (no gravity presses them flat;
+                                     # task 0347's open point); their volumes are worked out as they are
 CUT_EVERY = 4                        # frames: the cut block's top is read again at most this often while it is cut
 TRAY_REACH = 0.15                    # m round where the table goes: the still parts there are the tray chart
 TRAY_WORDS = ("TRAY", "DRAIN")       # still parts named so are taken whole into the tray chart (the drain may lie
@@ -1284,6 +1287,8 @@ def show(scene, T: float | None = None) -> bool:
         role = names[c] if c < len(names) else "tray"
         bed = beds.at(c, f)
         cell, x0, y0 = beds.geom[c]
+        if role.startswith("bar"):                    # (drawn at most BAR_SHOW_MAX thick: see there)
+            d = np.minimum(d, BAR_SHOW_MAX)
         v, q = sheet(d, bed, cell, x0, y0)
         ob = _object(scene, chart_object(role), role)
         P = beds.place[c] if c < len(beds.place) else np.eye(4)
