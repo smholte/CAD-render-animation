@@ -336,3 +336,23 @@ def test_steps_draw_for_every_kind():
                 if done is not None:
                     done(Ctx)
         assert "CRANE_MOBILE" in ui_setup.SETUPS and "CRANE_OTHER" in ui_setup.CHECKS
+
+
+def test_check_leaves_a_cylinders_own_parts_out(monkeypatch):
+    """Task 0349: CC-750's pendant rod slides 7 m deep in its bar; the clash check's inside test read it as a 4.9 mm
+    clash in the pose 'Steep' (a long thin bore – Clash lane 0378). A cylinder's own parts slide in each other by
+    design: Check leaves their rows out; a row of any other pair still counts."""
+    from fresing_render.blender import clash
+    from fresing_render.core import clash as core
+    _j, _BL, _RO, SC = _mods()
+    sc = _rigged("CC-100")
+    pairs = SC.cylinder_pairs(sc)
+    assert frozenset(("BOOM PENDANT BAR L", "BOOM PENDANT ROD L")) in pairs
+    assert frozenset(("BOOM PENDANT BAR L", "BOOM PENDANT ROD R")) not in pairs
+
+    class Run:
+        rows = [core.Row("CLASH", "BOOM PENDANT BAR L", "BOOM PENDANT ROD L", 30, 40, 35.0, 0.0049),
+                core.Row("CLASH", "BOOM PENDANT BAR L", "GANTRY", 30, 40, 35.0, 0.012)]
+    monkeypatch.setattr(clash, "check", lambda scene, *a, **k: Run())
+    texts = [p.text for p in SC.clash_problems(sc, None)]
+    assert len(texts) == 1 and "GANTRY" in texts[0], texts

@@ -137,13 +137,13 @@ def _add(c):
 
 # Mobile: GVW AT-40 ~36 t (3 axles), AT-100 ~60 t (5), AT-250 ~72 t (6), AT-500 ~96 t (8)
 _add(Mobile("AT-40", 40.0, 3, 600.0, 2550.0, 4, 10800.0, 34000.0, 600.0, 800.0, 10.0, 20.0,
-            (6000.0, 4600.0, 3400.0), 5400.0, (0.0, 4.0, 8.0), 2900.0, 22.0, 6.0, 8.0, 0.45, 4, 4.5, 900.0))
+            (6000.0, 4600.0, 3400.0), 7900.0, (0.0, 4.0, 8.0), 2900.0, 22.0, 6.0, 8.0, 0.45, 4, 4.5, 900.0))
 _add(Mobile("AT-100", 100.0, 5, 690.0, 2750.0, 7, 12800.0, 60000.0, 850.0, 1150.0, 12.0, 25.0,
-            (7600.0, 5800.0, 4200.0), 7200.0, (0.0, 15.0, 30.0), 3700.0, 33.0, 10.0, 17.0, 1.0, 8, 6.5, 1400.0))
+            (7600.0, 5800.0, 4200.0), 8500.0, (0.0, 15.0, 30.0), 3700.0, 33.0, 10.0, 17.0, 1.0, 8, 6.5, 1400.0))
 _add(Mobile("AT-250", 250.0, 6, 690.0, 3000.0, 7, 15200.0, 70000.0, 1050.0, 1450.0, 14.0, 30.0,
-            (8800.0, 6600.0, 4800.0), 8400.0, (0.0, 40.0, 80.0), 4400.0, 40.0, 12.0, 20.0, 2.3, 12, 8.5, 2000.0))
+            (8800.0, 6600.0, 4800.0), 10800.0, (0.0, 40.0, 80.0), 4400.0, 40.0, 12.0, 20.0, 2.3, 12, 8.5, 2000.0))
 _add(Mobile("AT-500", 500.0, 8, 690.0, 3000.0, 8, 16500.0, 84000.0, 1250.0, 1700.0, 16.0, 30.0,
-            (10000.0, 7600.0, 5400.0), 9400.0, (0.0, 80.0, 165.0), 5100.0, 52.0, 16.0, 28.0, 4.5, 16, 10.0, 2600.0))
+            (10000.0, 7600.0, 5400.0), 11000.0, (0.0, 80.0, 165.0), 5100.0, 52.0, 16.0, 28.0, 4.5, 16, 10.0, 2600.0))
 
 # Crawler: base machine (no counterweight) CC-100 ~ 75 t, CC-300 ~ 160 t, CC-750 ~ 330 t, CC-1600 ~ 650 t
 _add(Crawler("CC-100", 100.0, 36000.0, (18, 24, 30, 36, 42, 48, 54, 60), 1500.0, pitch=200.0, teeth=12, run_links=28,
@@ -311,6 +311,9 @@ def _axle_xs(front: float, out_x, n: int, r: float, clear: float = 420.0) -> lis
     return xs
 
 
+KB_FRONT_GAP = 150.0   # mm between a knuckle-boom truck's cab front and its front stabiliser box (task 0349)
+SLEW_IN = 0.30       # the rear outriggers stand at least this share of the front-to-rear pad distance behind the slew
+                     # axis (task 0349)
 STAGES = 2           # outrigger / stabiliser beams: two stages, each moving half the stroke
 
 
@@ -349,10 +352,22 @@ def mobile_layout(c: Mobile) -> Layout:
     d0 = rs + 700.0 + c.block_h                        # sheave centre -> hook saddle at hoist 0
     block_w = 0.5 * c.boom_w + 250.0
     front = sheave[0] - block_w / 2 - 450.0            # the hook block hangs in front of the bumper
-    a = c.span_x / 2
-    out_x = (a, -a)                                    # front / rear outrigger boxes
-    rear = min(-c.cw_x - 900.0, -a - 750.0)
-    axles = _axle_xs(front, out_x, c.axles, c.wheel_r, box_clear(0.16 * c.width + 60.0, mobile_pad_r(c)))
+    # task 0349: the outrigger boxes at the carrier's ends – the front pair right behind the front axles, the rear
+    # pair span_x behind it – so the carrier's own centre of gravity (between its axles) and the slew axis both lie
+    # inside the outrigger base (they were symmetric round the slew axis, the carrier's CoG 4.2 m forward of AT-40's
+    # front pads: 0348's C5 said "outside the outriggers" at 96 % of the chart).
+    clear = box_clear(0.16 * c.width + 60.0, mobile_pad_r(c))
+    step = 2 * c.wheel_r + 270.0
+    nf = (c.axles + 1) // 2
+    x_front = front - 1.6 * c.wheel_r - 700.0 - (nf - 1) * step - c.wheel_r - clear
+    out_x = (x_front, x_front - c.span_x)             # front / rear outrigger boxes
+    if x_front < SLEW_IN * c.span_x:
+        raise ValueError(f"{c.name}: the front axles push the front outriggers to {x_front / 1000.0:.2f} m from the "
+                         "slew axis")
+    if out_x[1] > -SLEW_IN * c.span_x:
+        raise ValueError(f"{c.name}: the rear outriggers stand {-out_x[1] / 1000.0:.2f} m behind the slew axis")
+    rear = min(-c.cw_x - 900.0, out_x[1] - 750.0)
+    axles = _axle_xs(front, out_x, c.axles, c.wheel_r, clear)
     pad_in = c.width / 2 + 180.0                       # pad centre across, outriggers in
     out_ext = c.spread[0] / 2 - pad_in
     if out_ext <= 300:
@@ -587,31 +602,31 @@ def knuckle_layout(c: Knuckle) -> Layout:
                         "barrel_pin": {"point": b2.tolist(), "axis": [0.0, 1.0, 0.0], "carrier": "MAIN BOOM.ASM"},
                         "rod_pin": {"point": q2.tolist(), "axis": [0.0, 1.0, 0.0], "carrier": "OUTER BOOM.ASM"},
                         "fit": fit2})
-    # stabilisers: front pair behind the column, rear pair at the bed's end
+    # stabilisers (task 0349): the front pair ahead of the cab, on the chassis' front end, the rear pair at the bed's
+    # end – the slew axis and the truck's own centre of gravity inside the base (the front pair stood under the column,
+    # so the base's edge ran through the slew axis: anything ahead of the column tipped it)
     rear = c.main_len * 0.25 + c.outer_len + 1500.0
     p["rear"] = rear
-    out_x = (0.0, rear - 650.0)                       # front pair under the column, rear pair at the bed's end
+    beam_w = 0.08 * c.width + 60.0
     pad_in = c.width / 2 + 160.0
     out_ext = c.spread[0] / 2 - pad_in
     pad_z0 = 0.55 * c.wheel_r
     beam_z = deck - 330.0
-    p.update(out_x=out_x, pad_in=pad_in, out_ext=out_ext, pad_z0=pad_z0, beam_z=beam_z, beam_w=0.08 * c.width + 60.0)
     cab_len = 2300.0
     r = c.wheel_r
     step = 2 * r + 300.0
     # task 0214: tyres clear of the stabiliser boxes and their pads
-    clear = box_clear(p["beam_w"], knuckle_pad_r(c)) + r
+    clear = box_clear(beam_w, knuckle_pad_r(c)) + r
     front = -cab_len - 450.0
     nf = 2 if c.axles == 4 else 1
-    last_front = front + 1250.0 + (nf - 1) * step
-    if last_front > out_x[0] - clear:
-        front -= last_front - (out_x[0] - clear)
     axles = [front + 1250.0 + k * step for k in range(nf)]
+    out_x = (min(front - box_half(beam_w) - KB_FRONT_GAP, axles[0] - clear), rear - 650.0)
+    p.update(out_x=out_x, pad_in=pad_in, out_ext=out_ext, pad_z0=pad_z0, beam_z=beam_z, beam_w=beam_w)
     nr = c.axles - nf
     rc = min(rear - 1500.0, out_x[1] - clear - (nr - 1) * step / 2)
     axles += [rc + (k - (nr - 1) / 2) * step for k in range(nr)]
-    if axles[nf] < out_x[0] + clear:
-        raise ValueError(f"{c.name}: the rear axles reach the front stabilisers (load bed too short)")
+    if axles[nf] < axles[nf - 1] + step:
+        raise ValueError(f"{c.name}: the rear axles reach the front axles (load bed too short)")
     p.update(front=front, cab_len=cab_len, axles=axles)
     _outrigger_joints(J, "STABILISER", "Stabilisers", "Stabiliser", "STABILISER LEG", "Legs", "Leg", out_x,
                       p["beam_w"], beam_z, pad_in, out_ext, pad_z0)

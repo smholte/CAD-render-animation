@@ -157,23 +157,27 @@ def test_chart_shapes(name):
 @pytest.mark.parametrize("name", NAMES)
 def test_charts_have_backward_stability(name):
     """No charted configuration lets the unloaded crane, boom steep, lean back past its reserve (review of task
-    0191: the 165 t counterweight on the narrowest spread of AT-500 did)."""
+    0191: the 165 t counterweight on the narrowest spread of AT-500 did). Task 0349: a mobile crane over its real
+    outrigger base, with the file's centres of gravity, at every slew angle."""
     cl = C.CLASSES[name]
     if cl.kind == "KB":
         return
-    for c in load(name)["charts"]:
+    d = load(name)
+    for c in d["charts"]:
         cw = c["config"]["counterweight"]
         if cl.kind == "AT":
-            e = min(c["config"]["outriggers"] / 2, cl.span_x / 2000.0)
-            base = cl.mass_carrier + cl.mass_upper
-            boom = cl.mass_boom
-            boom_x = C.layout(cl).pts["xp"] / 1000.0 + 0.42 * c["config"]["boom"] * math.cos(math.radians(cl.luff_max))
-        else:
-            tr = C.crawler_track(cl)
-            e = min(cl.gauge / 2000.0, tr["contact"] / 2000.0)
-            base = cl.mass_lower + cl.mass_upper
-            boom = cl.mass_boom * c["config"]["boom"] / (cl.boom_cad / 1000.0)
-            boom_x = C.layout(cl).pts["xp"] / 1000.0 + 0.5 * c["config"]["boom"] * math.cos(math.radians(cl.luff_max))
+            fixed, turn0, out_x = K.mobile_masses(cl, d["cog"])
+            turning = [(cw if m is None else m, u, v) for m, u, v in turn0]
+            steep = (cl.mass_boom, C.layout(cl).pts["xp"] / 1000.0
+                     + 0.42 * c["config"]["boom"] * math.cos(math.radians(cl.luff_max)), 0.0)
+            base = ((out_x[0] + out_x[1]) / 2, abs(out_x[0] - out_x[1]) / 2, c["config"]["outriggers"] / 2)
+            assert min(K.base_margins(fixed, turning + [steep], base)) >= K.BACK_RESERVE - 1e-9, c["name"]
+            continue
+        tr = C.crawler_track(cl)
+        e = min(cl.gauge / 2000.0, tr["contact"] / 2000.0)
+        base = cl.mass_lower + cl.mass_upper
+        boom = cl.mass_boom * c["config"]["boom"] / (cl.boom_cad / 1000.0)
+        boom_x = C.layout(cl).pts["xp"] / 1000.0 + 0.5 * c["config"]["boom"] * math.cos(math.radians(cl.luff_max))
         x = (cw * -cl.cw_x / 1000.0 + boom * boom_x) / (base + cw + boom)      # carrier / upper on the slew axis
         assert x + e >= 0.15 * e - 1e-9, (c["name"], x, e)
 
@@ -284,7 +288,7 @@ def test_no_maker_names_anywhere():
 
 def test_charts_module_matches_files():
     for name in NAMES:
-        assert K.charts_of(name) == load(name)["charts"]
+        assert K.charts_of(name, load(name)["cog"]) == load(name)["charts"]       # task 0349: the file's CoGs
         assert E.masses(name) == load(name)["mass"]
 
 
