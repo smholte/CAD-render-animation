@@ -1,0 +1,69 @@
+name: Check an assets pack
+
+# Task 0356 (study 0344 1.6, section 6): checks a published Fresing assets pack BEFORE a branch moves the pin
+# (installer/assets_pin.json) to it. By hand only: Actions → "Check an assets pack" → Run workflow → the release tag
+# (assets-1.0.0). It downloads that release's FresingAssets-<version>.zip (public, no secret), checks what the release
+# must hold (a pre-release, LICENSE-ASSETS.txt beside the zip, assets.json naming the zip's size and sha256), runs
+# tools/assets_check.py on the zip (every check, Blender 5.2.3 as a Python module, the small renders) and the app's
+# with-pack tests (tests/real_pack/). Nothing private, no artifact: the pack is public by design.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "The pack's release tag, e.g. assets-1.0.0"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: assets-check-${{ inputs.tag }}
+  cancel-in-progress: true
+
+env:
+  PYTHONUNBUFFERED: "1"
+  PYTHONUTF8: "1"
+
+jobs:
+  check:
+    name: Check the assets pack ${{ inputs.tag }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        id: py
+        with:
+          python-version: "3.13"
+
+      - name: Python packages from the cache (the test suite's venv)
+        id: cache-venv
+        uses: actions/cache@v6
+        with:
+          path: ~/venv
+          key: venv-${{ runner.os }}-py${{ steps.py.outputs.python-version }}-${{ hashFiles('tools/requirements-dev.txt') }}
+
+      - name: Install packages (only when not cached)
+        if: steps.cache-venv.outputs.cache-hit != 'true'
+        run: |
+          python -m venv ~/venv
+          ~/venv/bin/python -m pip install -q -r tools/requirements-dev.txt
+
+      - name: Download the release's pack and check it (tools/assets_check.py)
+        env:
+          TAG: ${{ inputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ~/venv/bin/python tools/assets_check.py --fetch "$TAG" --into "$RUNNER_TEMP/pack-zip" | tee check.txt
+          echo "### Assets pack $TAG" >> "$GITHUB_STEP_SUMMARY"
+          sed 's/^/    /' check.txt >> "$GITHUB_STEP_SUMMARY"
+
+      - name: With-pack tests (tests/real_pack)
+        run: |
+          mkdir -p "$RUNNER_TEMP/pack" && unzip -q "$RUNNER_TEMP"/pack-zip/FresingAssets-*.zip -d "$RUNNER_TEMP/pack"
+          FRESING_ASSETS_REAL="$RUNNER_TEMP/pack/Fresing Assets" ~/venv/bin/python -m pytest tests/real_pack -q -rfE \
+            -p no:cacheprovider --junitxml=test-results/real-pack.xml
+          ~/venv/bin/python tools/ci_pytest_summary.py test-results/real-pack.xml --max-skipped 0 --title "real assets pack"
