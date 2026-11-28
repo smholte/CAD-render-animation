@@ -1769,7 +1769,7 @@ def _refine(wheels, joined, pts, drawn) -> bool:
     (least squares, a few Gauss-Newton steps; arcs that follow each other directly are kept touching). A short
     bend between long straights is known far better this way than from its own few points. True when something
     was moved."""
-    free = [i for i, w in enumerate(wheels) if w["kind"] == "BEND" and not w["corner"]]
+    free = [i for i, w in enumerate(wheels) if w["kind"] == "BEND" and not w["corner"] and not w.get("gradual")]
     if not free:
         return False
     W = len(wheels)
@@ -1810,13 +1810,19 @@ def _refine(wheels, joined, pts, drawn) -> bool:
             rows = np.flatnonzero(near)
             rows = (3 * rows[:, None] + np.arange(3)[None, :]).ravel()
             was = base.nearest(pts[near])[0]
+            # (task 0374: only the ties of the pairs bend i is in change when it moves – a route of many bends, a
+            # spline read as short arcs, spent most of its reading on the others)
+            mine = [q for q, j in enumerate(joined) if j in (i - 1, i)]
             for k in range(3):
                 nudge(i, k, _STEP)
                 now = local(ch, i)
                 if now is not None:
                     jac[rows, 3 * col + k] = ((now.nearest(pts[near])[0] - was) / _STEP).ravel()
-                    if len(tie):
-                        jac[3 * len(pts):, 3 * col + k] = (ties() - tie) / _STEP
+                    for q in mine:
+                        j = joined[q]
+                        r0 = 3 * len(pts) + 3 * q
+                        jac[r0:r0 + 3, 3 * col + k] = (_apart(wheels[j], wheels[j + 1]) * _TIE
+                                                       - tie[3 * q:3 * q + 3]) / _STEP
                 nudge(i, k, -_STEP)
         res = np.concatenate([vec.ravel(), tie])
         lhs, rhs = jac.T @ jac, -jac.T @ res
@@ -2040,13 +2046,15 @@ def _shaped(pts, along, parts, radius: float, tol: float, reach, limit: float, s
             w.update(lo=idx, hi=idx, s=float(along[idx]), corner=True, bulge=0.0, t_in=one["d"], t_out=two["d"],
                      before=one, after=two, turn=turn)
             every.append(w)
-    odd = _not_arcs(pts, kept, tol) or _gradual(every)
-    if odd is not None:
-        lo, hi = odd
-        out["problem"] = (f"The cable's shape between {along[lo]:.1f} m and {along[hi]:.1f} m from its start is "
-                          f"neither straight nor a round bend (a spline, or a coil with a pitch): its path cannot "
-                          f"be read.")
-        return out
+    # task 0374 (0078's open point): a stretch that is neither straight nor one round bend – a spline, a coil with a
+    # pitch (Inventor sweeps have them) – is read as the row of short bends its pieces are, each fitted from its own
+    # points (they fit within the tolerance); only the other bends are fitted together with the straights (``_refine``)
+    odd = _not_arcs(pts, kept, tol, every=True) + _gradual(every, every=True)
+    for lo, hi in odd:
+        for w in every:
+            if w["kind"] == "BEND" and not w["corner"] and w["lo"] <= hi and w["hi"] >= lo:
+                w["gradual"] = True
+    out["gradual"] = [(float(along[lo]), float(along[hi])) for lo, hi in odd]
     # a turn of less than a degree is no bend: the cable is read straight there (a part it lies on is then a
     # roller it rests on) – unless that leaves the path too far from the points
     slight = [w for w in every if w["turn"] < SLIGHT]
@@ -2095,11 +2103,12 @@ def _fitted(wheels, pts, tol: float) -> dict:
     return {"rank": rank, "ch": ch, "shape": shape, "on0": on0, "on1": on1, "ends": ends, "problem": ""}
 
 
-def _gradual(wheels):
+def _gradual(wheels, every: bool = False):
     """Two bends in the air that follow each other directly and are nearly the same bend (the same way round, in
     nearly the same plane, radii less than half apart): a bend that changes little by little – a spline, a coil
     with a pitch, or one arc that a tolerance too tight for its points cut in two. (first point, last point) or
-    None."""
+    None. ``every``: all of them (a list)."""
+    found = []
     for one, two in zip(wheels, wheels[1:]):
         if one["kind"] != "BEND" or two["kind"] != "BEND" or one["corner"] or two["corner"]:
             continue
@@ -2107,8 +2116,10 @@ def _gradual(wheels):
             continue
         k1, k2 = one["n"] / one["r"], two["n"] / two["r"]
         if float(np.linalg.norm(k1 - k2)) < 0.5 * max(1.0 / one["r"], 1.0 / two["r"]):
-            return one["lo"], two["hi"]
-    return None
+            if not every:
+                return one["lo"], two["hi"]
+            found.append((one["lo"], two["hi"]))
+    return found if every else None
 
 
 def _planes(wheels, pts, tol: float) -> None:
@@ -2197,7 +2208,7 @@ def _corner_bend(pts, one, two, where, turn: float, radius: float, step: float) 
             "surface": 0.0, "gap": 0.0}
 
 
-def _not_arcs(pts, pieces, tol: float):
+def _not_arcs(pts, pieces, tol: float, every: bool = False):
     """A stretch that is neither straight nor an arc: (first point, last point), or None.
 
     Where a straight meets an arc, or an arc another arc, the shape changes at one place: a run that starts in
@@ -2205,6 +2216,7 @@ def _not_arcs(pts, pieces, tol: float):
     little by little: such a run goes on well into the next piece."""
     win = _Window(pts, tol)
     n = len(pts)
+    found = []
     for k in range(len(pieces) - 1):
         one, two = pieces[k], pieces[k + 1]
         if one["kind"] != "arc" and two["kind"] != "arc":
@@ -2219,8 +2231,10 @@ def _not_arcs(pts, pieces, tol: float):
             j += 1
         over = j - one["own"][1]
         if over >= max(4, 0.3 * size2) and over >= 0.3 * (one["own"][1] - i):
-            return one["own"][0], two["own"][1]
-    return None
+            if not every:
+                return one["own"][0], two["own"][1]
+            found.append((one["own"][0], two["own"][1]))
+    return found if every else None
 
 
 def _touches(parts: _Parts, pts, along, wheels, touch_tol) -> list:

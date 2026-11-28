@@ -6501,6 +6501,43 @@ def place_copy(ctx):
     return "crane copied with 2 joints + cylinder, moves by itself, builds; boom copy frozen; copies removed cleanly"
 
 
+@line("place.copy_cable", "Copy and paste: a model with a wire rope and its winch drum – the copy's rope runs by itself",
+      "0.2.271",
+      what="The cable paths test model (wire rope off the winch drum over two sheaves, rollers and a chute): Paste of the "
+           "whole model makes 'Wire rope (2)' read again on the copied parts with its own speed joint and drum; the "
+           "copy's sheaves follow the copy's rope; paying out the copy's rope leaves the original's where it is")
+def place_copy_cable(ctx):
+    import time
+
+    import numpy as np
+
+    from ..blender import build, copy, joints, paths
+    scene = ctx.fresh(PATHS)
+    s = scene.fresing
+    paths.set_up_test_model(scene, winch=True)
+    root = build.model_roots(scene)[0]
+    t0 = time.time()
+    p = copy.paste(scene, [root])
+    ctx.metric("paste with a cable", time.time() - t0, "s")
+    new = paths.find(scene, "Wire rope (2)")
+    _check(p["cables"] == 1 and p["drums"] == 1 and new is not None,
+           f"the copy brought {p['cables']} cables, {p['drums']} drums; left out: {'; '.join(p['left']) or 'nothing'}")
+    _check(paths.broken(scene, new) == "", f"the copied rope says: {paths.broken(scene, new)}")
+    lead = new.joint
+    bad = [c.name for c in new.contacts if c.kind in ("SHEAVE", "ROLLER")
+           and (joints.find(scene, c.joint) is None or joints.find(scene, c.joint).follows != lead)]
+    _check(not bad, f"these wheels of the copy do not turn with the copy's rope: {', '.join(bad)}")
+    _check(any(sp.cable == new.name for sp in s.spools), "the copy's winch drum was not made")
+    orig = paths.find(scene, "Wire rope")
+    before = np.array(paths.shape_now(scene, orig))
+    joints.set_value(joints.find(scene, lead), 0.5)
+    _update()
+    paths.refresh(scene)
+    after = np.array(paths.shape_now(scene, paths.find(scene, "Wire rope")))
+    _check(float(np.abs(after - before).max()) < 1e-6, "paying out the copy's rope moved the original's")
+    return f"model copied with its wire rope and winch drum ({len(new.contacts)} contacts), runs by itself"
+
+
 @line("place.remove", "Remove: a subassembly and a model with what lives on them; nothing left pointing at nothing",
       "0.2.219",
       what="On the test crane with the crane lesson's set-up and a label: the window's list (parts, joints, cylinder, "
