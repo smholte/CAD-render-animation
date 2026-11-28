@@ -156,10 +156,13 @@ The owner's AI usage is limited; every chat works economically:
 ### Working efficiently with the automatic tests (owner's request, 6 Nov 2026)
 
 GitHub's minutes are free (public repository); the owner's *waiting time* and AI usage are not. Since task 0108
-a full run takes about 12 minutes alone (parallel jobs, task 0108; more while other tasks' runs share GitHub's 20 jobs; a docs-only run about 2), but a task is often run several times. So:
+a full run takes about 12 minutes alone (parallel jobs, task 0108; more while other tasks' runs share GitHub's 20 jobs; a docs-only run about 2), but a task is often run several times. **28 Nov 2026 measured:** a full run is ~32 jobs
+and GitHub Free runs 20 jobs at a time for the whole account. With ≤ 6 tasks a full run took 30–35 min; with more,
+55–75 min, and its jobs waited ~10 min on average (up to 24) for a runner. That day: 31 green, 9 red, **14
+cancelled** runs. Every wasted full run costs every other task's waiting time. So:
 - **Take the version number last.** Do not bump the version, write the CHANGELOG heading or touch
-  `MIN_*` counts until the branch is finished. Then `git fetch`, merge `main` **once**, take the next free
-  version after what is on `main`/released, and push. Other tasks finish in the same hours: a clash costs a
+  `MIN_*` counts until the branch is finished. Then take the **version claim** (bullet "One merge at a time"
+  below), merge `main` **once**, raise the version to the claimed number and push. Other tasks finish in the same hours: a clash costs a
   whole extra run – the `precheck` job catches it in about a minute ("someone took your version number: merge
   main and renumber to 0.2.NN") before any test starts.
 - **Push when the work is ready, not after every edit.** A newer push to the same branch cancels the running
@@ -185,10 +188,28 @@ a full run takes about 12 minutes alone (parallel jobs, task 0108; more while ot
   meanwhile, the fast-forward is refused: merge once more. When `main` moved only by documents (the task list,
   briefs, reports), that merge + report push gets a docs run (~3 min, task 0170): the precheck finds the branch's
   own green commit inside the push and sees that only documents differ from it. If `main` brought code: a full run.
-- **Several tasks at the same time:** the one that finishes first merges first; the others take the next
-  version and merge `main` then. A lead sentence for a new task never fixes a version number in advance.
-- **A red run:** read the failing step with `ci_status.py` (do not re-run blindly), fix, push once. A run that
-  fails in `precheck` is a version/changelog/list problem (its message says what to change): fix that and push.
+- **One merge at a time (28 Nov 2026 – the version claim).** The claim is one line in `tasks/MERGING.md` on `main`. A
+  `tasks/`-only push starts no run. When your branch is finished and the tests of your area pass:
+  1. `git fetch` and read `tasks/MERGING.md` on `origin/main`. **No claim line:** write
+     `0.2.NN · task NNNN · <branch> · claimed <dd Mon HH:MM>` (NN = the next number after `main` and every release),
+     commit only that file and push it to `main` from a clean checkout of `origin/main`. If the push is refused,
+     another worker was first: fetch and read again.
+  2. **Held by another task:** do not merge `main`, do not raise the version, do not push code. Finish the report and
+     the guide. Check again with one `git fetch` about every 15 min (no tight loop).
+  3. **With the claim:** merge `main` once, raise the version to the claimed number, push once (full run). If it is
+     red, see "A red run". If it is red a second time, empty the claim line (you give up your place) and claim again
+     when it is fixed.
+  4. **Green:** fast-forward `main` (bullet above). In the report push (`tasks/` + TASKS.md only), empty
+     `tasks/MERGING.md`.
+
+  A claim older than 90 min with no push on its branch: the next worker asks the owner (the session may have
+  stopped). A lead sentence for a new task never fixes a version number in advance. Until task 0383 lands, the claim
+  lasts one full run; 0383 makes the step after the claim a short run.
+- **A red run:** read the failing step with `ci_status.py` (do not re-run blindly). Run **the failing groups
+  locally**, fix everything you find and push **once**. Never push one fix at a time: each push cancels the running
+  run, and that run has already held runners other tasks were waiting for (28 Nov: 0347 pushed 7× in an hour). A
+  run that fails in `precheck` is a version / changelog / list problem (its message says what to change): fix that
+  and push.
 - **A new test:** a new `tests/test_*.py` file joins a pytest group by itself; a new real-app test goes into
   `TESTS`, `MIN_CHECKS` **and** the lightest group in `GROUPS` (`tools/ci_real_app.py`) – the precheck fails
   otherwise. After a big change in test times: `python3 tools/ci_status.py --run <green run> --record` and
