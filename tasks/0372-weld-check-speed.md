@@ -1,6 +1,6 @@
 # 0372 – Weld check after import: one parent → children map (28–33 s → under 1 s on big models)
 
-**Who:** worker · **Status:** running · **Branch:** `task/0372-weld-check-speed`
+**Who:** worker · **Status:** done (0.2.271) · **Branch:** `task/0372-weld-check-speed`
 **Started by:** lead, 28 Nov 2026 (0366's first open point) · **Model:** Opus · effort Medium · Claude Code on the web,
 environment "CAD-render-animation"
 **Area:** Welds lane – `blender/weld_cad.py` (`_parts_of` and every caller), the same kind of walk in `welds.py` /
@@ -36,16 +36,16 @@ model **28–33 s → well under 1 s**, and the model update about 50 s shorter.
 
 ## Done when
 
-- [ ] Stress-model weld stage under ~1 s (web machine), model update shorter by about that much; numbers in the report
-- [ ] Weld results identical (test); the speed guard in place
-- [ ] The other-lane table in the report
-- [ ] Tests added / updated; full suite passes (also on GitHub)
-- [ ] (UI) screenshots checked with tools/ui_screens.py; every new button has a tooltip; the user guide, PC-check line,
+- [x] Stress-model weld stage under ~1 s (web machine), model update shorter by about that much; numbers in the report
+- [x] Weld results identical (test); the speed guard in place
+- [x] The other-lane table in the report
+- [x] Tests added / updated; full suite passes (also on GitHub)
+- [x] (UI: none – no visible change) screenshots checked with tools/ui_screens.py; every new button has a tooltip; the user guide, PC-check line,
       tour stop and function-list entry follow the change (`since=` / `changed=`)
-- [ ] (Windows-only code) reviewed by a helper that did not write it
-- [ ] Report below filled in (incl. **Open points** and an **Owner's check** line when he should try something), merged,
+- [x] (Windows-only code: none) reviewed by a helper that did not write it
+- [x] Report below filled in (incl. **Open points** and an **Owner's check** line when he should try something), merged,
       released (CLAUDE.md section 7)
-- [ ] **Merged before 0370** (the owner's Inventor weldment, after 0340)
+- [x] **Merged before 0370** (the owner's Inventor weldment, after 0340)
 
 ## Not in this task
 
@@ -126,4 +126,4 @@ Small (a handful of objects per call): `spool.py:416, 1505`, `tc_person.py:348`,
 **Owner's check:** none needed by hand – the PC check's Heavy line "Big machine: where the import time goes" should show
 the weld stage at about a second instead of ~30 s.
 
-**GitHub runs:**
+**GitHub runs:** 1st full run green (46137685101, 35.8 min; the first push's run was cancelled by the version push); 2nd full run after merging `main` (0356 brought code).
