@@ -1,6 +1,6 @@
 # 0347 – Coolant liquid B2: 4th axis, 5-axis trunnion, the "Coolant liquid" tour set, the lost wet sheen
 
-**Who:** worker · **Status:** running · **Branch:** `ccr-f71b2999-erailu`
+**Who:** worker · **Status:** done (0.2.276) · **Branch:** `ccr-f71b2999-erailu`
 **Started by:** lead, 28 Nov 2026 (0346's "What B2 (0347) needs"; TASKS.md "Problems found": coolant sheen) ·
 **Model:** Opus · effort High
 **Area:** Machining lane – `blender/liquid.py`, `core/liquid*.py`, `ops_liquid.py`, `coolant.py` (row E only),
@@ -142,7 +142,12 @@ onto it; merged as it was. (2) an independent tester (Sonnet, worktree) wrote
 the two solver changes + the drawing cap) and sheet points inside the bar at its end face (fixed: the bar's charts
 over whole cells only); kept as written. No Windows-only code was added (no review needed).
 
-**GitHub runs:** see the end of this report.
+**GitHub runs:** 4 full runs on the branch – (1) cancelled by a newer push; (2) 0.2.275: two failures – the new
+sets liquid4 / liquid5 were not in `tour.MILLING_SETS` (fixed: their stops now check the cut too) and 0374's
+`test_KNOWN_FAULT_a_coil_read_from_a_coarse_faceted_tube_is_refused_in_words` read 11.6 mm on that runner (6.5 mm
+limit; passes here – a CPU-dependent known fault of the cable lane, not touched; lead: 0374's follow-up); (3) precheck:
+0.2.275 taken by 0349 → merged main, renumbered 0.2.276; (4) **green, run 46170927053** (36 min). Then main's
+document commits merged, report pushed, fast-forward of `main`.
 
 **Open points / follow-up tasks:**
 - **The film on the bar is thicker than real** (the height field carries a film at critical depth: ~5 mm at 14 l/min
