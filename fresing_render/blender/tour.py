@@ -6751,7 +6751,7 @@ stop("backups", OUT, "faces", "Automatic backups",
 #: the sets of a CNC mill or a milling bit: their stops also check the cut (marks on every cut face, every move
 #: through the block cut, no program running through a block that nothing cuts)
 MILLING_SETS = ("mill", "gantry", "atc", "doublearm", "rotary4", "rotary5", "toolpath", "tools", "marks", "air",
-                "coolant", "liquid", "liquid_lab", "operator")
+                "coolant", "liquid", "liquid4", "liquid5", "liquid_lab", "operator")
 
 
 def check_milling(scene) -> str:
