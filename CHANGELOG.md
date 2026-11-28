@@ -5,6 +5,12 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
+## 0.2.273 – 28 Nov 2026 – Groundwork for the Fresing assets pack: looks kept inside the project (task 0355)
+
+- No visible change. Under the hood the app can now bring a look from the Fresing assets pack into a project as the
+  project's own copy, with its pictures packed inside, so the project opens complete on a PC without the pack (a
+  client's PC, a backup, the render queue). Projects made before the pack keep their looks; nothing uses this yet.
+
 ## 0.2.272 – 28 Nov 2026 – Big models import and update much faster: the weld check no longer walks every part (task 0372)
 
 - After an import the app looks for welds in the CAD file. On a big model that search spent most of its time just

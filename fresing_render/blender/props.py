@@ -4817,6 +4817,16 @@ class FRSceneSettings(bpy.types.PropertyGroup):
     # ---- looks ----
     groups: CollectionProperty(type=FRMaterialGroup)
     groups_index: IntProperty(default=0)
+    # task 0355: where this project's looks come from (blender/assets.py; study 0344 2.5). "" = made before the
+    # Fresing assets pack (counts as "code"); a new project gets "pack" or "code" at its first save; only "Use the new
+    # Fresing looks" (0359) changes it later
+    assets_source: StringProperty(
+        name="Looks from", default="",
+        description="Where this project's looks come from: the Fresing assets pack (pack) or the app's built-in looks "
+                    "(code). Set when the project is made; changed only by Use the new Fresing looks")
+    assets_version: StringProperty(
+        name="Assets pack version", default="",
+        description="The version of the Fresing assets pack this project's looks come from (empty for built-in looks)")
     # task 0273: this project's materials (the short list in 3 Looks, copies of the own materials its groups use)
     project_materials: CollectionProperty(type=FRProjectMaterial)
     find_text: StringProperty(name="Find parts", update=_find_changed,
