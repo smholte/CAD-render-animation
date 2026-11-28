@@ -744,7 +744,7 @@ def heavy_liquid(ctx):
             f"drain")
 
 
-@line("heavy.liquid4", "Milling: coolant liquid on the 4th axis, a long program", "0.2.999", (H,), expected=900,
+@line("heavy.liquid4", "Milling: coolant liquid on the 4th axis, a long program", "0.2.275", (H,), expected=900,
       what="The 4th-axis test mill cuts six pockets round its bar and three wrapped grooves with flood coolant, the "
            "program fitted to 5 minutes (7,200 frames); 'Liquid on the machine' at Detail Normal (four charts round "
            "the bar, the table, the tray) is worked out with all helper processes",

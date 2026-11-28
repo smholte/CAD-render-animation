@@ -72,7 +72,7 @@ def root(tmp_path):
 
 
 def inbox(root, tmp_path, clock=None, start=True):
-    ib = tb.Inbox(root, "0.2.999", "/opt/Fresing Render/blender-launcher", ["--app-template", "fresing_render"],
+    ib = tb.Inbox(root, "0.2.275", "/opt/Fresing Render/blender-launcher", ["--app-template", "fresing_render"],
                   keep_dir=tmp_path / "kept", clock=clock or Clock())
     if start:
         ib.start()
@@ -110,7 +110,7 @@ def test_samples_read_and_the_manifest_passes_the_checker(root, tmp_path):
                     (SAMPLES / "Toolbox" / "tools" / tb.ME / "alive.json", "alive"),
                     (SAMPLES / "Toolbox" / "toolbox-folder.json", "folder")):
         assert tb.read_doc(p, kind)["version"] == "0.1"
-    ours = tb.manifest("0.2.999", "C:/Users/a b/AppData/Local/FresingRender/Fresing Render.exe")
+    ours = tb.manifest("0.2.275", "C:/Users/a b/AppData/Local/FresingRender/Fresing Render.exe")
     sample = json.loads((SAMPLES / "Toolbox" / "tools" / tb.ME / "toolbox.json").read_text("utf-8"))
     assert ours["actions"] == sample["actions"] and ours["id"] == sample["id"]
     ib = inbox(root, tmp_path)
@@ -119,7 +119,7 @@ def test_samples_read_and_the_manifest_passes_the_checker(root, tmp_path):
     ib.write_alive()
     assert errors(root) == []
     doc = tb.read_doc(root / "tools" / tb.ME / "toolbox.json", "tool")
-    assert doc["start"]["program"] == "/opt/Fresing Render/blender-launcher" and doc["app_version"] == "0.2.999"
+    assert doc["start"]["program"] == "/opt/Fresing Render/blender-launcher" and doc["app_version"] == "0.2.275"
 
 
 def test_the_sample_folders_jobs_are_taken_up_as_the_format_says(tmp_path, monkeypatch):
@@ -413,7 +413,7 @@ def test_alive_is_removed_only_by_the_copy_that_wrote_it(root, tmp_path):
 
 
 def test_install_and_uninstall_touch_only_our_folder(root, tmp_path):
-    tb.install(root, "0.2.999", "C:/x/Fresing Render.exe")
+    tb.install(root, "0.2.275", "C:/x/Fresing Render.exe")
     assert tb.read_doc(root / "tools" / tb.ME / "toolbox.json", "tool")["start"]["program"] == "C:/x/Fresing Render.exe"
     tb.install(root, "0.3.0")                                     # an update writes it again
     assert tb.read_doc(root / "tools" / tb.ME / "toolbox.json", "tool")["app_version"] == "0.3.0"
@@ -430,7 +430,7 @@ def test_install_and_uninstall_touch_only_our_folder(root, tmp_path):
 def test_a_folder_that_cannot_be_made_leaves_the_app_as_it_was(tmp_path):
     blocker = tmp_path / "file"
     blocker.write_text("not a folder")
-    ib = tb.Inbox(blocker / "Toolbox", "0.2.999", keep_dir=tmp_path / "kept")
+    ib = tb.Inbox(blocker / "Toolbox", "0.2.275", keep_dir=tmp_path / "kept")
     assert not ib.start() and "cannot be used" in ib.problem
     assert ib.look() == []                                        # and the look does not raise
 

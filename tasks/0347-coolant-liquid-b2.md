@@ -82,7 +82,7 @@ set up by `liquid.set_up_test_rotary`.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** worker, Claude Code on the web, 28 Nov 2026 · version VERSION (branch `ccr-f71b2999-erailu`).
+**Chat / date:** worker, Claude Code on the web, 28 Nov 2026 · version 0.2.275 (branch `ccr-f71b2999-erailu`).
 
 **What changed:**
 - **A – 4th axis / B – trunnion** (`blender/liquid.py`, `machining.sample`): `machining.sample` also stores the world
@@ -156,7 +156,6 @@ over whole cells only); kept as written. No Windows-only code was added (no revi
   chart tilted (the liquid is right, the grid is less fine across the slope).
 - `test_the_tour_builds_every_project` (all sets < 240 s): 346 s on this machine while two other jobs ran; the three
   new sets took 16 + 9 + 26 s of it (the lab bakes six cases at build).
-- The guide's Coolant panel picture is still the old one (0346 open point, 0373's tool).
 
 **Owner's check** (on the PC, after Update now):
 1. Help > Fresing Render PC check… > **Heavy** – send the lines "Milling: coolant liquid on the 4th axis, a long

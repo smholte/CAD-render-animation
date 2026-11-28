@@ -591,7 +591,7 @@ fn(id="cnc.coolant", title="Coolant", family="cnc", panel="FRESING_PT_cnc_coolan
 fn(id="cnc.liquid", title="Coolant liquid on the machine", family="cnc", panel="FRESING_PT_cnc_coolant",
    prop="liquid_on", guide="coolant-liquid", tour=("liquid", "liquid4", "liquid5", "liquid_pocket", "liquid_slot",
    "liquid_tilt", "liquid_tray", "liquid_slosh", "liquid_wall"), pccheck=("milling.liquid",), since="0.2.264",
-   changed="0.2.999")
+   changed="0.2.275")
 
 # ----- 4 Motion: milling -----
 fn(id="milling.cut", title="Milling: material disappears where the bit cuts", family="milling",
