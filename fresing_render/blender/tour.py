@@ -4762,7 +4762,7 @@ def _skid_load(b: Build):
 
 
 @tour_set("lifting", "Lifting plan – crane, load, hook and rigging", "test_loads.step", added="0.2.156",
-          changed="0.2.269")
+          changed="0.2.275")
 def build_lifting(b: Build):
     """Task 0231: a yard – an IBC on its pallet, a pump skid and a 20 ft container on the quayside – and an AT-40 on four
     crane mats behind the skid; the skid is the load. The camera looks from the other side of the skid, so the
@@ -4804,6 +4804,10 @@ def build_lifting(b: Build):
     _camera(b, LIFT_VIEW, "Tour lifting path", lens=35.0,
             points=np.vstack([_lifting_points(sc, LIFT_LOAD), _path_points(sc, pr)]))
     _shot(b, "@lifting_path")
+    # task 0349: the same lift seen from above – reach rings, exclusion zone, the mats coloured by their pressure
+    _camera(b, "TOP", "Tour lifting zones", lens=35.0,
+            points=np.vstack([_lifting_points(sc, LIFT_LOAD), _path_points(sc, pr), _zone_points(sc)]))
+    _shot(b, "@lifting_zones")
     animation.clear_keys(sc)
     _lift_rest(sc)
     sc.fresing.lifting.load_index = 0
@@ -4888,6 +4892,26 @@ def _lift_path(scene, check: bool = True):
     return pr
 
 
+def _zone_points(scene):
+    """Task 0349: the exclusion zone's corners on the ground (the camera sees the whole zone)."""
+    import numpy as np
+
+    from . import lifting_zones
+    d = lifting_zones.view_data(scene)
+    z = d["z"] if d else 0.0
+    return np.array([(x, y, z) for x, y in (d["zone"] if d else [])] or [(0.0, 0.0, 0.0)])
+
+
+def _lift_zones(scene):
+    """Task 0349: the lift of ``_lift_path`` checked, the reach rings, the exclusion zone and the footprint shown."""
+    from . import lifting, lifting_zones
+    L = lifting.plan(scene)
+    L.show_reach = L.show_zone = L.show_footprint = True
+    pr = _lift_path(scene)
+    lifting_zones.forget()
+    return pr
+
+
 def _path_points(scene, pr) -> list:
     """The hook's places along the proposed lift (the camera sees the whole path), from the steps' joint values."""
     import numpy as np
@@ -4910,7 +4934,7 @@ def _lift_spreader(scene) -> None:
 
 
 @tour_set("crane_setup", "Set up a crane – the KB-20 from its bare STEP", "lifting/KB-20/KB-20.step",
-          added="0.2.161", changed="0.2.176")
+          added="0.2.161", changed="0.2.275")
 def build_crane_setup(b: Build):
     """Task 0203: the built-in KB-20's bare STEP rigged through Set up a crane's own buttons, by names (the steps of
     a knuckle-boom crane), checked; the Set-up window would open on its Check step."""
@@ -5104,6 +5128,8 @@ def _check_lifting_rig(scene):
 
 def _check_lifting_path(scene):
     from . import callouts, lifting, lifting_path
+    ld = _lift_loads(scene)["Pump skid"]
+    seen = _cog_in_view(scene, with_hook=True, load=ld)      # first: a part put in the way also dates the checks
     r = lifting_path.result(scene)
     _check(r is not None and not lifting_path.stale(scene), "the lift path was not checked")
     ids = [x["id"] for x in r["rows"]]
@@ -5118,9 +5144,33 @@ def _check_lifting_path(scene):
     _check(lab is not None, "no lift data box")
     rows = callouts.label_text(scene, lab).split("\n")
     _check(len(rows) == 5 and "–" not in rows[3], f"the lift data box reads {rows}")
-    ld = _lift_loads(scene)["Pump skid"]
     return (f"{len(ids)} checks, worst {worst.title} {worst.status} at frame {worst.t:.0f}, {r['evaluations']} "
-            f"moments; " + rows[3] + "; " + _cog_in_view(scene, with_hook=True, load=ld))
+            f"moments; " + rows[3] + "; " + seen)
+
+
+def _check_lifting_zones(scene):
+    import os
+    import tempfile
+
+    from ..core import lifting as core
+    from ..core import lifting_zones as Z
+    from . import lifting_path, lifting_zones
+    seen = _cog_in_view(scene, with_hook=True, load=_lift_loads(scene)["Pump skid"])
+    r = lifting_path.result(scene)
+    _check(r is not None and not lifting_path.stale(scene), "the lift path was not checked")
+    clr = next((x for x in r["rows"] if x["id"] == "CLR"), None)
+    _check(clr is not None and clr["status"] != "not_checked", "no clearance row along the path")
+    v = r.get("view") or {}
+    zone = v.get("zone") or []
+    _check(len(zone) >= 3 and all(Z.inside(zone, p[:2]) for p in v.get("path_world", [])),
+           "the exclusion zone does not hold the load's path")
+    _check(len(v.get("patches", [])) == 4, "the four outrigger mats are not coloured")
+    _check(bool(v.get("rings")), "no reach ring")
+    path = lifting_zones.plan_sheet(scene, os.path.join(tempfile.mkdtemp(prefix="fr_tour_sheet_"), "plan.html"))
+    _check(os.path.getsize(path) > 2000, "the plan sheet is empty")
+    worst = max(v["patches"], key=lambda d: d["force"])
+    return (f"clearance {clr['value']} ({clr['status']}), zone {Z.polygon_area(zone):.0f} m², reach "
+            f"{v['reach']['full']:g} m, heaviest mat {worst['name']} {core.force_t(worst['force']):.1f} t; " + seen)
 
 
 def _check_lifting_spreader(scene):
@@ -5507,6 +5557,13 @@ stop("lifting_path", MOTION, "lifting", "Lifting: lift path and checks",
      "moment; the lift data box beside the hook block shows the load, the radius, the crane use and the worst status so far; a use bar "
      "sits beside the hook in the 3D view.",
      where="8 Lifting plan > Lift path & checks", since="0.2.269", check=_check_lifting_path, setup=_lift_path)
+stop("lifting_zones", MOTION, "lifting", "Lifting: clearance and zones",
+     "The same lift seen from above. On the ground: a red dashed outline – the exclusion zone round the crane's tail "
+     "swing, its outriggers and the skid's path, 1 m wider; two rings round the slew axis – red where the chart still "
+     "carries the skid, amber within your 75 % limit; the four mats coloured by the pressure under them. 8 Lifting plan "
+     "> Clearance & zones shows the clearance now (3.05 m needed) and the table of Lift path & checks has its row "
+     "'Clearance'. Plan sheet… opens the plan view, the range diagram and the checks to print.",
+     where="8 Lifting plan > Clearance & zones", since="0.2.275", check=_check_lifting_zones, setup=_lift_zones)
 stop("crane_setup", MOTION, "crane_setup", "Set up a crane: KB-20 rigged",
      "The built-in KB-20's bare STEP made a lifting-plan crane through Set up a crane (8 Lifting plan > Equipment > Set "
      "up a crane… > Knuckle-boom crane): its slew, main boom, knuckle, five extensions, hoist with two hook swings and "

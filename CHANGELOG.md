@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.275 – 28 Nov 2026 – Demo project: Make it again after Cancel works every time (task 0371)
+## 0.2.276 – 28 Nov 2026 – Demo project: Make it again after Cancel works every time (task 0371)
 
 - **Cancel, then Make it again** (Help > Make demo project…, the app's own demo and demo kits): Cancel now stops the
   demo build and every program it had started – the model maker, the STEP reader and its helpers – and **Make it**
@@ -18,6 +18,27 @@ installer of that version was built from.
   has its own line.
 - The two lines "the project's format could not be read: '_RestrictData' …" no longer appear at every start (a
   project whose format really cannot be read still says so).
+## 0.2.275 – 28 Nov 2026 – Lifting plan: clearance, reach rings, exclusion zone, ground footprint, plan sheet (task 0349)
+
+- **8 Lifting plan > Clearance & zones** (new): how close the **boom, the load and the rigging** come to everything else
+  in the project – checked now and along the whole path, where **Lift path & checks** gets a row **Clearance** with its
+  worst moment. Type the clearance you need; the default is 3.05 m (OSHA's 10 ft from power lines up to 50 kV).
+- On the ground in the 3D view: **reach rings** (how far out the chart carries the load, and within your 75 % limit),
+  the **exclusion zone** round the crane's tail swing, its outriggers or tracks and the load's path, and the outrigger
+  **mats or tracks coloured by the ground pressure** under them at the frame shown.
+- **Plan sheet…** opens one page to print: the plan view to scale, the range diagram and every check with its worst
+  moment.
+- **The built-in cranes fit their sample charts**: a mobile crane's outriggers stand at the carrier's ends, a
+  knuckle-boom truck's front stabilisers ahead of its cab, and the charts' tipping uses the crane's own masses where
+  they are. A load the chart allows no longer puts the crane's centre of gravity outside its outriggers (the AT-40
+  showed red at 96 % of its chart). The cranes' models and pictures changed a little.
+- **Set up a crane > Check** no longer reports a cylinder's own rod in its barrel as a clash (the CC-750's pendants in
+  the pose "Steep").
+- **Make a crane… with Replace** shows the new picture at once.
+- **Lift path fixes** (bug hunt 9): Ctrl+Z after **Go there** no longer closes the app; a key of the lift changed by
+  hand says "Changed since it was checked"; the luff / telescope pieces are numbered; removing a crane removes its
+  proposed lift path.
+
 ## 0.2.274 – 28 Nov 2026 – Sea fixes: the seabed open over the ground cut, a quicker sea change with spray, Vessel at work after Build (task 0375)
 
 - **Open sea, Detailed, cut-away with the ground:** in the 3D view the plain seabed round the rippled patch no longer

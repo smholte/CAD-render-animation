@@ -80,6 +80,7 @@ PLACES = {
     "FRESING_PT_lifting_rigging": ("FRESING_PT_lifting", "Rigging"),
     "FRESING_PT_lifting_hook": ("FRESING_PT_lifting", "Hook & capacity"),
     "FRESING_PT_lifting_path": ("FRESING_PT_lifting", "Lift path & checks"),          # task 0348
+    "FRESING_PT_lifting_zones": ("FRESING_PT_lifting", "Clearance & zones"),          # task 0349
 }
 
 # panels of the Fresing tab that are no section and no sub-panel of one (above 1 Import, or their own tab / popover)
