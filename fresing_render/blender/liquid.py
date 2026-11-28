@@ -707,7 +707,9 @@ def _bar_charts(st: Setup, sv, cell, carry, to_obj, follow) -> None:
     up /= np.linalg.norm(up)
     side = np.cross(u, up)
     half = rmax * math.sin(math.radians(45.0)) + cell
-    xs = np.arange(float(along.min()) - cell, float(along.max()) + 1.5 * cell, cell)
+    # (cells whose middle lies on the bar's end face read the face seen edge on – a step 13 mm down: only whole cells
+    # inside the bar's length, its ends are open edges – found by the independent tester of task 0347)
+    xs = np.arange(float(along.min()) + 0.5 * cell, float(along.max()) - 0.25 * cell, cell)
     ny = max(1, int(math.ceil(2 * half / cell)))
     ys = (np.arange(ny) - 0.5 * (ny - 1)) * cell
     z_from = rmax + 0.005
