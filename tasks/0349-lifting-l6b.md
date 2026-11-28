@@ -1,6 +1,6 @@
 # 0349 – Lifting L6b: clearances along the path, reach envelope, exclusion zone, ground footprint + the makers' fixes
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0349-lifting-l6b`
+**Who:** worker · **Status:** running · **Branch:** `claude/cad-render-animation-0349-9y2i9w`
 **Started by:** lead, 28 Nov 2026 (0348 done 0.2.269, 0327 done 0.2.261; 0180's L6 plan) · **Model:** Opus · effort High
 **Area:** Lifting lane – `core/lifting_path.py`, `blender/lifting_path.py`, `core/lifting_reach.py`, `core/lifting.py`,
 `blender/lifting*.py`, `ops_lifting*.py`, `ui_lifting*.py`, the makers (`ops_lifting_make.py`, `core/lifting_library.py`,
