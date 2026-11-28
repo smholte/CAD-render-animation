@@ -1,6 +1,6 @@
 # 0355 – Assets pack P2: bring, keep and update pack items in a project (invisible)
 
-**Who:** worker · **Status:** waits – after 0354 · **Branch:** `task/0355-assets-bring-keep-update`
+**Who:** worker · **Status:** running (28 Nov 2026) · **Branch:** `task/0355-assets-bring-keep-update`
 **Started by:** lead, 25 Nov 2026 23:3x (0344's P2; owner's picks 23:17) · **Model:** Opus · effort High · Claude Code
 on the web, environment "CAD-render-animation" · **independent review** (a helper agent that did not write the code tries
 to break it – section 2, "Subagents")
