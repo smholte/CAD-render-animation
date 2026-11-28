@@ -353,3 +353,68 @@ def test_helpers_make_the_same_welds_as_the_master_alone(tmp_path, monkeypatch):
         assert weld_cad.LAST["helpers"] == int(n), weld_cad.LAST
         got[n] = (weld_cad.table(sc), _weld_meshes(sc))
     assert got["0"] == got["2"] and len(got["0"][0]) == 12
+
+
+# ---------------------------------------------------------------------------
+# task 0372: the parts of a model from ONE parent -> children map, not ``ob.children`` per part
+# ---------------------------------------------------------------------------
+
+def _parts_of_by_children(root, include=(), kids=None):
+    """The walk as it was before task 0372 (``ob.children`` per object): the reference."""
+    if root is None:
+        return []
+    out, stack = [], [root]
+    while stack:
+        o = stack.pop()
+        if o.get(build.PROP_KIND) == "part" and o.type == "MESH" and (not o.get(build.PROP_EXCLUDED)
+                                                                        or o.name in include):
+            out.append(o)
+        stack.extend(o.children)
+    return out
+
+
+@pytest.mark.parametrize("which", ["inventor", "grid"])
+def test_the_children_map_finds_the_same_welds(tmp_path, monkeypatch, which):
+    """The same parts in the same order, and the same welds bit for bit, as the walk with ``ob.children``."""
+    path = INVENTOR
+    if which == "grid":
+        path = str(tmp_path / "grid.step")
+        root, mats = maker.heavy_beads(4)
+        maker.write_cad_step(root, path, mats)
+    sc = fresh(path)
+    new = (weld_cad.table(sc), _weld_meshes(sc))
+    roots = list(build.model_roots(sc))
+    parts_new = [[o.name for o in weld_cad._parts_of(r)] for r in roots]
+    parts_old = [[o.name for o in _parts_of_by_children(r)] for r in roots]
+    assert parts_new == parts_old and all(parts_new)
+    monkeypatch.setattr(weld_cad, "_parts_of", _parts_of_by_children)
+    sc = fresh(path)
+    assert (weld_cad.table(sc), _weld_meshes(sc)) == new and len(new[0]) == (6 if which == "inventor" else 12)
+
+
+def test_the_weld_check_looks_at_every_object_once(tmp_path):
+    """The speed guard (task 0372): an import, *Find welds in the CAD file* and a model update each go over the file's
+    objects once per model – not once per part (that grew with the square of the part count: 28–33 s on 11,000 parts)."""
+    n0 = weld_cad.SCANS[0]
+    sc = fresh()
+    assert weld_cad.SCANS[0] - n0 == 1
+    n0 = weld_cad.SCANS[0]
+    weld_cad.find_again(sc)
+    assert weld_cad.SCANS[0] - n0 == len(list(build.model_roots(sc))) == 1
+    root = next(iter(build.model_roots(sc)))
+    n0 = weld_cad.SCANS[0]
+    assert bpy.ops.fresing.import_step(filepath=INVENTOR_B, quality="draft", update_root=root.name) == {"FINISHED"}
+    assert weld_cad.SCANS[0] - n0 == 1
+
+
+def test_the_welds_lane_never_asks_children_per_part():
+    """``ob.children`` / ``children_recursive`` look at every object of the file: the Welds lane's modules use
+    ``weld_cad.children_map`` instead (task 0372)."""
+    import ast
+    here = os.path.join(HERE, "..", "fresing_render", "blender")
+    for name in ("weld_cad.py", "welds.py", "weld_looks.py", "weld_symbols.py", "ops_welds.py", "ui_welds.py"):
+        with open(os.path.join(here, name), encoding="utf-8") as fh:
+            tree = ast.parse(fh.read())
+        bad = [n.lineno for n in ast.walk(tree) if isinstance(n, ast.Attribute)
+               and n.attr in ("children", "children_recursive")]
+        assert not bad, (name, bad)

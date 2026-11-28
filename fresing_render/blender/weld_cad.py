@@ -73,11 +73,30 @@ def _may_be(ob) -> bool:
     return not cad.known_part(ob.get(build.PROP_NAME, ob.name))
 
 
-def _parts_of(root, include=()) -> list:
+SCANS = [0]                        # task 0372: passes over every object of the file (``children_map``) – the speed guard
+
+
+def children_map() -> dict:
+    """{object: [its children]} of the whole file in ONE pass over its objects, in the order ``ob.children`` gives
+    them (task 0372). Blender works ``ob.children`` out by looking at every object of the file, once per call: asked
+    per part, the weld check grew with the square of the part count (28–33 s on the 11,000-part stress model)."""
+    SCANS[0] += 1
+    out: dict = {}
+    for o in bpy.data.objects:
+        p = o.parent
+        if p is not None:
+            out.setdefault(p, []).append(o)
+    return out
+
+
+def _parts_of(root, include=(), kids: dict | None = None) -> list:
     """The parts of a model a bead may be or lie on: not those left out for good (``include``: unless named here –
-    the new revision of a welds body, which a model update left out as the old one was)."""
+    the new revision of a welds body, which a model update left out as the old one was). ``kids``: a
+    ``children_map`` made already (else one is made here – never ``ob.children`` per part, task 0372)."""
     if root is None:
         return []
+    if kids is None:
+        kids = children_map()
     out = []
     stack = [root]
     while stack:
@@ -85,7 +104,7 @@ def _parts_of(root, include=()) -> list:
         if o.get(build.PROP_KIND) == "part" and o.type == "MESH" and (not o.get(build.PROP_EXCLUDED)
                                                                         or o.name in include):
             out.append(o)
-        stack.extend(o.children)
+        stack.extend(kids.get(o, ()))
     return out
 
 
