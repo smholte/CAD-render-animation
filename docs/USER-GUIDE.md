@@ -1090,6 +1090,9 @@ the file**. An older version of the app opens a profile as a plain workspace.
    virus scanner can remove that copy – use **Safe start** in the app's Tools folder (below): it starts
    the app with Blender's own program, and Task Manager says "Blender" then. While Windows 11's *Smart App Control* is
    on, the app always works this way (that setting blocks programs without a signature).
+   Task Manager also says "Blender" while the **self-test** or a **PC check** runs: those short diagnostic runs
+   use Blender's own program in a console window on purpose. With *Smart App Control* on, only a signed app could
+   change this; the app is not signed yet.
 4. Once, recommended: in the app **Fresing > Tools and checks > Run the self-test**. After a few minutes
    "Fresing Render self-test.txt" appears on the Desktop; every line should start with `[ OK ]`
    (see [Troubleshooting](#troubleshooting)).

@@ -111,6 +111,8 @@ def _linux_family() -> tuple:
                 rest = fh.read().rsplit(")", 1)[1].split()    # the name in () may hold spaces; ppid is the 2nd field
             with open(f"/proc/{name}/statm", encoding="ascii") as fh:
                 sizes[int(name)] = int(fh.read().split()[1]) * page
+            if rest[0] == "Z":
+                continue                                        # ended, waiting to be collected: no memory, no helper
             pairs.append((int(name), int(rest[1])))
         except (OSError, IndexError, ValueError):
             continue                                            # the process ended while we looked
@@ -154,6 +156,8 @@ def _windows_family() -> tuple:
         k32.GetProcessTimes.argtypes = [wintypes.HANDLE] + [ctypes.POINTER(wintypes.FILETIME)] * 4
         k32.GetProcessTimes.restype = wintypes.BOOL
         k32.GetCurrentProcessId.restype = wintypes.DWORD
+        k32.GetExitCodeProcess.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
+        k32.GetExitCodeProcess.restype = wintypes.BOOL
         psapi.GetProcessMemoryInfo.argtypes = [wintypes.HANDLE, ctypes.POINTER(COUNTERS), wintypes.DWORD]
         psapi.GetProcessMemoryInfo.restype = wintypes.BOOL
         me = int(k32.GetCurrentProcessId())
@@ -173,10 +177,15 @@ def _windows_family() -> tuple:
 
         def info(pid):
             """(working set MB, start time) of a process, or None (gone, or not ours to look at)."""
-            h = k32.OpenProcess(0x1000, False, pid)                        # PROCESS_QUERY_LIMITED_INFORMATION
+            h = k32.OpenProcess(0x1010, False, pid)                        # QUERY_LIMITED_INFORMATION | VM_READ
+            if not h:
+                h = k32.OpenProcess(0x1000, False, pid)                    # (the documented rights; else just the first)
             if not h:
                 return None
             try:
+                code = wintypes.DWORD()
+                if k32.GetExitCodeProcess(h, ctypes.byref(code)) and code.value != 259:      # STILL_ACTIVE
+                    return None                                            # ended, only a handle somewhere keeps it
                 c = COUNTERS()
                 c.cb = ctypes.sizeof(COUNTERS)
                 a, b, c2, d = (wintypes.FILETIME() for _ in range(4))
@@ -195,13 +204,18 @@ def _windows_family() -> tuple:
         parent_of = dict(pairs)
         started = {me: mine[1] if mine else 0}
         total, count = 0.0, 0
+        rejected = set()
         for pid in kids:                                                   # parents come before their children
+            if parent_of.get(pid) in rejected:
+                rejected.add(pid)                                          # a stranger's tree stays out as a whole
+                continue
             got = info(pid)
             if got is None:
                 continue
             started[pid] = got[1]
             before = started.get(parent_of.get(pid, 0), 0)
             if before and got[1] and got[1] < before:
+                rejected.add(pid)
                 continue                                                   # older than its "parent": a reused pid
             total += got[0]
             count += 1
@@ -250,7 +264,10 @@ class MemoryWatch:
 
     def _loop(self):
         while not self._stop.wait(self.every):
-            self._sample()
+            try:
+                self._sample()
+            except Exception:  # noqa: BLE001 - a reading that fails once must not end the sampling
+                pass
 
     def __enter__(self):
         self._thread.start()
