@@ -1,0 +1,32 @@
+{
+ "file": "N_rigid_joined.blend",
+ "file_mb": 92.79,
+ "open_s": 0.59,
+ "objects": 340,
+ "drawn_instances": 332,
+ "ids_in_depsgraph": 477,
+ "rss_after_open_mb": 352,
+ "drag_ms": 0.57,
+ "lone_empty_ms": 0.44,
+ "picks": [
+  {
+   "hit": true,
+   "object": "FR0381 body Joint PEDESTAL CRANE PC-40:1: SLEWING UNIT:1: Boom luff (motion)",
+   "face": 348,
+   "same_as_instance_matrix": true
+  },
+  {
+   "hit": true,
+   "object": "FR0381 body OSS-TOPSIDE-M01",
+   "face": 3062902,
+   "same_as_instance_matrix": true
+  }
+ ],
+ "build_s": 0.07,
+ "playback_ms_frame": 0.68,
+ "render_s": 1.96,
+ "render_rss_gain_mb": 47,
+ "save_s": 0.63,
+ "save_mb": 92.79,
+ "peak_rss_mb": 2292
+}

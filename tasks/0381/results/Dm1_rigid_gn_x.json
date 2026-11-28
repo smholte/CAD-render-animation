@@ -1,0 +1,32 @@
+{
+ "file": "D_rigid_gn_x.blend",
+ "file_mb": 5.29,
+ "open_s": 0.49,
+ "objects": 2336,
+ "drawn_instances": 11560,
+ "ids_in_depsgraph": 2473,
+ "rss_after_open_mb": 229,
+ "drag_ms": 4.89,
+ "lone_empty_ms": 3.5,
+ "picks": [
+  {
+   "hit": true,
+   "object": "FRP 01979",
+   "face": 6,
+   "same_as_instance_matrix": false
+  },
+  {
+   "hit": true,
+   "object": "FRP 01579",
+   "face": 2198,
+   "same_as_instance_matrix": false
+  }
+ ],
+ "build_s": 0.26,
+ "playback_ms_frame": 4.56,
+ "render_s": 1.78,
+ "render_rss_gain_mb": 196,
+ "save_s": 0.12,
+ "save_mb": 5.29,
+ "peak_rss_mb": 1153
+}

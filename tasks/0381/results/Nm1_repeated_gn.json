@@ -1,0 +1,32 @@
+{
+ "file": "N_repeated_gn.blend",
+ "file_mb": 15.01,
+ "open_s": 0.78,
+ "objects": 2643,
+ "drawn_instances": 11939,
+ "ids_in_depsgraph": 5050,
+ "rss_after_open_mb": 269,
+ "drag_ms": 5.49,
+ "lone_empty_ms": 5.03,
+ "picks": [
+  {
+   "hit": true,
+   "object": "FRP 00098",
+   "face": 12,
+   "same_as_instance_matrix": false
+  },
+  {
+   "hit": true,
+   "object": "CABLE 33kV 3x400 W12-06",
+   "face": 2808,
+   "same_as_instance_matrix": true
+  }
+ ],
+ "build_s": 0.47,
+ "playback_ms_frame": 6.48,
+ "render_s": 2.07,
+ "render_rss_gain_mb": 209,
+ "save_s": 0.19,
+ "save_mb": 15.01,
+ "peak_rss_mb": 1348
+}

@@ -1,0 +1,32 @@
+{
+ "file": "draft.blend",
+ "file_mb": 7.93,
+ "open_s": 1.8,
+ "objects": 11559,
+ "drawn_instances": 11551,
+ "ids_in_depsgraph": 13682,
+ "rss_after_open_mb": 533,
+ "drag_ms": 21.91,
+ "lone_empty_ms": 22.13,
+ "picks": [
+  {
+   "hit": true,
+   "object": "BOOM CHORD CHS 168x10 L28000.001",
+   "face": 6,
+   "same_as_instance_matrix": true
+  },
+  {
+   "hit": true,
+   "object": "CABLE 33kV 3x400 W12-06",
+   "face": 2198,
+   "same_as_instance_matrix": true
+  }
+ ],
+ "build_s": 1.57,
+ "playback_ms_frame": 37.73,
+ "render_s": 4.3,
+ "render_rss_gain_mb": 459,
+ "save_s": 0.25,
+ "save_mb": 7.93,
+ "peak_rss_mb": 2006
+}

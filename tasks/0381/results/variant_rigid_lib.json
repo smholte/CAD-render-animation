@@ -1,0 +1,10 @@
+{
+ "variant": "rigid_lib",
+ "parts_before": 11228,
+ "objects_before": 11559,
+ "moved_into": 9,
+ "prototypes": 1996,
+ "parts_changed": 11228,
+ "make_s": 1.18,
+ "objects_after": 341
+}

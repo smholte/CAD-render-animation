@@ -1,0 +1,8 @@
+{
+ "samples": 11627,
+ "blender::scene_graph_update_tagged": 96.3,
+ "blender::deg::deg_evaluate_on_refresh": 76.9,
+ "blender::deg::(anonymous namespace)::schedule_node": 50.7,
+ "blender::deg::deg_graph_flush_updates": 17.8,
+ "blender::DEG_ids_clear_recalc": 3.6
+}

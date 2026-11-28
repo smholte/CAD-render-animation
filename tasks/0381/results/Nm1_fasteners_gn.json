@@ -1,0 +1,32 @@
+{
+ "file": "N_fasteners_gn.blend",
+ "file_mb": 16.08,
+ "open_s": 1.27,
+ "objects": 6978,
+ "drawn_instances": 11846,
+ "ids_in_depsgraph": 9363,
+ "rss_after_open_mb": 436,
+ "drag_ms": 13.62,
+ "lone_empty_ms": 13.83,
+ "picks": [
+  {
+   "hit": true,
+   "object": "BOOM CHORD CHS 168x10 L28000.001",
+   "face": 12,
+   "same_as_instance_matrix": true
+  },
+  {
+   "hit": true,
+   "object": "CABLE 33kV 3x400 W12-06",
+   "face": 2808,
+   "same_as_instance_matrix": true
+  }
+ ],
+ "build_s": 1.05,
+ "playback_ms_frame": 13.35,
+ "render_s": 3.62,
+ "render_rss_gain_mb": 386,
+ "save_s": 0.27,
+ "save_mb": 16.08,
+ "peak_rss_mb": 1905
+}

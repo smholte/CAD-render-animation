@@ -1,0 +1,8 @@
+{
+ "instances": 200,
+ "pick_found_right_part": "50 of 50",
+ "pick_ms_each": 0.139,
+ "instances_after_hiding_one": 199,
+ "CYCLES distinct colours": 451,
+ "BLENDER_EEVEE distinct colours": 410
+}
