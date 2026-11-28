@@ -7378,6 +7378,7 @@ def demo_kit(ctx):
            "inside such a group finishes as usual")
 def demo_cancel(ctx):
     import subprocess
+    import sys
 
     from ..core import proctree
     from ..importer import runner
@@ -7389,6 +7390,8 @@ def demo_cancel(ctx):
     env = dict(os.environ, FRESING_IMPORT_WORKERS="2")
     for var in ("PYTHONHOME", "PYTHONSTARTUP", "PYTHONUSERBASE"):
         env.pop(var, None)
+    # this Blender's module path (OpenCascade is in the extension's own folder), as ImportJob.start hands it on
+    env["PYTHONPATH"] = os.pathsep.join(p for p in sys.path if p and os.path.isdir(p))
 
     def script(name: str, wait: bool) -> str:
         return ("import importlib, os, sys, time\n"
@@ -7399,9 +7402,8 @@ def demo_cancel(ctx):
                    f"open({os.path.join(work, name + '.txt')!r}, 'w').write(job.error or 'ok')\n" if wait else
                    # the reader's output into nothing: it must not stop by itself when this program has gone
                    "import subprocess\n"
-                   "env = dict(os.environ, PYTHONPATH=os.pathsep.join(p for p in sys.path if p and os.path.isdir(p)))\n"
-                   "subprocess.Popen(job.command(), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env)\n"
-                   "time.sleep(1.0)\nos._exit(0)\n"))
+                   "subprocess.Popen(job.command(), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)\n"
+                   "os._exit(0)\n"))
 
     t0 = time.time()
     left = proctree.Tree([runner.python_executable(), "-c", script("left", False)], env=env,
