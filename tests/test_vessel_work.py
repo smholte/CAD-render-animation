@@ -399,3 +399,40 @@ def test_build_says_when_the_start_scene_puts_the_setting_back():
     assert not states.start_scene_changes(sc, shot.name, ["vessel_work"])
     animation.bake(sc, a)
     assert s.vessel_work.mode == "DP"
+
+
+def test_a_change_after_build_takes_the_old_keys_off():
+    """Task 0375 (0192's open point): the channels and propellers keyed at Build go stale when the panel changes after
+    it – the built animation comes off with "Build again"; the same value set again, or a change that keyed nothing,
+    keeps it."""
+    sc = fresh()
+    s = sc.fresing
+    a = s.animations.add()
+    a.name = "Work"
+    _add_step(sc, a, 1.0, 2.0, "DP", side="STBD", thrust=0.6)
+    animation.bake(sc, a)
+    assert s.anim_baked == "Work" and VW.keyed(sc) and not VW.stale(sc)
+    s.vessel_work.mode = "AHEAD"                         # the same again: nothing changes
+    s.weather.vessel_speed = 8.0
+    assert s.anim_baked == "Work" and VW.keyed(sc)
+    s.vessel_work.thrusters[0].rpm = 90.0                # the propellers would turn faster: the keys are old
+    assert s.anim_baked == "" and not VW.keyed(sc) and s.last_message == VW.STALE
+    assert VW.BUILT_KEY not in sc
+    assert ch(sc, "ahead") == pytest.approx(8.0)         # the panel's channels again
+    # Build again, then the speed of Weather & time (the vessel's speed ahead) changes: off again
+    animation.bake(sc, a)
+    assert s.anim_baked == "Work"
+    s.weather.vessel_speed = 6.0
+    assert s.anim_baked == "" and ch(sc, "ahead") == pytest.approx(6.0)
+    # still, no step: a Build keys nothing of the vessel, so a thruster's speed keeps the built animation
+    a.blocks.clear()
+    blk = a.blocks.add()
+    blk.kind, blk.start, blk.duration, blk.joint = "JOINT", 0.0, 2.0, "Azimuth SB: Steer"
+    blk.enabled = False
+    s.vessel_work.mode = "STILL"
+    animation.bake(sc, a)
+    assert s.anim_baked == "Work"
+    s.vessel_work.thrusters[0].rpm = 30.0
+    assert s.anim_baked == "Work"
+    s.vessel_work.mode = "AHEAD"                         # now it sails: the propellers would turn
+    assert s.anim_baked == ""
