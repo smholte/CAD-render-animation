@@ -214,7 +214,7 @@ def test_footprints():
     o = d["outriggers"]
     fp = S.footprint(d, {"Outriggers": 500.0})
     xs, ys = [p[0] for p in fp], [p[1] for p in fp]
-    assert max(xs) == pytest.approx(o["a"]) and max(ys) == pytest.approx(o["b_in"] + 2 * 0.5)
+    assert max(xs) == pytest.approx(o["centre"][0] + o["a"]) and max(ys) == pytest.approx(o["b_in"] + 2 * 0.5)
     d = data_of("CC-750")
     fp0 = S.footprint(d, {})
     fp1 = S.footprint(d, {"Travel": 4000.0})                      # the tracks move with the travel

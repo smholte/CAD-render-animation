@@ -82,7 +82,7 @@ set up by `liquid.set_up_test_rotary`.
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** worker, Claude Code on the web, 28 Nov 2026 · version 0.2.275 (branch `ccr-f71b2999-erailu`).
+**Chat / date:** worker, Claude Code on the web, 28 Nov 2026 · version 0.2.276 (branch `ccr-f71b2999-erailu`).
 
 **What changed:**
 - **A – 4th axis / B – trunnion** (`blender/liquid.py`, `machining.sample`): `machining.sample` also stores the world

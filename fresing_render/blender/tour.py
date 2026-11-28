@@ -3678,7 +3678,7 @@ def _check_atc(scene):
     return "4 changes, every tool to its own pocket"
 
 
-@tour_set("doublearm", "Double-arm tool changer", "test_atc.step", added="0.2.51", changed="0.2.275")
+@tour_set("doublearm", "Double-arm tool changer", "test_atc.step", added="0.2.51", changed="0.2.276")
 def build_doublearm(b: Build):
     from mathutils import Vector
 
@@ -3710,7 +3710,7 @@ def _check_doublearm(scene):
     return f"3 changes, random pots; arm {t['back'][1] - t['grip'][0]:.1f} s per change"
 
 
-@tour_set("rotary4", "4th axis - rotary table", "test_4axis.step", added="0.2.52", changed="0.2.275")
+@tour_set("rotary4", "4th axis - rotary table", "test_4axis.step", added="0.2.52", changed="0.2.276")
 def build_rotary4(b: Build):
     from mathutils import Vector
 
@@ -3726,7 +3726,7 @@ def build_rotary4(b: Build):
     a.start_shot = _shot(b, "Tour: 4th axis").name
 
 
-@tour_set("rotary5", "5th axis - trunnion", "test_5axis.step", added="0.2.52", changed="0.2.275")
+@tour_set("rotary5", "5th axis - trunnion", "test_5axis.step", added="0.2.52", changed="0.2.276")
 def build_rotary5(b: Build):
     from mathutils import Vector
 
@@ -3742,7 +3742,7 @@ def build_rotary5(b: Build):
     a.start_shot = _shot(b, "Tour: 5th axis").name
 
 
-@tour_set("toolpath", "The app makes the toolpath", "test_toolpath.step", added="0.2.55", changed="0.2.275")
+@tour_set("toolpath", "The app makes the toolpath", "test_toolpath.step", added="0.2.55", changed="0.2.276")
 def build_toolpath(b: Build):
     from mathutils import Vector
 
@@ -4107,7 +4107,7 @@ def build_coolant(b: Build):
     a.start_shot = _shot(b, "Tour: coolant").name
 
 
-@tour_set("liquid4", "Coolant liquid - 4th axis", "test_4axis.step", added="0.2.275", changed="0.2.275")
+@tour_set("liquid4", "Coolant liquid - 4th axis", "test_4axis.step", added="0.2.276", changed="0.2.276")
 def build_liquid4(b: Build):
     """Task 0347: the coolant on the turning bar – pools in the pocket, runs round the bar onto the table, drips off
     when the bar turns."""
@@ -4124,7 +4124,7 @@ def build_liquid4(b: Build):
     a.start_shot = _shot(b, "Tour: coolant liquid on the 4th axis").name
 
 
-@tour_set("liquid5", "Coolant liquid - trunnion", "test_5axis.step", added="0.2.275", changed="0.2.275")
+@tour_set("liquid5", "Coolant liquid - trunnion", "test_5axis.step", added="0.2.276", changed="0.2.276")
 def build_liquid5(b: Build):
     """Task 0347: the coolant on the trunnion – the tilted pockets fill, the cradle tilts and the pools spill to its
     low side, over the C table onto the cradle and the table."""
@@ -4228,7 +4228,7 @@ def _check_liquid(scene):
 LIQUID_LAB = ("pocket", "slot", "tilt", "tray", "slosh", "wall")
 
 
-@tour_set("liquid_lab", "Coolant liquid – six checks", added="0.2.275", changed="0.2.275")
+@tour_set("liquid_lab", "Coolant liquid – six checks", added="0.2.276", changed="0.2.276")
 def build_liquid_lab(b: Build):
     """Six small invented rigs, the coolant liquid worked out on each; one saved scene (camera) per check."""
     from mathutils import Vector
@@ -4414,7 +4414,7 @@ PEOPLE_ANIM = "Two people meet"
 OPERATOR_ANIM = "A person changes the tool"
 
 
-@tour_set("operator", "A person changes the tool", "test_mill_cabinet.step", added="0.2.132", changed="0.2.275")
+@tour_set("operator", "A person changes the tool", "test_mill_cabinet.step", added="0.2.132", changed="0.2.276")
 def build_operator(b: Build):
     """The test mill in its enclosure (tools/make_test_mill_cabinet.py; task 0249: the larger VMC): one manual change
     from T1 to T2 done by the operator, who walks up, opens the sliding doors, swaps the tools over the trolley, closes the door and walks
@@ -4890,7 +4890,7 @@ def _skid_load(b: Build):
 
 
 @tour_set("lifting", "Lifting plan – crane, load, hook and rigging", "test_loads.step", added="0.2.156",
-          changed="0.2.269")
+          changed="0.2.275")
 def build_lifting(b: Build):
     """Task 0231: a yard – an IBC on its pallet, a pump skid and a 20 ft container on the quayside – and an AT-40 on four
     crane mats behind the skid; the skid is the load. The camera looks from the other side of the skid, so the
@@ -4932,6 +4932,10 @@ def build_lifting(b: Build):
     _camera(b, LIFT_VIEW, "Tour lifting path", lens=35.0,
             points=np.vstack([_lifting_points(sc, LIFT_LOAD), _path_points(sc, pr)]))
     _shot(b, "@lifting_path")
+    # task 0349: the same lift seen from above – reach rings, exclusion zone, the mats coloured by their pressure
+    _camera(b, "TOP", "Tour lifting zones", lens=35.0,
+            points=np.vstack([_lifting_points(sc, LIFT_LOAD), _path_points(sc, pr), _zone_points(sc)]))
+    _shot(b, "@lifting_zones")
     animation.clear_keys(sc)
     _lift_rest(sc)
     sc.fresing.lifting.load_index = 0
@@ -5016,6 +5020,26 @@ def _lift_path(scene, check: bool = True):
     return pr
 
 
+def _zone_points(scene):
+    """Task 0349: the exclusion zone's corners on the ground (the camera sees the whole zone)."""
+    import numpy as np
+
+    from . import lifting_zones
+    d = lifting_zones.view_data(scene)
+    z = d["z"] if d else 0.0
+    return np.array([(x, y, z) for x, y in (d["zone"] if d else [])] or [(0.0, 0.0, 0.0)])
+
+
+def _lift_zones(scene):
+    """Task 0349: the lift of ``_lift_path`` checked, the reach rings, the exclusion zone and the footprint shown."""
+    from . import lifting, lifting_zones
+    L = lifting.plan(scene)
+    L.show_reach = L.show_zone = L.show_footprint = True
+    pr = _lift_path(scene)
+    lifting_zones.forget()
+    return pr
+
+
 def _path_points(scene, pr) -> list:
     """The hook's places along the proposed lift (the camera sees the whole path), from the steps' joint values."""
     import numpy as np
@@ -5038,7 +5062,7 @@ def _lift_spreader(scene) -> None:
 
 
 @tour_set("crane_setup", "Set up a crane – the KB-20 from its bare STEP", "lifting/KB-20/KB-20.step",
-          added="0.2.161", changed="0.2.176")
+          added="0.2.161", changed="0.2.275")
 def build_crane_setup(b: Build):
     """Task 0203: the built-in KB-20's bare STEP rigged through Set up a crane's own buttons, by names (the steps of
     a knuckle-boom crane), checked; the Set-up window would open on its Check step."""
@@ -5232,6 +5256,8 @@ def _check_lifting_rig(scene):
 
 def _check_lifting_path(scene):
     from . import callouts, lifting, lifting_path
+    ld = _lift_loads(scene)["Pump skid"]
+    seen = _cog_in_view(scene, with_hook=True, load=ld)      # first: a part put in the way also dates the checks
     r = lifting_path.result(scene)
     _check(r is not None and not lifting_path.stale(scene), "the lift path was not checked")
     ids = [x["id"] for x in r["rows"]]
@@ -5246,9 +5272,33 @@ def _check_lifting_path(scene):
     _check(lab is not None, "no lift data box")
     rows = callouts.label_text(scene, lab).split("\n")
     _check(len(rows) == 5 and "–" not in rows[3], f"the lift data box reads {rows}")
-    ld = _lift_loads(scene)["Pump skid"]
     return (f"{len(ids)} checks, worst {worst.title} {worst.status} at frame {worst.t:.0f}, {r['evaluations']} "
-            f"moments; " + rows[3] + "; " + _cog_in_view(scene, with_hook=True, load=ld))
+            f"moments; " + rows[3] + "; " + seen)
+
+
+def _check_lifting_zones(scene):
+    import os
+    import tempfile
+
+    from ..core import lifting as core
+    from ..core import lifting_zones as Z
+    from . import lifting_path, lifting_zones
+    seen = _cog_in_view(scene, with_hook=True, load=_lift_loads(scene)["Pump skid"])
+    r = lifting_path.result(scene)
+    _check(r is not None and not lifting_path.stale(scene), "the lift path was not checked")
+    clr = next((x for x in r["rows"] if x["id"] == "CLR"), None)
+    _check(clr is not None and clr["status"] != "not_checked", "no clearance row along the path")
+    v = r.get("view") or {}
+    zone = v.get("zone") or []
+    _check(len(zone) >= 3 and all(Z.inside(zone, p[:2]) for p in v.get("path_world", [])),
+           "the exclusion zone does not hold the load's path")
+    _check(len(v.get("patches", [])) == 4, "the four outrigger mats are not coloured")
+    _check(bool(v.get("rings")), "no reach ring")
+    path = lifting_zones.plan_sheet(scene, os.path.join(tempfile.mkdtemp(prefix="fr_tour_sheet_"), "plan.html"))
+    _check(os.path.getsize(path) > 2000, "the plan sheet is empty")
+    worst = max(v["patches"], key=lambda d: d["force"])
+    return (f"clearance {clr['value']} ({clr['status']}), zone {Z.polygon_area(zone):.0f} m², reach "
+            f"{v['reach']['full']:g} m, heaviest mat {worst['name']} {core.force_t(worst['force']):.1f} t; " + seen)
 
 
 def _check_lifting_spreader(scene):
@@ -5635,6 +5685,13 @@ stop("lifting_path", MOTION, "lifting", "Lifting: lift path and checks",
      "moment; the lift data box beside the hook block shows the load, the radius, the crane use and the worst status so far; a use bar "
      "sits beside the hook in the 3D view.",
      where="8 Lifting plan > Lift path & checks", since="0.2.269", check=_check_lifting_path, setup=_lift_path)
+stop("lifting_zones", MOTION, "lifting", "Lifting: clearance and zones",
+     "The same lift seen from above. On the ground: a red dashed outline – the exclusion zone round the crane's tail "
+     "swing, its outriggers and the skid's path, 1 m wider; two rings round the slew axis – red where the chart still "
+     "carries the skid, amber within your 75 % limit; the four mats coloured by the pressure under them. 8 Lifting plan "
+     "> Clearance & zones shows the clearance now (3.05 m needed) and the table of Lift path & checks has its row "
+     "'Clearance'. Plan sheet… opens the plan view, the range diagram and the checks to print.",
+     where="8 Lifting plan > Clearance & zones", since="0.2.275", check=_check_lifting_zones, setup=_lift_zones)
 stop("crane_setup", MOTION, "crane_setup", "Set up a crane: KB-20 rigged",
      "The built-in KB-20's bare STEP made a lifting-plan crane through Set up a crane (8 Lifting plan > Equipment > Set "
      "up a crane… > Knuckle-boom crane): its slew, main boom, knuckle, five extensions, hoist with two hook swings and "
@@ -5918,14 +5975,14 @@ stop("liquid4", MACH, "liquid4", "Coolant liquid on the 4th axis",
      "onto the table, which carries it to its ends and into the chip tray. After M9 the bar turns slowly: the "
      "pocket tips over and empties, and what is left on the bar drips off when it is upside down.",
      where="4 Motion > CNC machine > Coolant (Liquid on the machine)", animation="Coolant liquid 4th axis", at=0.45,
-     play=True, check=_check_liquid4, auto="clip", since="0.2.275")
+     play=True, check=_check_liquid4, auto="clip", since="0.2.276")
 
 stop("liquid5", MACH, "liquid5", "Coolant liquid on the trunnion",
      "Flood coolant while two tilted pockets are cut on the block: the C table holds a pool round the block. After "
      "M9 the cradle tilts the other way: the pools run to the low side, spill off the C table onto the cradle and "
      "from there onto the table and into the tray.",
      where="4 Motion > CNC machine > Coolant (Liquid on the machine)", animation="Coolant liquid trunnion", at=0.88,
-     play=True, check=_check_liquid5, auto="clip", since="0.2.275")
+     play=True, check=_check_liquid5, auto="clip", since="0.2.276")
 
 stop("liquid", MACH, "liquid", "Coolant liquid on the machine",
      "The bit cuts a pocket and an open slot with flood coolant and 'Liquid on the machine' ticked: milky coolant "
@@ -5938,31 +5995,31 @@ stop("liquid_pocket", MACH, "liquid_lab", "Liquid: closed pocket",
      "A grey plate with a square pocket. Coolant pours into the pocket for 2 s (twice what it holds): it fills to the "
      "brim, the rest runs over the plate's edges and drips off. Then the pocket stays full. The note gives the "
      "volume held (within 2 % of the pocket's).", where="4 Motion > CNC machine > Coolant (Liquid on the machine)", play=True,
-     setup=_lab_setup("pocket"), check=_lab_check("pocket"), auto="still", since="0.2.275")
+     setup=_lab_setup("pocket"), check=_lab_check("pocket"), auto="still", since="0.2.276")
 stop("liquid_slot", MACH, "liquid_lab", "Liquid: open slot drains",
      "A grey plate with a slot open at its right end. Coolant pours into the slot for 2 s and fills it; it runs out "
      "of the open end and drips off. When the pour stops the slot drains: half is gone within a second, only a thin "
      "film is left (under 15 %).", where="4 Motion > CNC machine > Coolant (Liquid on the machine)", play=True,
-     setup=_lab_setup("slot"), check=_lab_check("slot"), auto="still", since="0.2.275")
+     setup=_lab_setup("slot"), check=_lab_check("slot"), auto="still", since="0.2.276")
 stop("liquid_tilt", MACH, "liquid_lab", "Liquid: tilted plate spills",
      "A grey plate with a square pocket half full of coolant tilts slowly from level to 30°. The liquid leans to the "
      "low side; at about 14° it reaches the rim and spills over it; at 30° what is left lies in the pocket's low "
      "corner. The note gives the angle it spilled at (14.0° ± 1.5°).", where="4 Motion > CNC machine > Coolant (Liquid on the machine)", play=True,
-     setup=_lab_setup("tilt"), check=_lab_check("tilt"), auto="still", since="0.2.275")
+     setup=_lab_setup("tilt"), check=_lab_check("tilt"), auto="still", since="0.2.276")
 stop("liquid_tray", MACH, "liquid_lab", "Liquid: tray runs to its drain",
      "A grey tray with low walls falls gently to a dark drain hole at its left end. Coolant pours onto its far end "
      "for 10 s: it spreads, runs down the slope to the drain and goes down it. Within 30 s after the pour stops the "
      "tray is empty but for a wet film.", where="4 Motion > CNC machine > Coolant (Liquid on the machine)", play=True,
-     setup=_lab_setup("tray"), check=_lab_check("tray"), auto="still", since="0.2.275")
+     setup=_lab_setup("tray"), check=_lab_check("tray"), auto="still", since="0.2.276")
 stop("liquid_slosh", MACH, "liquid_lab", "Liquid: box stopped sloshes",
      "A grey box with 10 mm of coolant slides to the right and stops hard after half a second. The liquid runs on, "
      "piles up at the right wall and sloshes back and forth, a wave about every 1.3 s, and settles. The note gives "
      "the period (within 0.1 s of 2L / sqrt(g h)).", where="4 Motion > CNC machine > Coolant (Liquid on the machine)", play=True,
-     setup=_lab_setup("slosh"), check=_lab_check("slosh"), auto="still", since="0.2.275")
+     setup=_lab_setup("slosh"), check=_lab_check("slosh"), auto="still", since="0.2.276")
 stop("liquid_wall", MACH, "liquid_lab", "Liquid: no leak through a wall",
      "A grey tank with a thin wall across its middle rocks back and forth. The coolant on the left runs up against "
      "the wall and back, but not a drop gets through to the right side (0.000 cm³).", where="4 Motion > CNC machine > Coolant (Liquid on the machine)", play=True,
-     setup=_lab_setup("wall"), check=_lab_check("wall"), auto="still", since="0.2.275")
+     setup=_lab_setup("wall"), check=_lab_check("wall"), auto="still", since="0.2.276")
 
 
 def _check_setup(scene):

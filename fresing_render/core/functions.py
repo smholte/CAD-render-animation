@@ -591,7 +591,7 @@ fn(id="cnc.coolant", title="Coolant", family="cnc", panel="FRESING_PT_cnc_coolan
 fn(id="cnc.liquid", title="Coolant liquid on the machine", family="cnc", panel="FRESING_PT_cnc_coolant",
    prop="liquid_on", guide="coolant-liquid", tour=("liquid", "liquid4", "liquid5", "liquid_pocket", "liquid_slot",
    "liquid_tilt", "liquid_tray", "liquid_slosh", "liquid_wall"), pccheck=("milling.liquid",), since="0.2.264",
-   changed="0.2.275")
+   changed="0.2.276")
 
 # ----- 4 Motion: milling -----
 fn(id="milling.cut", title="Milling: material disappears where the bit cuts", family="milling",
@@ -724,6 +724,16 @@ fn(id="lifting.path", short="Lift path", title="Lift path: a set-down point, the
 fn(id="lifting.data_box", short="Lift data box", title="Lift data box in renders and videos: load, radius, crane use, "
    "worst so far", family="lifting", panel="FRESING_PT_lifting_path", prop="data_box", guide="lifting-data-box",
    tour=("lifting_path",), pccheck=("lifting.path",), since="0.2.269", workspaces=_LIFT)
+
+fn(id="lifting.clearance", short="Clearance", title="Clearance along the lift: the boom, the load and the rigging kept "
+   "clear of everything else", family="lifting", panel="FRESING_PT_lifting_zones", prop="clearance_m",
+   guide="lifting-zones", tour=("lifting_zones",), pccheck=("lifting.zones",), since="0.2.275", workspaces=_LIFT)
+fn(id="lifting.zones", short="Lift zones", title="Reach rings, exclusion zone and ground footprint coloured by pressure",
+   family="lifting", panel="FRESING_PT_lifting_zones", prop="show_zone", guide="lifting-zones",
+   tour=("lifting_zones",), pccheck=("lifting.zones",), since="0.2.275", workspaces=_LIFT)
+fn(id="lifting.sheet", short="Plan sheet", title="Plan sheet to print: plan view, range diagram, every check",
+   family="lifting", panel="FRESING_PT_lifting_zones", button="fresing.lifting_plan_sheet", guide="lifting-zones",
+   tour=("lifting_zones",), pccheck=("lifting.zones",), since="0.2.275", workspaces=_LIFT)
 
 fn(id="lifting.make", short="Make a crane", title="Make a crane from numbers (type, start from a class, Make)", family="lifting",
    panel="FRESING_PT_lifting_equipment", button="fresing.lifting_make", guide="lifting-make", tour=("lifting_make",),
