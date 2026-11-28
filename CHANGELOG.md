@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.274 – 28 Nov 2026 – Demo project: Make it again after Cancel works every time (task 0371)
+## 0.2.275 – 28 Nov 2026 – Demo project: Make it again after Cancel works every time (task 0371)
 
 - **Cancel, then Make it again** (Help > Make demo project…, the app's own demo and demo kits): Cancel now stops the
   demo build and every program it had started – the model maker, the STEP reader and its helpers – and **Make it**
@@ -18,6 +18,15 @@ installer of that version was built from.
   has its own line.
 - The two lines "the project's format could not be read: '_RestrictData' …" no longer appear at every start (a
   project whose format really cannot be read still says so).
+## 0.2.274 – 28 Nov 2026 – Sea fixes: the seabed open over the ground cut, a quicker sea change with spray, Vessel at work after Build (task 0375)
+
+- **Open sea, Detailed, cut-away with the ground:** in the 3D view the plain seabed round the rippled patch no longer
+  covers the pit in the box – also when the seabed has slid far by under a sailing vessel. Renders are unchanged.
+- **A sea change with spray** (Weather & time, Beaufort 5.5 and up) is quicker: the spray is kept and only gets its
+  new numbers – about 0.3 s instead of 0.9 s on the test vessel (Simple), 0.6 s instead of 1.0 s (Detailed).
+- **Vessel at work after Build:** changing what the vessel does, its speed or a thruster after Build took nothing
+  off – the video still showed the vessel as before. Now the built animation is taken off and the app says so:
+  press Build & play again.
 
 ## 0.2.273 – 28 Nov 2026 – Groundwork for the Fresing assets pack: looks kept inside the project (task 0355)
 

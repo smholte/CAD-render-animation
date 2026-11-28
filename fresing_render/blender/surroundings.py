@@ -224,13 +224,16 @@ def clear(scene) -> None:
     orphans = [m for m in meshes if m.users == 0]
     if orphans:
         bpy.data.batch_remove(orphans)
-    # the spray (task 0109) is made only with weather: nothing of it stays when the weather goes
-    groups = [g for g in bpy.data.node_groups if g.name.startswith(f"{WAVES_GROUP} spray") and g.users == 0]
-    if groups:
-        bpy.data.batch_remove(groups)
-    spray = [m for m in bpy.data.materials if m.get("fr_env") == "spray" and m.users == 0]
-    if spray:
-        bpy.data.batch_remove(spray)
+    # the spray (task 0109) is made only with weather: nothing of it stays when the weather goes. While a sea with
+    # spray is wanted its group stays for the next build, which only sets its numbers (task 0375)
+    keep = scene is not None and scene.fresing.background == "SEA" and _spray_wind(scene.fresing) is not None
+    if not keep:
+        groups = [g for g in bpy.data.node_groups if g.name.startswith(f"{WAVES_GROUP} spray") and g.users == 0]
+        if groups:
+            bpy.data.batch_remove(groups)
+        spray = [m for m in bpy.data.materials if m.get("fr_env") == "spray" and m.users == 0]
+        if spray:
+            bpy.data.batch_remove(spray)
     root = root_object()
     if root is not None:
         for k in ("fr_kind", "fr_key", "fr_models", "fr_far", "fr_misfit", BOW_KEY):
@@ -2017,15 +2020,23 @@ def _spray_points(b: _NB, count: int, seed: int, life: tuple, t, spawn, velocity
 def _spray_group(name: str, own, bft_sea: float, toward: float, wind, outline, radius: float,
                  moving: bool, detailed: bool, mat, fwd: int = -1) -> bpy.types.NodeTree:
     """Spray (task 0109): drops blown off the white caps (where the foam field is high, ``core/sea.py``) and thrown
-    up at the bow, seeded, the same at every frame of every render. From Beaufort 5.5, full at 9."""
-    old = bpy.data.node_groups.get(name)
-    if old is not None:
-        bpy.data.node_groups.remove(old)
-    ng = bpy.data.node_groups.new(name, "GeometryNodeTree")
-    ng["fr_env"] = "spray"
-    ng.interface.new_socket("Geometry", in_out="INPUT", socket_type="NodeSocketGeometry")
-    ng.interface.new_socket("Geometry", in_out="OUTPUT", socket_type="NodeSocketGeometry")
-    b = _NB(ng)
+    up at the bow, seeded, the same at every frame of every render. From Beaufort 5.5, full at 9. Task 0375: the group
+    is kept at a sea change and only its numbers are set (``_build_tree``; ~0.5 s of a ~1 s change on the test vessel);
+    a build that needs other nodes (bow spray on or off, another number of waves) makes it new."""
+    ng = bpy.data.node_groups.get(name)
+    if ng is None or ng.get("fr_env") != "spray" or ng.library is not None:
+        ng = bpy.data.node_groups.new(name, "GeometryNodeTree")
+        ng["fr_env"] = "spray"
+        ng.interface.new_socket("Geometry", in_out="INPUT", socket_type="NodeSocketGeometry")
+        ng.interface.new_socket("Geometry", in_out="OUTPUT", socket_type="NodeSocketGeometry")
+    ng["fr_replayed"] = _build_tree(ng, ng, lambda nt: _spray_nodes(nt, own, bft_sea, toward, wind, outline, radius,
+                                                                    moving, detailed, mat, fwd))
+    return ng
+
+
+def _spray_nodes(nt, own, bft_sea: float, toward: float, wind, outline, radius: float, moving: bool, detailed: bool,
+                 mat, fwd: int) -> None:
+    b = _NB(nt)
     gout = b.new("NodeGroupOutput")
     bft, (wx, wy) = wind
     u = sea_core.bft_to_ms(bft)
@@ -2108,7 +2119,6 @@ def _spray_group(name: str, own, bft_sea: float, toward: float, wind, outline, r
     b.put(setm.inputs["Geometry"], inst.outputs[0])
     setm.inputs["Material"].default_value = mat
     b.put(gout.inputs[0], setm.outputs[0])
-    return ng
 
 
 def _build_spray(s, col, root, sea_ob, own, bft_sea, toward, outline, near, detailed):
@@ -2427,7 +2437,10 @@ def _view_cuts(col, box, depth: float, pit: float | None, detailed: bool) -> Non
         elif role == "hull_foam":
             view_cut.set_cut(ob, box, drop=depth + below, band=0.5 * float(ob.get("fr_foam_w", 4.0)) + 1.5)
         elif role == "seabed":                     # (it slides aft with the lay: worked out where it is now)
-            view_cut.set_cut(ob, box, drop=below, way=view_cut.LIVE if detailed else view_cut.EXACT)
+            # (Detailed: its plain square has a hole that follows the box; task 0375)
+            hole = ob.type == "MESH" and ob.data.attributes.get(view_cut.PLAIN) is not None
+            way = (view_cut.HOLE if hole else view_cut.LIVE) if detailed else view_cut.EXACT
+            view_cut.set_cut(ob, box, drop=below, way=way)
         elif role == "stones":
             view_cut.set_cut(ob, box, drop=below, way=view_cut.LIVE)
 
@@ -2633,11 +2646,31 @@ def _box_frame(box, offset_xy) -> tuple:
 
 def _seabed_mesh(name: str, box, offset_xy, detailed: bool) -> bpy.types.Mesh:
     """A plain square ±``SEABED_EXTENT`` round the model; in Detailed (with the cut-away) also a rippled patch round
-    the box (``core.sea.seabed_ripples``), the plain square ``SEABED_SINK`` under it."""
+    the box (``core.sea.seabed_ripples``), the plain square ``SEABED_SINK`` under it. There the plain square is a ring
+    round a middle piece the box's shape (task 0375): in the 3D view the ring's hole follows the box
+    (``sea_view_cut.HOLE``, point attribute ``fr_plain``), in a render the middle piece fills it."""
     e = sea_core.SEABED_EXTENT
     z0 = -sea_core.SEABED_SINK if detailed else 0.0
     m = _Mesh()
-    m._add([(-e, -e, z0), (e, -e, z0), (e, e, z0), (-e, e, z0)], [(0, 1, 2, 3)], 0)
+    outer = [(-e, -e, z0), (e, -e, z0), (e, e, z0), (-e, e, z0)]
+    plain = None
+    if not (detailed and box is not None):
+        m._add(outer, [(0, 1, 2, 3)], 0)
+    else:
+        o, u, v = _box_frame(box, offset_xy)
+        length, width = float(box["length"]), float(box["width"])
+        ends = [(-1.0, -1.0), (1.0, -1.0), (1.0, 1.0), (-1.0, 1.0)]            # (end, side), counter-clockwise
+        inner = [o + (en + 1.0) / 2 * length * u + sd * width / 2 * v for en, sd in ends]
+        mid = sum(inner) / 4
+        ang = [math.atan2(p[1] - mid[1], p[0] - mid[0]) for p in inner]
+        k = min(range(4), key=lambda i: abs(math.remainder(ang[i] - math.atan2(-e - mid[1], -e - mid[0]), 2 * math.pi)))
+        ring = outer + [(*inner[(k + j) % 4], z0) for j in range(4)]
+        m._add(ring, [(j, (j + 1) % 4, 4 + (j + 1) % 4, 4 + j) for j in range(4)], 0)
+        m._add([(*p, z0) for p in inner], [(0, 1, 2, 3)], 0)
+        plain = np.zeros((12, 3))
+        for j in range(4):
+            plain[4 + j] = (*ends[(k + j) % 4], 1.0)
+            plain[8 + j] = (*ends[j], 2.0)
     if detailed and box is not None:
         o, u, v = _box_frame(box, offset_xy)
         length, width = float(box["length"]), float(box["width"])
@@ -2660,7 +2693,13 @@ def _seabed_mesh(name: str, box, offset_xy, detailed: bool) -> bpy.types.Mesh:
         if (u[0] * v[1] - u[1] * v[0]) < 0:                 # faces up
             q = q[:, ::-1]
         m._add(pts, q, 0, smooth=True)
-    return m.to_mesh(name)
+    me = m.to_mesh(name)
+    if plain is not None:
+        full = np.zeros((len(me.vertices), 3), np.float32)
+        full[:len(plain)] = plain
+        at = me.attributes.new(view_cut.PLAIN, "FLOAT_VECTOR", "POINT")
+        at.data.foreach_set("vector", full.ravel())
+    return me
 
 
 def _stones_mesh(name: str, box, offset_xy, seed: int = 81) -> bpy.types.Mesh:
