@@ -1,6 +1,6 @@
 # 0381 – Study (findings + measurements): big models with fewer Blender objects
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0381-study-fewer-objects` (branch only, `[skip ci]`)
+**Who:** worker · **Status:** running · **Branch:** `claude/cad-render-animation-0381-7028s9` (branch only, `[skip ci]`)
 **Started by:** lead, 28 Nov 2026 (0326's open point; the owner's machines are big) · **Model:** Opus · effort High
 **Area:** none on `main` – findings, measurements and throw-away prototypes on the branch.
 

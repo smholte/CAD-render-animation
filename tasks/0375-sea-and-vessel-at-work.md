@@ -1,6 +1,6 @@
 # 0375 – Sea and Vessel at work follow-ups: seabed square, spray made new, stale channels after Build
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0375-sea-vessel-at-work`
+**Who:** worker · **Status:** running · **Branch:** `task/0375-sea-vessel-at-work`
 **Started by:** lead, 28 Nov 2026 ("Lead review 20 Nov" Sea points in TASKS.md; 0202, 0192 open points) · **Model:** Opus ·
 effort Medium
 **Area:** Sea lane – `core/sea.py`, the sea in `surroundings.py`, `sea_view_cut.py`, the spray in `weather_fx.py`,
