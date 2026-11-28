@@ -1,6 +1,6 @@
 # 0375 – Sea and Vessel at work follow-ups: seabed square, spray made new, stale channels after Build
 
-**Who:** worker · **Status:** running · **Branch:** `task/0375-sea-vessel-at-work`
+**Who:** worker · **Status:** done (0.2.274) · **Branch:** `task/0375-sea-vessel-at-work`
 **Started by:** lead, 28 Nov 2026 ("Lead review 20 Nov" Sea points in TASKS.md; 0202, 0192 open points) · **Model:** Opus ·
 effort Medium
 **Area:** Sea lane – `core/sea.py`, the sea in `surroundings.py`, `sea_view_cut.py`, the spray in `weather_fx.py`,
@@ -17,12 +17,12 @@ effort Medium
 
 ## Done when
 
-- [ ] A, B, C fixed with tests; a sea change with spray measured before / after (report)
-- [ ] Tests added / updated; full suite passes (also on GitHub)
-- [ ] (UI) screenshots checked with tools/ui_screens.py; every new button has a tooltip; the user guide, PC-check line,
+- [x] A, B, C fixed with tests; a sea change with spray measured before / after (report)
+- [x] Tests added / updated; full suite passes (also on GitHub)
+- [x] (UI) screenshots checked with tools/ui_screens.py; every new button has a tooltip; the user guide, PC-check line,
       tour stop and function-list entry follow the change (`since=` / `changed=`)
-- [ ] (Windows-only code) reviewed by a helper that did not write it
-- [ ] Report below filled in (incl. **Open points** and an **Owner's check** line when he should try something), merged,
+- [x] (Windows-only code) reviewed by a helper that did not write it
+- [x] Report below filled in (incl. **Open points** and an **Owner's check** line when he should try something), merged,
       released (CLAUDE.md section 7)
 
 **Running beside it (weekend 28–29 Nov):** 0371 Demo · 0355 / 0356 Assets · 0372 Welds · 0347 Machining · 0349
@@ -66,6 +66,7 @@ Windows-only code; the changes are small and tested by broken-copy checks – th
   seabed above the pit's bottom, outside they meet it at the seabed; again after a 150 m slide – fails with the live way),
   `test_sea_change.py::test_the_spray_is_kept_at_a_sea_change_and_equals_a_fresh_build` (Simple, Detailed: kept node
   for node equal to a fresh build; spray off removes it), `test_vessel_work.py::test_a_change_after_build_takes_the_old_keys_off`.
+- GitHub: one run, green (46159633379, full).
 - Locally: the sea, vessel, seabed-speed, surroundings, web 3D sea, marine looks, view clip, re-bake files (395) and the
   weather files (452) pass. GitHub: see below.
 
