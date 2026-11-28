@@ -140,9 +140,12 @@ def grouped(points, size: float = None):
     return p, reps, radius, start
 
 
-def _subdivide(tri: np.ndarray, longest: float, rounds: int = 12) -> np.ndarray:
-    """Triangles (N, 3, 3) cut in four (at their edges' middles) until no edge is longer than ``longest``."""
+def _subdivide(tri: np.ndarray, longest: float, rounds: int = 12, most: int = 400_000) -> np.ndarray:
+    """Triangles (N, 3, 3) cut in four (at their edges' middles) until no edge is longer than ``longest`` (or there
+    would be more than ``most``)."""
     for _k in range(rounds):
+        if len(tri) > most:
+            break
         e = np.linalg.norm(tri - np.roll(tri, -1, axis=1), axis=2).max(axis=1)
         big = e > longest
         if not big.any():
@@ -158,9 +161,10 @@ def _subdivide(tri: np.ndarray, longest: float, rounds: int = 12) -> np.ndarray:
 def sample(verts, tris, spacing: float = None, most: int = None) -> tuple:
     """(points on a mesh's surface, the spacing used): its corners and points spread over its faces ``spacing`` apart
     – every face, a long or a wide one, cut first so that its points really lie that close (task 0349's tester: a
-    30 m boom's faces got points 0.47 m apart). A part so large that it would need more than ``most`` points gets them
-    wider apart (``spacing`` grows with the square root of its area). Faces with a corner that is not a number are
-    left out."""
+    30 m boom's faces got points 0.47 m apart). A part that would need more than about ``most`` points gets them wider
+    apart; a finely meshed part (more than ``most`` / 2 faces: a lattice boom) is its own corners, as close as its
+    faces' edges (the spacing reported is their typical length). Faces with a corner that is not a number are left
+    out. The memory stays bounded whatever the mesh (CC-300's lattice ran out of memory before)."""
     spacing = SPACING if spacing is None else spacing
     most = MOST_POINTS if most is None else most
     v = np.asarray(verts, float)
@@ -169,15 +173,40 @@ def sample(verts, tris, spacing: float = None, most: int = None) -> tuple:
         return np.zeros((0, 3)), spacing
     if not len(t):                                   # points only: the corners themselves
         return v[np.all(np.isfinite(v), axis=1)], spacing
-    tri = v[t]
-    tri = tri[np.all(np.isfinite(tri), axis=(1, 2))]
-    if not len(tri):
+    t = t[np.all(np.isfinite(v[t]), axis=(1, 2))]
+    if not len(t):
         return np.zeros((0, 3)), spacing
+    if len(t) > most // 2:                           # finely meshed: its corners
+        used = np.unique(t.ravel())
+        tri = v[t]
+        e = np.linalg.norm(tri - np.roll(tri, -1, axis=1), axis=2).max(axis=1)
+        sp = max(spacing, float(np.median(e)))
+        return _one_per_cube(v[used], sp / 2.0), sp
+    tri = v[t]
     area = 0.5 * float(np.sum(np.linalg.norm(np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0]), axis=1)))
-    s = max(spacing, math.sqrt(2.5 * area / max(most, 1)))
-    tri = _subdivide(tri, 16.0 * s)
-    pts, _w = clash.triangle_points(tri, s, max_split=16)
-    return pts, s
+    sp = max(spacing, math.sqrt(2.5 * area / max(most, 1)))
+    for _k in range(16):
+        cut = _subdivide(tri, 16.0 * sp)
+        e = np.linalg.norm(cut - np.roll(cut, -1, axis=1), axis=2).max(axis=1)
+        n = np.clip(np.ceil(e / sp), 1, 16)
+        if float(np.sum((n + 1) * (n + 2) / 2)) <= 3 * most:
+            break
+        sp *= 1.4
+    pts, _w = clash.triangle_points(cut, sp, max_split=16)
+    return _one_per_cube(pts, sp / 2.0), sp
+
+
+def _one_per_cube(pts: np.ndarray, size: float) -> np.ndarray:
+    """One point of each ``size`` cube the points fall in (a dropped point lies within size·√3 of a kept one): the
+    corners that faces share, and fine meshes' crowded corners, once."""
+    if not len(pts):
+        return pts
+    key = np.floor(pts / size).astype(np.int64)
+    key -= key.min(axis=0)
+    span = key.max(axis=0) + 1
+    flat = (key[:, 0] * span[1] + key[:, 1]) * span[2] + key[:, 2]        # one number per cube (fits: parts < km)
+    _u, first = np.unique(flat, return_index=True)
+    return pts[np.sort(first)]
 
 
 def surface_points(verts, tris, spacing: float = None, most: int = None) -> np.ndarray:

@@ -252,3 +252,18 @@ def test_a_part_pushed_into_an_obstacle_reads_zero():
     assert Z.behind(np.array([-0.1, 0, 0]), np.array([1.0, 0, 0]))
     assert not Z.behind(np.array([-0.1, 0.1, 0]), np.array([1.0, 0, 0]))     # not straight below: not trusted
     assert not Z.behind(np.array([0.1, 0, 0]), np.array([1.0, 0, 0]))
+
+
+def test_sampling_stays_bounded():
+    """Task 0349 (GitHub: CC-300's lattice boom ran the machine out of memory): a finely meshed part is its own
+    corners, once per half-spacing cube; a large plain part gets its points wider apart – never millions."""
+    n = 300                                                       # a 30 x 30 m plate in 180,000 triangles
+    xs = np.linspace(0.0, 30.0, n)
+    v = np.array([(x, y, 0.0) for x in xs for y in xs])
+    i = np.arange(n * n).reshape(n, n)
+    t = np.concatenate([np.stack([i[:-1, :-1].ravel(), i[1:, :-1].ravel(), i[1:, 1:].ravel()], 1),
+                        np.stack([i[:-1, :-1].ravel(), i[1:, 1:].ravel(), i[:-1, 1:].ravel()], 1)])
+    pts, sp = Z.sample(v, t)
+    assert len(pts) <= len(v) and sp >= Z.SPACING
+    big, sp2 = Z.sample(*_box((0, 0, 0), (200, 200, 50)))         # two large triangles a face
+    assert len(big) <= 4 * Z.MOST_POINTS and sp2 > Z.SPACING

@@ -279,10 +279,10 @@ def clearance_for(scene, crane, load) -> Z.Clearance:
         if not len(t):
             continue
         G = motion(jn, vals)
-        w = _world(ob, v)
-        pw, sp = _points(("body", _mkey(ob, None)), w, t)   # on the surface, world, as it stands now
-        if not len(pw):
+        loc, sp = _points(("mesh", ob.data.name, len(v), len(t)), v, t)   # in the mesh's own space, once per mesh
+        if not len(loc):
             continue
+        pw = _world(ob, loc)                                # on the surface, world, as it stands now
         z = (pw - G[:3, 3]) @ G[:3, :3]                     # into the joint's frame at zero (G is rigid)
         bodies.append(Z.Body(str(ob.get(build.PROP_NAME, ob.name)), kind, jn, z, z.min(axis=0), z.max(axis=0),
                              spacing=sp))
@@ -429,7 +429,7 @@ def view_data(scene, crane=None, load=None, values=None, path=None) -> dict | No
     L = lifting.plan(scene)
     rig = lifting.rig_of(crane)
     vals = values if values is not None else lifting.values(scene, crane)
-    ck = LP.checks(scene, crane, load)
+    ck = LP.checks(scene, crane, load, clearance=False)
     ground = _flat_to_world(crane, rig, (0.0, 0.0))[2] + LIFT_GAP
     sc = lifting.to_world(crane, rig.slew_centre(vals))
     ro = LP.P.LR.readout(rig, vals, ck.charts, lifting.setup(scene, crane), load_kg=ck.plan.load_kg,
@@ -634,7 +634,7 @@ def plan_sheet(scene, path: str | None = None) -> str:
         when = "the pose shown (the path is not checked" + (" – changed since" if r is not None else "") + ")"
     vals = lifting.values(scene, crane)
     curve = Z.range_curve(rig, vals)
-    ck = LP.checks(scene, crane, load)
+    ck = LP.checks(scene, crane, load, clearance=False)
     ro = LP.P.LR.readout(rig, vals, ck.charts, lifting.setup(scene, crane), load_kg=ck.plan.load_kg,
                          contingency=ck.plan.contingency, hook_block_kg=ck.plan.hook_block_kg,
                          rigging_kg=ck.plan.rigging_kg)
