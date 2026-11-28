@@ -162,3 +162,25 @@ def test_closing_an_area_keeps_the_client_views_list(monkeypatch):
     editors._forget_swapped(s, 0)
     editors._forget_swapped(s, 1)
     assert lock.SCREEN_MARK not in s
+
+
+def test_a_new_window_or_workspace_is_tidied_at_once(monkeypatch):
+    """Task 0377: a change in the windows / their screens seen by the draw handler asks for a tidy-up (a timer)."""
+    asked = []
+    monkeypatch.setattr(editors, "request", lambda want=None: asked.append(want))
+    monkeypatch.setattr(editors, "busy", lambda: False)
+    sigs = iter([((0, "Layout"),), ((0, "Layout"),), ((0, "Layout"), (1, "Layout")), ((0, "Shading"), (1, "Layout")),
+                 ((0, "Shading"), (1, "Layout"))])
+    monkeypatch.setattr(editors, "signature", lambda: next(sigs))
+    monkeypatch.setitem(editors._SEEN, "sig", None)
+    editors._drawn()                       # the first draw only notes what is there
+    assert asked == []
+    editors._drawn()                       # nothing changed
+    assert asked == []
+    editors._drawn()                       # Window > New Main Window
+    assert len(asked) == 1
+    editors._drawn()                       # another workspace in a window
+    assert len(asked) == 2
+    editors._drawn()                       # and quiet again
+    assert len(asked) == 2
+    editors._SEEN["sig"] = None

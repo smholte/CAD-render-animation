@@ -27,6 +27,7 @@ from bpy.props import BoolProperty, EnumProperty, StringProperty
 
 from ..core import start as core
 
+SPLASH_WIDTH = 50             # characters per line in the splash's box (Blender's splash is ~400 px wide; task 0377)
 MEASURED_MINUTES = 3          # the whole tour on the 4-core test machine (task 0199): 141 s + ~1 min start of its Blender
 _RUN = {"done": False, "shows": "", "splash": 0.0, "quick_setup": False, "waits": 0, "since": "", "now": ""}
 
@@ -271,20 +272,20 @@ def _draw_splash(self, context):
     col = box.column()
     if kind == "setup":                    # task 0276: the set-up opens in its own window
         col.label(text="Welcome to Fresing Render", icon="INFO")
-        col.label(text="A short set-up opens in its own window: your work, your PC, your folders.")
-        col.label(text="Close this window to start; Skip set-up there skips it.")
+        _lines(col, "A short set-up opens in its own window: your work, your PC, your folders.", SPLASH_WIDTH)
+        _lines(col, "Close this window to start; Skip set-up there skips it.", SPLASH_WIDTH)
     elif kind == "welcome":
         col.label(text="Welcome to Fresing Render", icon="INFO")
-        for line in WELCOME_TEXT(tour_minutes()):
-            col.label(text=line)
+        for line in WELCOME_TEXT(tour_minutes()):          # task 0377: the splash is narrow – wrap, never cut off
+            _lines(col, line, SPLASH_WIDTH)
+        col.operator_context = "EXEC_DEFAULT"
+        col.operator(FRESING_OT_welcome_answer.bl_idname, text="Open the Learning hub", icon="VIEW_CAMERA").choice = "TOUR"
         row = col.row(align=True)
-        row.operator_context = "EXEC_DEFAULT"
-        row.operator(FRESING_OT_welcome_answer.bl_idname, text="Open the Learning hub", icon="VIEW_CAMERA").choice = "TOUR"
         row.operator(FRESING_OT_welcome_answer.bl_idname, text="Later", icon="TIME").choice = "LATER"
-        row.operator(FRESING_OT_welcome_answer.bl_idname, text="Don't show this again", icon="CANCEL").choice = "NEVER"
+        row.operator(FRESING_OT_welcome_answer.bl_idname, text="Don't show again", icon="CANCEL").choice = "NEVER"
     else:
         col.label(text=core.title(_RUN["since"], version(), released_versions() or None), icon="INFO")
-        col.label(text=summary(_RUN["since"]))
+        _lines(col, summary(_RUN["since"]), SPLASH_WIDTH)
         row = col.row()
         row.operator_context = "INVOKE_DEFAULT"
         row.operator(FRESING_OT_whats_new.bl_idname, text="Show What's new…", icon="FORWARD").at_start = True

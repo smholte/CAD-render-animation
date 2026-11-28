@@ -222,6 +222,7 @@ def test_the_presence_keys_pass_every_event_on():
     from fresing_render.blender import ops_settings
     keys = {k for k, _v in ops_settings.PRESENCE_KEYS}
     assert {"MOUSEMOVE", "LEFTMOUSE", "RIGHTMOUSE"} <= keys
+    assert {"A", "S", "Z", "ONE", "F5", "SPACE", "RET", "TAB", "DEL", "ESC"} <= keys      # task 0377: keyboard work
     assert "fresing.presence" in U.NOT_COUNTED
     op = ops_settings.FRESING_OT_presence
 
@@ -229,6 +230,14 @@ def test_the_presence_keys_pass_every_event_on():
         type, mouse_x, mouse_y = "MOUSEMOVE", 3, 4
 
     assert op.invoke(None, bpy.context, Ev()) == {"PASS_THROUGH"}
+
+
+def test_a_key_press_marks_presence_like_a_mouse_move():
+    """Task 0377: keyboard-only work (no mouse move for minutes) is presence too."""
+    from fresing_render.blender import usage
+    usage.presence("MOUSEMOVE", 10, 10, now=1000.0)
+    assert usage.presence("A", 10, 10, now=1000.0 + 2.0)              # a key at the same mouse spot still counts
+    assert usage._S["seen_t"] == 1002.0
 
 
 def test_blenders_tool_buttons_hide_only_in_the_settings_window():

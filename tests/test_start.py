@@ -241,3 +241,12 @@ def test_a_release_without_new_functions_passes_the_checks(monkeypatch, tmp_path
     monkeypatch.setattr(welcome, "functions_new", real_new)
     monkeypatch.setattr(start, "new_functions", first_empty(real_rows))
     assert "lists 0" not in tour._check_start_here(bpy.context.scene)
+
+
+def test_the_splash_box_wraps_its_lines_to_the_splash_width():
+    """Task 0377: Blender's splash is narrow; a longer label was cut off with '...'."""
+    import textwrap
+    from fresing_render.blender import welcome
+    for line in welcome.WELCOME_TEXT(3):
+        assert all(len(p) <= welcome.SPLASH_WIDTH for p in textwrap.wrap(line, welcome.SPLASH_WIDTH))
+    assert welcome.SPLASH_WIDTH <= 56

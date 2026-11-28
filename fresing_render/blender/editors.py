@@ -194,8 +194,26 @@ _SETTLING = [False]
 _DRAW = [None]
 
 
+_SEEN = {"sig": None}
+
+
+def signature() -> tuple:
+    """Which windows there are and which screen (workspace) each shows – a change means a new place to tidy."""
+    wm = bpy.context.window_manager
+    if wm is None:
+        return ()
+    return tuple((i, w.screen.name) for i, w in enumerate(wm.windows) if w.screen is not None)
+
+
 def _drawn():
     _SETTLING[0] = False
+    try:                         # task 0377: Window > New Main Window, or another Blender workspace: tidy at once
+        sig = signature()
+        if _SEEN["sig"] is not None and sig != _SEEN["sig"] and not busy():
+            request()
+        _SEEN["sig"] = sig
+    except Exception:  # noqa: BLE001 - a draw handler never breaks drawing
+        pass
 
 
 def settled() -> bool:

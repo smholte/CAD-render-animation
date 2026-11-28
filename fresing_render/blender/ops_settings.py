@@ -402,6 +402,17 @@ class FRESING_OT_presence(bpy.types.Operator):
 
 PRESENCE_KEYS = (("MOUSEMOVE", "ANY"), ("LEFTMOUSE", "PRESS"), ("RIGHTMOUSE", "PRESS"), ("MIDDLEMOUSE", "PRESS"),
                  ("WHEELUPMOUSE", "ANY"), ("WHEELDOWNMOUSE", "ANY"), ("TRACKPADPAN", "ANY"))
+# task 0377: typing shortcuts is work too (no mouse move for minutes); keys only mark presence here, nothing is
+# recorded or sent anywhere, and the event always passes on to Blender
+KEYBOARD_KEYS = tuple(
+    [chr(c) for c in range(ord("A"), ord("Z") + 1)]
+    + ["ZERO", "ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EIGHT", "NINE"]
+    + [f"NUMPAD_{n}" for n in range(10)] + [f"F{n}" for n in range(1, 13)]
+    + ["SPACE", "RET", "TAB", "BACK_SPACE", "DEL", "ESC", "UP_ARROW", "DOWN_ARROW", "LEFT_ARROW", "RIGHT_ARROW",
+       "PAGE_UP", "PAGE_DOWN", "HOME", "END", "PERIOD", "COMMA", "MINUS", "EQUAL", "SLASH", "SEMI_COLON", "QUOTE",
+       "LEFT_BRACKET", "RIGHT_BRACKET", "BACK_SLASH", "ACCENT_GRAVE", "NUMPAD_PLUS", "NUMPAD_MINUS",
+       "NUMPAD_ASTERIX", "NUMPAD_SLASH", "NUMPAD_PERIOD", "NUMPAD_ENTER"])
+PRESENCE_KEYS += tuple((k, "PRESS") for k in KEYBOARD_KEYS)
 _KEYMAPS: list = []
 
 
