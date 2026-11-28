@@ -1,6 +1,6 @@
 # 0379 – PC check: a Heavy line for weld speed, Stress memory with the import helpers, "Fresing Render" in Task Manager
 
-**Who:** worker · **Status:** open – can start · **Branch:** `task/0379-pc-check-lines`
+**Who:** worker · **Status:** running · **Branch:** `task/0379-pc-check-lines`
 **Started by:** lead, 28 Nov 2026 (open points of 0319 / 0368, 0315, 0178) · **Model:** Sonnet · effort High
 **Area:** PC check lane – `fresing_render/pccheck/*` (you own the lines named here), `winexe.py` (row C), the
 installer only if row C needs it, their tests, the guide's PC-check list. **Not:** the weld code (0372 changes
