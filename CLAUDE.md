@@ -1720,3 +1720,8 @@ the release → Delete); the next run on `main` publishes it again.
   reproduced). `core/weld_pool.py`: a writer thread per helper, one answer queue, every job tagged with its call,
   timed from when it was sent. The real-app guide pictures of a sub-panel came out empty when the project's workspace
   hid it (`tools/guide_screens.py` welds modes call `workspaces.use_all`; other per-panel modes still do not).
+- The coolant liquid's height field on a turning bar (task 0347): a flat chart turned on its side has no gravity
+  pressing its liquid onto it – the critical-flow cap (by pressing gravity) let nothing run along it and the liquid
+  stood in columns of 3–4 cm. The cap now takes the sliding gravity where that is larger, and the bar's charts drip
+  off when steeper than 60° (`Chart.drip_below`). Cells whose middle lies on a part's end face read that face seen
+  edge on (a 13 mm step): a chart over a part's length keeps only whole cells. Drops are 64 % of a bake on disk.
