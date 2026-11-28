@@ -130,7 +130,14 @@ merged.
 - Replayed on real history (real GitHub runs): task 0349's two "merge main" pushes after its green `[full run]`
   (87ade27, 05e617f) would have been catch-ups of **5 and 10 jobs** (~16 / ~61 job-minutes, longest job 8 / 14 min);
   they ran as full runs of 26 jobs each (347 / 358 job-minutes, 68 / 53 min, waits up to 45 min).
-- RUNS_PLACEHOLDER
+- GitHub: 3 full runs of the branch. 46178546472 (7c36fc5) and the run of 3ebb4938 were cancelled by my own next
+  pushes (the registry rule after the release replay, then a one-line fix in `ci_replay_mode.py`) – before that, all
+  its finished jobs were green. **46180189272 (0f53064, `[full run]`): green, 37.0 min alone, 24 jobs ran, 363
+  job-minutes**, at most **21 jobs at once** (8 pytest + demo + 10 real-app + 2 Windows), no runner wait. Before,
+  run 46173220142: 26 jobs ran, at most 22 at once, waits up to 8.1 min, 41.0 min, 356 job-minutes. The demo job (make
+  + checks) took 2.8–3.5 min (make job 1.6 + group 2.3 + a wait before). The 8 pytest groups took 17–36 min: the 25 Nov
+  times I recorded first were a poor guide (group 5 36 min); record this run's times in the next Quality task (a
+  change of `tools/ci_times.json` after G would have needed another full run).
 
 **Row G – numbers:**
 - **Before (28 Nov, task 0349):** green `[full run]` 15:20 → released 17:31 (**2 h 11 min**), two more full runs only
