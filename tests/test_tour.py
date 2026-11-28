@@ -134,7 +134,10 @@ def test_the_tour_builds_every_project(built):
     assert out["errors"] == {}
     assert set(out["files"]) == set(tour.SETS)
     assert out["hub"] == tour.hub_path(folder, "9.9.9") and os.path.isfile(out["hub"])
-    assert sum(out["seconds"].values()) < 240, out["seconds"]
+    # Task 0371: 240 s was at the edge since task 0347's three liquid sets – the same build measured 229 s and 288 s
+    # on the 4-core web machine and 206 s / 277 s on GitHub (28 Nov 2026). The box catches a set that gets much
+    # slower, not the runner's speed of the day; making the sets lighter is the tour lane's (open point in 0371).
+    assert sum(out["seconds"].values()) < 360, out["seconds"]
 
 
 @pytest.mark.parametrize("stop_id", [s.id for s in tour.STOPS])
