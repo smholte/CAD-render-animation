@@ -305,7 +305,7 @@ def _contact_details(layout, context, cb, index: int) -> None:
     if ct.kind == "SHEAVE":                     # (task 0125: a sheave head that turns to its wire)
         split_props(box).prop_search(ct, "swivel", scene.fresing, "joints", text="Swivel")
     if ct.note:
-        gap = ct.note.startswith(GAP_NOTE)
+        gap = ct.note.startswith(GAP_NOTE) or (ct.note.startswith(paths.SHARED) and "ONE groove" not in ct.note)
         wrap(box, context, ct.note[:1].upper() + ct.note[1:], icon="INFO" if gap else "ERROR", inset=12,
              alert=not gap)
     if ct.kind in paths.SHAPING:                # (task 0082)

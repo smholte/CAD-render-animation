@@ -407,3 +407,57 @@ def test_labels_and_logos_come_along(crane):
     assert s.callouts[1].text == "Boom" and s.callouts[1].part is ob(scene, "BOOM", r2)
     assert s.callouts[0].part is ob(scene, "BOOM", root)
     assert decals.sync is not None
+
+
+PATHS = os.path.join(DATA, "test_paths_a.step")
+
+
+@pytest.mark.parametrize("winch", [False, True])
+def test_a_cable_read_from_cad_comes_along_with_its_drum(winch):
+    """Task 0374 (0293's open point): the cable paths model copied whole – its wire rope (read from CAD) comes along,
+    read again on the copied parts: its own speed joint, the copy's sheaves turn with it, the original's stay with the
+    original; with ``winch`` the winch drum (4 Motion > Drums and carousels) comes along too. A cable into the sea or a
+    drawn one would stay and be said (``copy._cable_stays``)."""
+    import numpy as np
+
+    from fresing_render.blender import paths, spool
+    scene = _fresh(PATHS)
+    s = scene.fresing
+    paths.set_up_test_model(scene, winch=winch)
+    root = build.model_roots(scene)[0]
+    orig = paths.find(scene, "Wire rope")
+    n_contacts = len(orig.contacts)
+    p = copy.paste(scene, [root])
+    assert p["cables"] == 1 and p["drums"] == (1 if winch else 0), p
+    assert not [x for x in p["left"] if "Cable" in x or "Drum" in x], p["left"]
+    assert any("1 cable" in line for line in copy.summary(p))
+    assert len(s.cables) == 2
+    new = paths.find(scene, "Wire rope (2)")
+    assert new is not None and paths.broken(scene, new) == ""
+    r2 = bpy.data.objects[p["roots"][0]]
+    names2 = {o.name for o in logic.descendants(r2)}
+    assert new.part.name in names2 and new.joint and new.joint != orig.joint
+    assert len(new.contacts) == n_contacts
+    turning = [c for c in new.contacts if c.kind in ("SHEAVE", "ROLLER")]
+    assert turning and all(c.part.name in names2 for c in new.contacts if c.part is not None)
+    for c in turning:                               # the copy's sheaves turn with the copy's cable …
+        j = joints.find(scene, c.joint)
+        assert j is not None and j.follows == new.joint, (c.name, j.follows)
+    for c in paths.find(scene, "Wire rope").contacts:   # … the original's with the original's
+        if c.kind in ("SHEAVE", "ROLLER") and c.made_joint:
+            assert joints.find(scene, c.joint).follows == orig.joint
+    if winch:
+        sp = [it for it in s.spools if it.cable == new.name]
+        assert len(sp) == 1 and sp[0].part.name in names2
+    # the copy's cable lies on the copy: as far from the original's as the copy stands from the original
+    a, b = np.array(paths.shape_now(scene, paths.find(scene, "Wire rope"))), np.array(paths.shape_now(scene, new))
+    shift = np.array(r2.matrix_world.translation) - np.array(root.matrix_world.translation)
+    assert np.linalg.norm(shift) > 0.5
+    assert abs(np.linalg.norm(b.mean(axis=0) - a.mean(axis=0)) - np.linalg.norm(shift)) < 0.05
+    # paying out the copy's cable moves only the copy's
+    joints.set_value(joints.find(scene, new.joint), 0.5)
+    update()
+    paths.refresh(scene) if hasattr(paths, "refresh") else None
+    update()
+    a2 = np.array(paths.shape_now(scene, paths.find(scene, "Wire rope")))
+    assert float(np.abs(a2 - a).max()) < 1e-6

@@ -214,3 +214,35 @@ def test_a_free_bend_near_the_seabed_turns_as_far_as_fits():
     assert np.all(res["bend"] > 0.0)                                           # never left out
     step = np.linalg.norm(np.diff(res["T"], axis=0), axis=1)                  # the catenary's start, moment to moment
     assert step.max() < 0.4, step.max()                                        # (the gutter goes down 15 mm a step)
+
+
+def test_the_touch_down_moves_with_the_heave_as_a_catenary_does():
+    """Task 0374 row F (0173's open point): the demo's touch-down moved ±1 m with the vessel's heave. That is the
+    catenary: with the cable's length and its end on the seabed fixed, a hang-off 1 m higher makes the hanging part
+    longer and flatter at the bottom, and the touch-down comes nearer the end. Worked out here on its own (the
+    catenary's two equations, a bisection) and compared with ``hang``: at the demo's numbers (hang-off 32.7 m over the
+    seabed, 7.3 kN bottom tension at 38 kg/m: a = 19.6 m) the touch-down moves 2.6–2.7 m per metre of heave."""
+    import numpy as np
+
+    from fresing_render.core import catenary as C
+
+    h, a, laid = 32.7, 7300.0 / (38.0 * 9.81), 40.0
+    X, s = float(C.span(a, h)), float(C.suspended(a, h))
+    S = np.array([-(X + laid), 0.0, -h])
+    L = s + laid
+    moves = []
+    for dh in (-1.0, -0.5, 0.5, 1.0):
+        res = C.hang(np.array([[0.0, 0.0, dh]]), S, np.array([-1.0, 0.0, 0.0]), -h, np.array([L]))
+        H = h + dh
+        def f(aa):                               # a: the length from T to S stays L (hanging + laid = L)
+            return math.sqrt(H * H + 2.0 * aa * H) + (X + laid - aa * math.acosh(1.0 + H / aa)) - L
+
+        lo, hi = 1e-3, 1e4
+        assert f(lo) * f(hi) < 0.0
+        for _ in range(200):
+            mid = math.sqrt(lo * hi)
+            lo, hi = (mid, hi) if f(mid) * f(lo) > 0.0 else (lo, mid)
+        want = -mid * math.acosh(1.0 + H / mid)     # the touch-down's x
+        assert float(res["tdp"][0, 0]) == pytest.approx(want, abs=1e-6)
+        moves.append((float(res["tdp"][0, 0]) - (-X)) / dh)
+    assert all(-2.8 < m < -2.5 for m in moves), moves

@@ -1,6 +1,6 @@
 # 0372 – Weld check after import: one parent → children map (28–33 s → under 1 s on big models)
 
-**Who:** worker · **Status:** done (0.2.271) · **Branch:** `task/0372-weld-check-speed`
+**Who:** worker · **Status:** done (0.2.272) · **Branch:** `task/0372-weld-check-speed`
 **Started by:** lead, 28 Nov 2026 (0366's first open point) · **Model:** Opus · effort Medium · Claude Code on the web,
 environment "CAD-render-animation"
 **Area:** Welds lane – `blender/weld_cad.py` (`_parts_of` and every caller), the same kind of walk in `welds.py` /
@@ -62,7 +62,7 @@ owns the lines it names). Whoever merges second updates its branch to `main`; ve
 
 ## Report (filled in by the chat that did the task)
 
-**Chat / date:** Claude Code on the web, 28 Nov 2026 – 0.2.271
+**Chat / date:** Claude Code on the web, 28 Nov 2026 – 0.2.272
 
 **What changed:**
 - `blender/weld_cad.py`: `children_map()` = {object: its children} of the whole file in one pass over
@@ -126,4 +126,4 @@ Small (a handful of objects per call): `spool.py:416, 1505`, `tc_person.py:348`,
 **Owner's check:** none needed by hand – the PC check's Heavy line "Big machine: where the import time goes" should show
 the weld stage at about a second instead of ~30 s.
 
-**GitHub runs:** 1st full run green (46137685101, 35.8 min; the first push's run was cancelled by the version push); 2nd full run after merging `main` (0356 brought code).
+**GitHub runs:** 1st full run green (46137685101, 35.8 min; the first push's run was cancelled by the version push); 2nd full run after merging `main` (0356 brought code) green (46140656720, 30.4 min); 3rd: 0374 took 0.2.271 meanwhile – renumbered to 0.2.272.

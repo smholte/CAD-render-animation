@@ -1522,8 +1522,11 @@ stickers** and **welds** whose two parts are both in the copy ([Welds](#weld-cop
 
 **What reaches outside the copy is left out – the copy moves by itself:** a joint that also moves parts outside the
 copy, a cylinder, mechanism, hose, way cover or weld with a piece outside, and a coupling to a joint outside the copy (the
-copied joint then moves on its own). A joint that sat on something outside sits on the copy. **Cables, drums,
-tracks**, trail lines, animation steps and cameras stay with the original: add them on the copy where you need them.
+copied joint then moves on its own). A joint that sat on something outside sits on the copy. A **cable read from
+CAD** comes along with its **drum or carousel** when the cable, every part it runs over and both its ends are in the
+copy: it is read again on the copied parts, with its own speed joint "Cable <name> (2)", and the copy's sheaves turn
+with it. **Drawn cables, cables into the sea, tracks**, trail lines, animation steps and cameras stay with the
+original – the window names them: add them on the copy where you need them.
 
 **Model updates:**
 
@@ -2828,9 +2831,14 @@ Pick a slide joint you already have there (for example the speed of a winch) and
 the new cable: no extra joint is made, and everything that follows it follows the cable.
 
 The app reads the middle line of the cable and its diameter, finds where the cable bends, the sheaves it goes
-round, the rollers it rests on (a pair of V rollers too) and the chutes it slides over. It makes a joint
+round, the rollers it rests on (a pair of V rollers too) and the chutes it slides over. A stretch that is neither
+straight nor one round bend – a spline or a coil with a pitch, as an Inventor sweep can have – is read as a row of short
+bends that keep to it (before 0.2.271 such a cable was refused). It makes a joint
 "Cable <name>" whose value is the metres of cable paid out, and lets every roller and sheave follow it. A roller or
-sheave that already has a joint of your own keeps it. **From CAD cable again** reads everything again, for when
+sheave that already has a joint of your own keeps it. **Two cables over one sheave:** the sheave keeps one joint and
+turns with the cable added first; the second cable's row under **What it touches** says so ("It also carries cable …
+and turns with it"), and says in red when the two lie in one groove – give each cable its own groove or sheave.
+Removing the first cable hands the sheave to the second (it then turns with that one). **From CAD cable again** reads everything again, for when
 you changed the part in the CAD file (contacts you added by hand are kept; a start you made a free end is read
 from the CAD cable again; a contact you took off comes back). A **model update** keeps what you did: a contact you
 took off stays off, contacts you added or flipped stay, and an update with the same file changes nothing at all in

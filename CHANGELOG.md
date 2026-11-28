@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.271 – 28 Nov 2026 – Big models import and update much faster: the weld check no longer walks every part (task 0372)
+## 0.2.272 – 28 Nov 2026 – Big models import and update much faster: the weld check no longer walks every part (task 0372)
 
 - After an import the app looks for welds in the CAD file. On a big model that search spent most of its time just
   listing the model's parts – Blender looked through every object of the file once for every part. It now makes that
@@ -13,6 +13,22 @@ installer of that version was built from.
   **30 s → 1.4 s** (the whole import from the cache 37 s → 10 s), in a model update **70 s → 3 s** (the whole update
   204 s → 110 s).
 - The same welds are found as before (checked on the test weldments and the 300-weld frame, bead for bead).
+## 0.2.271 – 28 Nov 2026 – Cable-lay line: no jumps, faster sea cables, spline routes, copies with cables (task 0374)
+
+- **A slack cable on a chute or gutter that tips through flat** no longer jumps from one end to the other in one frame:
+  it slides over in a few frames, as a real cable slides along a gutter. A cable that moves because the chute or the
+  cable itself moves still follows at once.
+- **A cable into the sea is worked out about 4 x faster** (the hang-off near the seabed): Build and the re-bake after
+  a sea or vessel change wait less.
+- **Two cables over one sheave**: the sheave turns with the first cable, and the second cable's row under **What it
+  touches** says so; in red when the two lie in one groove. Removing the first cable gives the sheave to the second
+  instead of taking its joint away.
+- **A CAD cable with a spline or a coil in its route** (Inventor sweeps can have them) is read now: that stretch becomes
+  a row of short bends that keep to it. Before, such a cable was refused.
+- **Copy / Paste** brings a **cable read from CAD and its drum** along when the cable and everything it runs over and
+  ends on are in the copy: the copy's rope runs by itself. Drawn cables, cables into the sea and tracks are still left
+  out, and the window names them.
+- New PC-check line: copying a model with its wire rope and winch drum.
 
 ## 0.2.270 – 26 Nov 2026 – Shorter top-bar menus, only the Fresing tab in the side panel (task 0367)
 

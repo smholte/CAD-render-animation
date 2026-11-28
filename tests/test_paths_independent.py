@@ -1474,8 +1474,9 @@ def test_read_a_cable_that_starts_on_a_drum_or_ends_on_a_sheave():
 
 
 def test_read_refuses_what_is_no_line_or_arc_and_what_is_no_cable():
-    """A coil with a pitch, a wave, a bend that tightens bit by bit: refused in a sentence that says where; no
-    points, numbers that are none, a cable of no thickness: refused too. Never an exception."""
+    """A coil with a pitch, a wave, a bend that tightens bit by bit: since task 0374 read as rows of short bends that
+    keep to the drawn cable (before: refused in a sentence that says where); no points, numbers that are none, a cable
+    of no thickness: refused. Never an exception."""
     rope = 0.012
     th = np.linspace(0.0, 4.0 * math.pi, 600)
     s = np.linspace(0.0, 3.0, 500)
@@ -1487,10 +1488,13 @@ def test_read_refuses_what_is_no_line_or_arc_and_what_is_no_cable():
         "tightening bend": np.c_[np.cumsum(np.cos(heading)) * (s[1] - s[0]), np.zeros(500),
                                  np.cumsum(np.sin(heading)) * (s[1] - s[0])],
     }
-    for pts in odd.values():
+    for name, pts in odd.items():
         rd = P.read_cable(pts, rope, [])
-        assert not rd.ok and "neither" in rd.problem and "straight" in rd.problem and " m " in rd.problem
-        assert rd.contacts == [] and rd.path.points.shape == (0, 3) and rd.deviation == 0.0
+        assert rd.ok, (name, rd.problem)
+        assert rd.contacts and all(c.kind == "BEND" for c in rd.contacts), name
+        assert rd.deviation < 0.0015, (name, rd.deviation)
+        drawn = np.concatenate([[0.0], np.cumsum(np.linalg.norm(np.diff(pts, axis=0), axis=1))])[-1]
+        assert rd.path.length == pytest.approx(drawn, rel=3e-3), name
     line = Course([0.0, 0.0, 0.0], X).line(1.0).points(rope)
     bad = line.copy()
     bad[7, 1] = float("nan")
