@@ -15,6 +15,8 @@ name: Tests
 #     updates itself in the app from a local copy of the update listing; Install.bat runs unattended over it, then
 #     the self-test (started like its Tools-folder shortcut), the PC check (Full, from its Tools-folder shortcut) and
 #     the Installed-apps entry's UninstallString (task 0265). Part B: Install.bat, then the PC check Heavy (scaled down) from its Tools-folder shortcut
+#   - Linux: the real Fresing assets pack (task 0356) – the pinned release download, tools/assets_check.py and
+#     tests/real_pack/; skipped while installer/assets_pin.json does not exist
 # On main, when the version in blender_manifest.toml has no release yet and every test passed, it publishes
 # the release on GitHub (tag v<version>, installer, extension, index.json, changelog.json), checks on
 # Windows that an installed old version finds it and updates itself from it, and only then makes it the
@@ -26,7 +28,12 @@ name: Tests
 on:
   # A push or pull request that changes only the task list (TASKS.md, tasks/) starts no run; one that
   # also changes anything else runs as usual (GitHub skips a run only when every changed file is listed).
+  # Task 0356: a tag of an assets pack's release (assets-1.0.0) starts nothing. GitHub never applies paths filters to a
+  # tag push, and a filter for tags alone would stop the branch runs: so every branch (as before) plus every tag but
+  # assets-* (as before for the v-tags; the release jobs make those with GITHUB_TOKEN, which starts no run anyway).
   push:
+    branches: ["**"]
+    tags-ignore: ["assets-*"]
     paths-ignore: ["TASKS.md", "tasks/**"]
   pull_request:
     paths-ignore: ["TASKS.md", "tasks/**"]
@@ -63,6 +70,7 @@ jobs:
       demo: ${{ steps.pre.outputs.demo }}
       windows: ${{ steps.pre.outputs.windows }}
       build: ${{ steps.pre.outputs.build }}
+      realpack: ${{ steps.pre.outputs.realpack }}
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -559,9 +567,88 @@ jobs:
           $line = "⏱️ Windows install part ${{ matrix.part.name }}: {0:N1} min" -f $m
           $line; $line >> $env:GITHUB_STEP_SUMMARY
 
+  # Task 0356: the REAL Fresing assets pack – the download installer/assets_pin.json names (the pin comes with task 0358),
+  # fetched as Blender's zip is (GitHub's cache by version + sha256; on a miss curl from the public release + sha256sum -c),
+  # then tools/assets_check.py and the with-pack tests (tests/real_pack/). Skipped while there is no pin; once there is
+  # one: every full run, and a lane run that changes the pack code (ci_precheck.real_pack_wanted). No token, no secret,
+  # nothing of the private working files. Self-contained: 0358 adds its Windows steps in a job of its own.
+  real-pack:
+    name: Linux - real assets pack
+    needs: precheck
+    if: ${{ needs.precheck.outputs.realpack == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Start the clock
+        run: echo "JOB_T0=$(date +%s)" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        id: py
+        with:
+          python-version: "3.13"
+
+      - name: Python packages from the cache (the suite's venv)
+        id: cache-venv
+        uses: actions/cache@v6
+        with:
+          path: ~/venv
+          key: venv-${{ runner.os }}-py${{ steps.py.outputs.python-version }}-${{ hashFiles('tools/requirements-dev.txt') }}
+
+      - name: Install packages (only when not cached)
+        if: steps.cache-venv.outputs.cache-hit != 'true'
+        run: |
+          python -m venv ~/venv
+          ~/venv/bin/python -m pip install -q -r tools/requirements-dev.txt
+
+      - name: The pin (installer/assets_pin.json)
+        id: pin
+        run: ~/venv/bin/python tools/assets_check.py --pin installer/assets_pin.json | tee -a "$GITHUB_OUTPUT"
+
+      - name: The pack from the cache
+        id: cache-pack
+        uses: actions/cache@v6
+        with:
+          path: ~/assets-pack
+          key: assets-${{ steps.pin.outputs.version }}-${{ steps.pin.outputs.sha256 }}
+
+      - name: Download the pack (only when not cached)
+        if: steps.cache-pack.outputs.cache-hit != 'true'
+        env:
+          URL: ${{ steps.pin.outputs.url }}
+          FILE: ${{ steps.pin.outputs.file }}
+          SHA: ${{ steps.pin.outputs.sha256 }}
+        run: |
+          mkdir -p ~/assets-pack && cd ~/assets-pack
+          curl -sSfL --retry 3 -o "$FILE" "$URL"
+          echo "$SHA  $FILE" > pack.sha256
+          sha256sum -c pack.sha256
+
+      - name: Pack checks (tools/assets_check.py)
+        env:
+          FILE: ${{ steps.pin.outputs.file }}
+        run: |
+          cd ~/assets-pack && sha256sum -c pack.sha256 && cd "$GITHUB_WORKSPACE"
+          ~/venv/bin/python tools/assets_check.py ~/assets-pack/"$FILE" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: With-pack tests (tests/real_pack)
+        env:
+          FILE: ${{ steps.pin.outputs.file }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/pack" && unzip -q ~/assets-pack/"$FILE" -d "$RUNNER_TEMP/pack"
+          FRESING_ASSETS_REAL="$RUNNER_TEMP/pack/Fresing Assets" ~/venv/bin/python -m pytest tests/real_pack -q -rfE \
+            -p no:cacheprovider --junitxml=test-results/real-pack.xml
+          ~/venv/bin/python tools/ci_pytest_summary.py test-results/real-pack.xml --max-skipped 0 --title "real assets pack"
+
+      - name: Minutes
+        if: always()
+        run: |
+          awk -v s="$(( $(date +%s) - JOB_T0 ))" 'BEGIN { printf "⏱️ Real assets pack: %.1f min\n", s / 60 }' | tee -a "$GITHUB_STEP_SUMMARY"
+
   verdict:
     name: "Tests - verdict${{ needs.precheck.outputs.mode == 'lane' && ' (lane run - not a release check)' || '' }}"
-    needs: [precheck, suite, demo-make, demo, real-app, build, windows]
+    needs: [precheck, suite, demo-make, demo, real-app, build, windows, real-pack]
     if: ${{ always() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -577,18 +664,22 @@ jobs:
           REAL: ${{ needs.real-app.result }}
           BUILD: ${{ needs.build.result }}
           WIN: ${{ needs.windows.result }}
+          RPACK: ${{ needs.real-pack.result }}
+          RPACK_WANT: ${{ needs.precheck.outputs.realpack }}
         run: |
-          echo "mode=$MODE precheck=$PRE suite=$SUITE demo-make=$DMAKE demo=$DEMO real-app=$REAL build=$BUILD windows=$WIN"
+          echo "mode=$MODE precheck=$PRE suite=$SUITE demo-make=$DMAKE demo=$DEMO real-app=$REAL build=$BUILD windows=$WIN real-pack=$RPACK (wanted: $RPACK_WANT)"
           ok=false
           # lane: every job the precheck planned is green; a job it did not plan is skipped (a failed job never is)
           lane_ok() { for r in "$SUITE" "$DMAKE" "$DEMO" "$REAL" "$BUILD" "$WIN"; do
                         [ "$r" = success ] || [ "$r" = skipped ] || return 1; done
                       [ "$DMAKE" != success ] || [ "$DEMO" = success ]; }
+          # task 0356: the real assets pack's job must pass when the precheck planned it (a pin exists), else it is skipped
+          rp_ok() { if [ "$RPACK_WANT" = true ]; then [ "$RPACK" = success ]; else [ "$RPACK" = skipped ]; fi; }
           case "$MODE" in
-            full)  [ "$PRE$SUITE$DEMO$REAL$BUILD$WIN" = "successsuccesssuccesssuccesssuccesssuccess" ] && ok=true ;;
+            full)  [ "$PRE$SUITE$DEMO$REAL$BUILD$WIN" = "successsuccesssuccesssuccesssuccesssuccess" ] && rp_ok && ok=true ;;
             docs)  [ "$PRE$BUILD" = "successsuccess" ] && ok=true ;;
             reuse) [ "$PRE" = "success" ] && ok=true ;;
-            lane)  [ "$PRE" = "success" ] && lane_ok && ok=true ;;
+            lane)  [ "$PRE" = "success" ] && lane_ok && rp_ok && ok=true ;;
           esac
           case "$MODE" in
             reuse) what="no tests: this tree already ran green in run $ART (https://github.com/$GITHUB_REPOSITORY/actions/runs/$ART)" ;;

@@ -772,3 +772,62 @@ def test_files_that_skip_on_github_never_share_a_pytest_group():
     for g in ci_groups.matrix_pytest():                                     # and in the real split
         assert len(ci_groups.SKIPS_ON_GITHUB.intersection(g["files"])) <= 1, g["name"]
 
+
+
+# ---------------------------------------------------------------------------------------------- task 0356: assets pack
+
+def test_precheck_every_release_without_a_v_tag_must_be_a_pre_release():
+    P = _pre()
+    rels = [{"tag_name": "v0.2.270", "prerelease": False}, {"tag_name": "v0.2.9-rehearsal.4", "prerelease": True},
+            {"tag_name": "site-kit", "prerelease": True, "draft": True},
+            {"tag_name": "assets-1.0.0", "prerelease": True}]
+    assert P.check_release_kinds(rels) == []
+    bad = P.check_release_kinds(rels + [{"tag_name": "assets-1.0.1", "prerelease": False},
+                                        {"tag_name": "stress-model", "prerelease": False, "draft": True}])
+    assert len(bad) == 2 and "'assets-1.0.1' is not a pre-release" in bad[0] and "stress-model" in bad[1]
+    assert P.released_versions(rels=rels) == {"0.2.270"}          # an assets release is no app version
+
+
+def test_precheck_runs_the_real_pack_job_only_once_a_pin_exists(tmp_path):
+    P = _pre()
+    root = str(tmp_path)
+    assert not P.real_pack_wanted("full", None, root)                # today: no pin, the job is skipped
+    os.makedirs(tmp_path / "installer")
+    (tmp_path / "installer" / "assets_pin.json").write_text("{}")
+    assert P.real_pack_wanted("full", None, root)
+    assert P.real_pack_wanted("lane", {"realpack": True}, root)
+    assert not P.real_pack_wanted("lane", {"realpack": False}, root)
+    assert not P.real_pack_wanted("docs", None, root) and not P.real_pack_wanted("reuse", None, root)
+    assert not P.real_pack_wanted("failed", None, root)
+
+
+def test_lane_plan_marks_the_pack_code_for_the_real_pack_job():
+    G = _groups()
+    for path in ("fresing_render/core/assets_pack.py", "tools/assets_check.py"):
+        plan = G.lane_plan([path])
+        assert not plan["full"] and plan["realpack"], (path, plan.get("why"))
+    plan = G.lane_plan(["fresing_render/core/assets_pack.py"])
+    assert "tests/test_assets_pack.py" in _plan_files(plan)
+    plan = G.lane_plan(["tests/real_pack/test_real_pack.py"])           # in no pytest group: only that job runs it
+    assert not plan["full"] and plan["realpack"] and not plan["pytest"]
+    assert not G.lane_plan(["fresing_render/blender/web3d.py"])["realpack"]
+    assert not any(f.startswith("tests/real_pack/") for f in G.test_files())
+
+
+def test_workflow_real_pack_job_tags_and_by_hand_check():
+    text = open(os.path.join(ROOT, ".github", "workflows", "tests.yml"), encoding="utf-8").read()
+    on = text[text.index("\non:\n"):text.index("\nconcurrency:")]
+    # GitHub: paths filters never apply to a tag push, and tags alone would stop the branch runs (task 0356)
+    assert '    branches: ["**"]\n    tags-ignore: ["assets-*"]\n    paths-ignore:' in on and "    tags:" not in on
+    job = text[text.index("\n  real-pack:\n"):text.index("\n  verdict:\n")]
+    assert "    needs: precheck\n    if: ${{ needs.precheck.outputs.realpack == 'true' }}\n" in job
+    assert "needs: [precheck, suite, demo-make, demo, real-app, build, windows, real-pack]" in text
+    assert "realpack: ${{ steps.pre.outputs.realpack }}" in text
+    assert "rp_ok && ok=true ;;" in text
+    assert "secrets." not in job and "fresing-assets-src" not in job          # no secret, nothing private
+    assert "key: assets-${{ steps.pin.outputs.version }}-${{ steps.pin.outputs.sha256 }}" in job
+    assert "sha256sum -c pack.sha256" in job and "tools/assets_check.py --pin installer/assets_pin.json" in job
+    hand = open(os.path.join(ROOT, ".github", "workflows", "assets-check.yml"), encoding="utf-8").read()
+    hon = hand[hand.index("\non:\n"):hand.index("\npermissions:")]
+    assert "workflow_dispatch:" in hon and "push" not in hon and "pull_request" not in hon
+    assert "secrets." not in hand and '--fetch "$TAG"' in hand and "${{ inputs.tag }}\n        run" not in hand

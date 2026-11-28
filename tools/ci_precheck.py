@@ -571,9 +571,34 @@ def _decide(event: str, ref: str, sha: str, before: str, run_id: str, api=gh_api
 
 # ---------------------------------------------------------------------------------------------- main
 
-def released_versions(api=gh_api) -> set[str]:
-    rels = api(f"repos/{REPO}/releases?per_page=100")
+def list_releases(api=gh_api) -> list[dict]:
+    return api(f"repos/{REPO}/releases?per_page=100")
+
+
+def released_versions(api=gh_api, rels: list[dict] | None = None) -> set[str]:
+    rels = list_releases(api) if rels is None else rels
     return {r["tag_name"][1:] for r in rels if r["tag_name"].startswith("v") and "rehearsal" not in r["tag_name"]}
+
+
+def check_release_kinds(rels: list[dict]) -> list[str]:
+    """Task 0356: every release whose tag does not start with 'v' (an assets pack, the site kit, the stress model …)
+    must be a pre-release – GitHub never makes a pre-release "latest", and "latest" is what every installed app asks
+    for its update (core/updates.py)."""
+    return [f"the release {r.get('tag_name')!r} is not a pre-release: every release whose tag does not start with 'v' "
+            "must be one, or it can become the apps' \"latest\" update (GitHub → Releases → edit → tick "
+            "\"Set as a pre-release\")"
+            for r in rels if not str(r.get("tag_name", "")).startswith("v") and not r.get("prerelease")]
+
+
+# Task 0356: the real assets pack's job (tests.yml "Linux - real assets pack") runs once the pin exists (task 0358).
+ASSETS_PIN = "installer/assets_pin.json"
+
+
+def real_pack_wanted(mode: str, plan: dict | None, root: str = ROOT) -> bool:
+    """Every full run once the pin exists; a lane run when the pack code changed (the pin itself gives a full run)."""
+    if not os.path.isfile(os.path.join(root, ASSETS_PIN)):
+        return False
+    return mode == "full" or (mode == "lane" and bool(plan and plan.get("realpack")))
 
 
 def main(argv=None) -> int:
@@ -591,7 +616,9 @@ def main(argv=None) -> int:
 
     problems, notes = [], []
     try:
-        released = released_versions()
+        rels = list_releases()
+        released = released_versions(rels=rels)
+        problems += check_release_kinds(rels)
     except RuntimeError as exc:
         released = set()
         notes.append(f"could not list the releases ({exc}); version compared with main only")
@@ -621,6 +648,8 @@ def main(argv=None) -> int:
     if plan:
         pytest_m, real_m, demo_m, win_m, build = plan["pytest"], plan["realapp"], plan["demo"], plan["windows"], plan["build"]
 
+    realpack = real_pack_wanted(mode, plan)
+
     out = ["### Precheck: " + ("FAILED" if problems else "passed"), ""]
     out += [f"- ❌ {p}" for p in problems] + [f"- {n}" for n in notes]
     if not problems:
@@ -631,6 +660,10 @@ def main(argv=None) -> int:
             out += [f"- pytest group {g['name']} (after the demo is made once): ~{g['minutes']} min" for g in demo_m]
             out += [f"- real-app group {g['name']}: {g['tests']}" for g in real_m]
             out += [f"- Windows part {p['name']}: {p['what']}" for p in win_m]
+        if mode in ("full", "lane"):
+            out += ["- real assets pack: " + ("the pinned pack is checked" if realpack else
+                    "no pin yet (installer/assets_pin.json) – skipped" if not os.path.isfile(os.path.join(ROOT, ASSETS_PIN))
+                    else "the pack code did not change – skipped")]
         if mode == "lane":
             out += ["- **lane run – not a release check**: the full run comes with the version raise "
                     "(or put [full run] in the commit message)"]
@@ -648,6 +681,7 @@ def main(argv=None) -> int:
             fh.write(f"mode={mode}\nartifacts_run={art_run}\n")
             fh.write(f"pytest={json.dumps(pytest_m)}\nrealapp={json.dumps(real_m)}\ndemo={json.dumps(demo_m)}\n")
             fh.write(f"windows={json.dumps(win_m)}\nbuild={'true' if build else 'false'}\n")
+            fh.write(f"realpack={'true' if realpack else 'false'}\n")
     return 1 if problems else 0
 
 
