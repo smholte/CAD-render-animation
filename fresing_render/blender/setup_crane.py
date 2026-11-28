@@ -1564,14 +1564,29 @@ def hook_parts(scene) -> set:
     return out
 
 
+def cylinder_pairs(scene) -> set:
+    """{frozenset of two CAD names}: every cylinder's parts that slide in each other – barrel × rod, barrel × stage,
+    stage × stage, stage × rod (the clash rows name parts by their CAD names)."""
+    out = set()
+    for cy in scene.fresing.cylinders:
+        names = [{name_of(r.obj) for r in coll if r.obj is not None} for coll in (cy.barrel, cy.stages, cy.rod)]
+        every = set().union(*names)
+        out |= {frozenset((a, b)) for a in every for b in every if a != b}
+    return out
+
+
 def clash_problems(scene, data) -> list:
     """The clash check (6 Animation > Clash check) on the crane's own motion, built as a check animation that is
     taken away again: every saved pose of the crane in turn (everything counts), then every driven joint from its Min
     to its Max and back with the others at 0 – there the hook block hangs wherever the rope happens to be (fully up),
-    so its rows are left out: where it hangs is the poses' business."""
+    so its rows are left out: where it hangs is the poses' business. A cylinder's own barrel and rod (its stages) slide
+    in each other by design and the cylinder keeps them in line: their rows are left out too (task 0349: CC-750's
+    pendant rod deep in its 7 m bar read as a 4.9 mm clash in 'Steep' – the clash check's inside test in a long thin
+    bore, Clash lane 0378)."""
     from ..core import lifting_setup as LS
     from . import animation, clash, states
     s = scene.fresing
+    own_pairs = cylinder_pairs(scene)
     drive = [j for j in crane_joints(scene) if not j.follows and j.role not in ("swing", "track", "hoist")]
     own = {j.name for j in crane_joints(scene)}
     poses = [p.name for p in s.poses if any(pj.joint in own for pj in p.joints)]
@@ -1614,7 +1629,7 @@ def clash_problems(scene, data) -> list:
         out, seen = [], set()
         fps = 25.0
         for r in run.rows:
-            if r.kind != "CLASH":
+            if r.kind != "CLASH" or frozenset((r.a, r.b)) in own_pairs:
                 continue
             s0 = (r.frame_from - scene.frame_start) / fps
             s1 = (r.frame_to - scene.frame_start) / fps

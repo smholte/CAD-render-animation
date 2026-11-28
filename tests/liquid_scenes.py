@@ -16,20 +16,14 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from fresing_render.core import liquid as L  # noqa: E402
+from fresing_render.core import liquid_lab as LAB  # noqa: E402
 
 MM = 1e-3
 FPS = 24
 
 
-def lmin(q_m3_s):
-    """m^3/s -> l/min."""
-    return q_m3_s * 1000.0 * 60.0
-
-
-def balance(sim):
-    t = sim.totals()
-    held = t["on_charts"] + t["in_flight"] + t["drained"] + t["floor"]
-    return abs(held - t["poured"]), t
+lmin = LAB.lmin
+balance = LAB.balance
 
 
 def run(sim, frames, pours=None, tool=None, push=None, each=None):
@@ -42,172 +36,63 @@ def run(sim, frames, pours=None, tool=None, push=None, each=None):
     return out, time.perf_counter() - t0
 
 
+# --- study 0251's six stand-alone tests: the rigs live in core/liquid_lab.py (the test tour shows them too) -------
+def _timed(case, helpers=0, hold=True):
+    sim = case.liquid(helpers, hold)
+    t0 = time.perf_counter()
+    frames = list(case.steps(sim))
+    secs = time.perf_counter() - t0
+    return sim, frames, secs
+
+
 # --- T1 a closed pocket fills to its volume and holds it ---------------------------------------------------------
 def t1_pocket(helpers=0, hold=True):
-    bed = np.zeros((100, 100))
-    pk = (slice(30, 70), slice(30, 70))
-    bed[pk] = -8 * MM
-    ch = L.Chart("plate", bed, 1 * MM, -50 * MM, -50 * MM)
-    vpocket = 40 * MM * 40 * MM * 8 * MM
-    q = 2 * vpocket / 2.0
-    sim = L.Liquid([ch], [L.still(14 * FPS + 2)], FPS, floor_z=-0.2, helpers=helpers, hold=hold)
-    frames, secs = run(sim, 14 * FPS, pours=lambda f: [L.Pour((0.0, 0.0, 0.03), lmin(q))] if f < 2 * FPS else [])
-    d = sim.depth(0)
-    held = float(np.minimum(d[pk], 8 * MM + L.FILM).sum() * MM * MM)
-    err, t = balance(sim)
-    res = dict(pocket_cm3=vpocket * 1e6, poured_cm3=t["poured"] * 1e3, held_cm3=held * 1e6,
-               error_pct=100 * (held - vpocket) / vpocket, ran_off_cm3=t["floor"] * 1e3, balance_l=err,
-               seconds=secs, frames=len(frames), settled_frames=sum(fr.settled for fr in frames))
+    c = LAB.case("pocket")
+    sim, frames, secs = _timed(c, helpers, hold)
+    res = c.result(sim)
+    res.update(seconds=secs, frames=len(frames), settled_frames=sum(fr.settled for fr in frames))
+    d = sim.depth(0).copy()
     sim.close()
-    return res, frames, d.copy()
+    return res, frames, d
+
+
+def _plain(case_id, helpers=0, **kw):
+    c = LAB.case(case_id, **kw)
+    sim, frames, secs = _timed(c, helpers)
+    res = c.result(sim)
+    res["seconds"] = secs
+    if case_id == "tray":
+        res["settled_frames"] = sum(fr.settled for fr in frames)
+    sim.close()
+    return res
 
 
 # --- T2 an open slot drains out at its end ---------------------------------------------------------------------
 def t2_slot(helpers=0):
-    bed = np.zeros((40, 100))
-    sl = (slice(15, 25), slice(0, 90))
-    bed[sl] = -6 * MM
-    ch = L.Chart("plate", bed, 1 * MM, -50 * MM, -20 * MM)
-    vslot = 10 * MM * 90 * MM * 6 * MM
-    q = vslot / 2.0
-    sim = L.Liquid([ch], [L.still(12 * FPS + 2)], FPS, floor_z=-0.2, helpers=helpers)
-    frames, secs = run(sim, 12 * FPS, pours=lambda f: [L.Pour((30 * MM, 0.0, 0.03), lmin(q))] if f < 2 * FPS else [])
-    vols = [fr.totals["on_charts"] for fr in frames]
-    stop = 2 * FPS - 1
-    peak = max(vols[: stop + 1])
-    half = next((k for k in range(stop, len(vols)) if vols[k] < 0.5 * peak), None)
-    err, t = balance(sim)
-    res = dict(slot_cm3=vslot * 1e6, poured_cm3=t["poured"] * 1e3, peak_cm3=peak * 1e3, left_cm3=vols[-1] * 1e3,
-               left_pct=100 * vols[-1] / t["poured"], half_s=None if half is None else (half - stop) / FPS,
-               balance_l=err, seconds=secs)
-    sim.close()
-    return res
+    return _plain("slot", helpers)
 
 
-def _left_at(deg, width_mm, depth_mm):
-    t = math.tan(math.radians(deg))
-    W, D = width_mm * MM, depth_mm * MM
-    if W * t <= D:
-        return W * D - 0.5 * W * W * t
-    return 0.5 * D * D / t
+_left_at = LAB.left_at
 
 
 # --- T3 a plate tilted 0 -> 30 deg spills at the right angle ----------------------------------------------------
 def t3_tilt(helpers=0):
-    bed = np.zeros((80, 80))
-    pk = (slice(20, 60), slice(20, 60))
-    bed[pk] = -10 * MM
-    ch = L.Chart("plate", bed, 1 * MM, -40 * MM, -40 * MM)
-    secs_total = 12
-    n = secs_total * FPS + 2
-    ang = np.radians(np.clip((np.arange(n) / FPS - 1.0) / 10.0, 0, 1) * 30.0)
-    mats = np.stack([L.rot_y(a) for a in ang])
-    sim = L.Liquid([ch], [mats], FPS, floor_z=-0.3, helpers=helpers)
-    fill = np.zeros_like(bed)
-    fill[pk] = 5 * MM
-    sim.fill(0, fill)
-    v0 = float(fill.sum()) * MM * MM
-    spill = None
-    vols = []
-    t0 = time.perf_counter()
-    for fr in sim.run(0, secs_total * FPS):
-        vols.append(float(sim.depth(0)[pk].sum() * MM * MM))
-        if spill is None and vols[-1] < 0.99 * v0:
-            spill = math.degrees(ang[fr.frame])
-    secs = time.perf_counter() - t0
-    expect = math.degrees(math.atan((10 - 5) / 20.0))
-    err, t = balance(sim)
-    res = dict(expected_deg=expect, spilled_at_deg=spill, error_deg=None if spill is None else spill - expect,
-               left_at_30deg_cm3=vols[-1] * 1e6, expected_left_at_30deg_cm3=_left_at(30, 40, 10) * 40 * MM * 1e6,
-               balance_l=err, seconds=secs)
-    sim.close()
-    return res
+    return _plain("tilt", helpers)
 
 
 # --- T4 a tray with a slope empties down its drain ----------------------------------------------------------------
 def t4_tray(helpers=0):
-    cell = 4 * MM
-    nx, ny = 100, 75
-    X, Y = np.meshgrid(np.arange(nx) * cell, np.arange(ny) * cell)
-    slope = math.radians(2.0)
-    bed = X * math.tan(slope) + 0.3 * (np.abs(Y - 150 * MM) * math.tan(slope))
-    drain = np.zeros_like(bed)
-    r = 10 * MM
-    hole = (X - 2 * MM) ** 2 + (Y - 150 * MM) ** 2 <= (r + cell / 2) ** 2
-    drain[hole] = math.pi * r * r / hole.sum()
-    ch = L.Chart("tray", bed, cell, 0.0, 0.0, open_edges=False, drain=drain)
-    q = 2.0 / 1000 / 60
-    sim = L.Liquid([ch], [L.still(40 * FPS + 2)], FPS, floor_z=-0.3, helpers=helpers)
-    frames, secs = run(sim, 40 * FPS, pours=lambda f: [L.Pour((300 * MM, 150 * MM, 0.05), lmin(q))]
-                       if f < 10 * FPS else [])
-    vols = [fr.totals["on_charts"] + fr.totals["in_flight"] for fr in frames]
-    stop = 10 * FPS - 1
-    poured = frames[-1].totals["poured"]
-    empty = next((k for k in range(stop, len(vols)) if vols[k] < 0.05 * poured), None)
-    err, t = balance(sim)
-    res = dict(poured_l=poured, drained_l=t["drained"], peak_in_tray_cm3=max(vols) * 1e3,
-               empty_95pct_s_after_stop=None if empty is None else (empty - stop) / FPS,
-               left_cm3=vols[-1] * 1e3, balance_l=err, seconds=secs,
-               settled_frames=sum(fr.settled for fr in frames))
-    sim.close()
-    return res
+    return _plain("tray", helpers)
 
 
 # --- T5 a box moved and stopped hard sloshes and settles ----------------------------------------------------------
 def t5_slosh(helpers=0, speed=0.25):
-    cell = 2 * MM
-    bed = np.zeros((25, 100))
-    ch = L.Chart("box", bed, cell, 0.0, 0.0, open_edges=False)
-    secs_total = 10
-    n = secs_total * FPS + 2
-    t = np.arange(n) / FPS
-    mats = L.still(n)
-    mats[:, 0, 3] = np.minimum(t, 0.5) * speed
-    sim = L.Liquid([ch], [mats], FPS, floor_z=-0.3, helpers=helpers)
-    sim.fill(0, np.full(bed.shape, 10 * MM))
-    v0 = sim.volume(0)
-    end = []
-    t0 = time.perf_counter()
-    for fr in sim.run(0, secs_total * FPS):
-        end.append(float(sim.depth(0)[:, -3:].mean()))
-    secs = time.perf_counter() - t0
-    e = np.array(end) - 10 * MM
-    after = int(0.55 * FPS)
-    s = e[after:] - e[after:].mean()
-    F = np.abs(np.fft.rfft(s * np.hanning(len(s)), 8192))
-    fr_ = np.fft.rfftfreq(8192, 1 / FPS)
-    period = float(1 / fr_[F[1:].argmax() + 1])
-    first = float(np.max(np.abs(e[after:after + 2 * FPS])))
-    late = float(np.max(np.abs(e[after + 5 * FPS:after + 6 * FPS])))
-    expect = 2 * 0.2 / math.sqrt(L.G * 0.01)
-    res = dict(expected_period_s=expect, period_s=period, first_wave_mm=first * 1e3, after_5s_mm=late * 1e3,
-               volume_change=abs(sim.volume(0) - v0) / v0, seconds=secs)
-    sim.close()
-    return res
+    return _plain("slosh", helpers, speed=speed)
 
 
 # --- T6 nothing leaks through a wall --------------------------------------------------------------------------------
 def t6_wall(helpers=0):
-    cell = 1 * MM
-    bed = np.zeros((40, 120))
-    bed[:, 60] = 20 * MM
-    ch = L.Chart("tank", bed, cell, 0.0, 0.0, open_edges=False)
-    n = 10 * FPS + 2
-    ang = np.radians(12 * np.sin(np.arange(n) / FPS * 2 * math.pi / 2.0))
-    mats = np.stack([L.rot_y(a) for a in ang])
-    sim = L.Liquid([ch], [mats], FPS, floor_z=-0.3, helpers=helpers)
-    fill = np.zeros_like(bed)
-    fill[:, :60] = 8 * MM
-    sim.fill(0, fill)
-    v0 = sim.volume(0)
-    worst = 0.0
-    t0 = time.perf_counter()
-    for fr in sim.run(0, 10 * FPS):
-        worst = max(worst, float(sim.depth(0)[:, 61:].sum() * cell * cell))
-    secs = time.perf_counter() - t0
-    res = dict(worst_behind_wall_cm3=worst * 1e6, volume_change=abs(sim.volume(0) - v0) / v0, seconds=secs)
-    sim.close()
-    return res
+    return _plain("wall", helpers)
 
 
 ALL = [t1_pocket, t2_slot, t3_tilt, t4_tray, t5_slosh, t6_wall]

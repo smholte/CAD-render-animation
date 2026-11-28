@@ -5,7 +5,7 @@ What changed in each version, in plain words. Newest first. The app shows these 
 the release page (tag `v<version>`) shows the commit; before that, "Commit" is the Git commit the
 installer of that version was built from.
 
-## 0.2.275 – 28 Nov 2026 – The 3D page and the House files say which format they are (task 0353)
+## 0.2.277 – 28 Nov 2026 – The 3D page and the House files say which format they are (task 0353)
 
 Nothing changes for you today – this is groundwork so that later versions, and the coming Fresing Viewer, can open
 what an older or newer version made.
@@ -15,6 +15,46 @@ what an older or newer version made.
 - A house from House Planner (or a bake going back) of another format version is refused or noted with a plain line;
   the Toolbox inbox passes that line on. Tests for older / same / newer on every output.
 - The rules are written down for the Viewer in `docs/OUTPUT-FORMATS.md`.
+## 0.2.276 – 28 Nov 2026 – Coolant liquid on the 4th axis and the trunnion; its six checks in the test tour (task 0347)
+
+- **Coolant liquid on a 4th axis:** with "Liquid on the machine" ticked, the coolant now lies on the turning bar
+  itself – it fills a pocket cut in the bar, runs round the bar and drips onto the table, which carries it into the
+  chip tray. When the bar turns, a pocket tips over and empties, and what is underneath drips off.
+- **On a trunnion:** the liquid lies on the C table with the block, on the cradle and on the table. When the cradle
+  tilts, the pools run to its low side and spill over the table's edge onto the cradle and on down.
+- Nothing to set: the app finds what carries the block (the bar's axis, the C table, the cradle, the table) by itself.
+- **The wet sheen came back:** changing the look of a group that gets wet (the block, the table) took the coolant's
+  wet sheen off it until coolant was switched off and on. It now comes back at the next frame.
+- **Test tour:** new set "Coolant liquid – six checks" (a closed pocket holds, an open slot drains, a tilted plate
+  spills at the right angle, a tray empties down its drain, a box sloshes at its period, nothing leaks through a
+  wall), and the stops "Coolant liquid on the 4th axis" and "… on the trunnion".
+- **PC check (Heavy):** "Milling: coolant liquid on the 4th axis, a long program" – how long it takes on your PC and
+  how big the work-out is on disk.
+- The 4th-axis, trunnion, double-arm, enclosure and toolpath test models got the corrected chip tray of the test
+  mill (task 0346).
+
+## 0.2.275 – 28 Nov 2026 – Lifting plan: clearance, reach rings, exclusion zone, ground footprint, plan sheet (task 0349)
+
+- **8 Lifting plan > Clearance & zones** (new): how close the **boom, the load and the rigging** come to everything else
+  in the project – checked now and along the whole path, where **Lift path & checks** gets a row **Clearance** with its
+  worst moment. Type the clearance you need; the default is 3.05 m (OSHA's 10 ft from power lines up to 50 kV).
+- On the ground in the 3D view: **reach rings** (how far out the chart carries the load, and within your 75 % limit),
+  the **exclusion zone** round the crane's tail swing, its outriggers or tracks and the load's path, and the outrigger
+  **mats or tracks coloured by the ground pressure** under them at the frame shown.
+- **Plan sheet…** opens one page to print: the plan view to scale, the range diagram and every check with its worst
+  moment.
+- **The built-in cranes fit their sample charts**: a mobile crane's outriggers stand at the carrier's ends, a
+  knuckle-boom truck's front stabilisers ahead of its cab, and the charts' tipping uses the crane's own masses where
+  they are. A load the chart allows no longer puts the crane's centre of gravity outside its outriggers (the AT-40
+  showed red at 96 % of its chart). The cranes' models and pictures changed a little.
+- **Set up a crane > Check** no longer reports a cylinder's own rod in its barrel as a clash (the CC-750's pendants in
+  the pose "Steep").
+- **Make a crane… with Replace** shows the new picture at once.
+- **Lift path fixes** (bug hunt 9): Ctrl+Z after **Go there** no longer closes the app; a key of the lift changed by
+  hand says "Changed since it was checked"; the luff / telescope pieces are numbered; removing a crane removes its
+  proposed lift path.
+
+
 ## 0.2.274 – 28 Nov 2026 – Sea fixes: the seabed open over the ground cut, a quicker sea change with spray, Vessel at work after Build (task 0375)
 
 - **Open sea, Detailed, cut-away with the ground:** in the 3D view the plain seabed round the rippled patch no longer

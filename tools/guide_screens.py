@@ -75,7 +75,7 @@ Three runs; each writes its pictures to $GUIDE_OUT (default docs/img):
   lifting_panel   8 Lifting plan (task 0201): the section with Equipment, Load, Hook & capacity (panel_8_lifting*; as
       "panels", the AT-40 beside the test crane, the boom as the load, the hook above it); task 0232: Rigging with the
       boom on a 2-leg sling, hung (panel_8_lifting_rigging); task 0348: the boom lifted 4 m aside, the path checked
-      (panel_8_lifting_path).
+      (panel_8_lifting_path); task 0349: Clearance & zones of that lift (panel_8_lifting_zones).
   people   the example built and rendered at the handshake (people_meet.jpg; Cycles on the processor, as "render").
   operator   the test mill in its enclosure: the operator takes the tool out of the spindle (toolchange_person.jpg) and
       lays it on the trolley (toolchange_person_trolley.jpg), task 0156; Cycles on the processor, as "render".
@@ -2026,6 +2026,19 @@ elif MODE == "lifting_panel":
         return 2.5
     step(_path_setup)
     step(lambda: (shoot_sidebar("panel_8_lifting_path"), 0.5)[1])
+
+    def _zones_setup():
+        # task 0349: the same checked lift – Clearance & zones with the clearance now and the most loaded mat
+        LP = mod("blender.lifting_path")
+        LZ = mod("blender.lifting_zones")
+        sc = bpy.context.scene
+        LP.live_rows(sc, force=True)
+        LZ.live_view(sc)
+        show_only([("FRESING_PT_lifting_zones", False, True)])
+        wiggle()
+        return 2.5
+    step(_zones_setup)
+    step(lambda: (shoot_sidebar("panel_8_lifting_zones"), 0.5)[1])
 
 elif MODE == "house_panel":
     # task 0114: 5 Scene & Render > House from House Planner with the made-up sample house imported and one moment

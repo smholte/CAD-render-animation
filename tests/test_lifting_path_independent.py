@@ -236,8 +236,9 @@ def test_c5_by_hand_on_the_at100():
     p = sum(m for m, _, _ in items)
     xb = sum(m * x for m, x, _ in items) / p
     yb = sum(m * y for m, _, y in items) / p
-    a, b = 3.6, 1.555 + 2 * 1.1225
-    rs = [p / 4 * (1 + sx * xb / a + sy * yb / b) for sx, sy in ((1, 1), (1, -1), (-1, 1), (-1, -1))]
+    a, b = data["outriggers"]["a"], 1.555 + 2 * 1.1225
+    cx = data["outriggers"]["centre"][0]                 # task 0349: the base's middle ahead of the slew axis
+    rs = [p / 4 * (1 + sx * (xb - cx) / a + sy * yb / b) for sx, sy in ((1, 1), (1, -1), (-1, 1), (-1, -1))]
     assert min(rs) > 0
     rmax = max(rs)
     kpa = rmax * G / 2.25 / 1000.0
@@ -355,7 +356,8 @@ def test_backward_stability_grey_unless_more_counterweight():
     p = sum(m for m, _, _ in items)
     x = sum(m * xx for m, xx, _ in items) / p
     y = sum(m * yy for m, _, yy in items) / p
-    margin = min(1 - abs(x) / 3.6, 1 - abs(y) / 3.8)
+    o = data["outriggers"]
+    margin = min(1 - abs(x - o["centre"][0]) / o["a"], 1 - abs(y) / 3.8)
     use = (1 - margin) / (1 - 0.15)
     assert b.use == pytest.approx(use, rel=1e-6)
     assert b.status == lifting.status_of(use, 0.75)

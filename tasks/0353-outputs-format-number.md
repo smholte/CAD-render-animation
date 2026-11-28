@@ -42,7 +42,7 @@ owns the lines it names). Whoever merges second updates its branch to `main`; ve
 
 **Chat / date:** Claude Code on the web (Sonnet), 28 Nov 2026.
 
-**What changed (0.2.275):**
+**What changed (0.2.277):**
 - New `core/outputs.py` (0352's style: a number + a plain line): `number`, `judge` (older / same / newer / bad),
   `newer()` = "Made by a newer Fresing Render – update to open it fully.", `page_format`, `page_state`.
 - **3D page:** the settings block's `"v"` (there since the first page) is now `PAGE_FORMAT` (1) by name; the model inside

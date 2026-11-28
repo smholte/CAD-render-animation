@@ -397,6 +397,27 @@ def test_an_older_wet_sheen_is_replaced_not_stacked(scene):
     assert coolant.unpatch_material(mat) and len(mat.node_tree.nodes) == before
 
 
+def test_wet_sheen_comes_back_after_the_look_changed(scene):
+    """Task 0347 (found by reading in 0344): a wet group's look changed (``materials.build_nodes`` clears the nodes)
+    kept the material's patch mark, so the sheen was not put back. The next frame puts it back."""
+    from fresing_render.blender import materials
+    scene.fresing.coolant.enabled = True
+    _a, _b, frames = build_program(scene)
+    blk = ob(scene, STOCK)
+    mat = coolant._materials_of(blk)[0]
+    assert coolant.is_patched(mat)
+    scene.frame_set(5)
+    materials.build_nodes(mat, mat.get("fr_material") or "aluminium_machined")  # a new look, as the group's picker does
+    assert not any(n.get(coolant.TAG) for n in mat.node_tree.nodes)
+    assert not coolant.is_patched(mat)                                  # (was True: the mark stayed)
+    scene.frame_set(6)
+    assert coolant.is_patched(mat)
+    assert any(str(n.get(coolant.TAG, "")).startswith("rough:") for n in mat.node_tree.nodes)
+    # and it still goes back exactly
+    scene.fresing.coolant.wet_parts = False
+    assert not any(n.get(coolant.TAG) for n in mat.node_tree.nodes) and coolant.TAG + "_patch" not in mat
+
+
 def test_wet_chips_fly_less_far(scene):
     click(ob(scene, TOOL))
     assert bpy.ops.fresing.mill_add_bit() == {"FINISHED"}

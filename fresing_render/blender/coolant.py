@@ -309,7 +309,12 @@ def _wet_driver(sock, r) -> None:
 
 
 def is_patched(mat) -> bool:
-    return mat is not None and mat.get(TAG + "_patch") == PATCH
+    """The material has this version's wet-sheen nodes – the mark AND the nodes (a look changed with
+    ``materials.build_nodes`` clears the nodes but keeps the mark: the sheen was lost, task 0347)."""
+    if mat is None or mat.get(TAG + "_patch") != PATCH:
+        return False
+    nt = mat.node_tree if getattr(mat, "use_nodes", False) else None
+    return nt is not None and any(n.get(TAG) for n in nt.nodes)
 
 
 def patch_material(mat, r) -> bool:
@@ -559,8 +564,11 @@ def _patch_new_materials(scene, r) -> None:
     """Materials that came after the build (the milled block's cut faces) get the sheen too. Looked at again only
     when a material was added or a wet part's slots changed."""
     obs = wet_parts(scene)
-    key = (len(bpy.data.materials), tuple((o.name, tuple(s.material.name if s.material else "" for s in
-                                                          o.material_slots)) for o in obs))
+    # (the node counts: a look changed with build_nodes clears a material's nodes, its name and slot stay – 0347)
+    key = (len(bpy.data.materials), tuple((o.name, tuple((s.material.name, len(s.material.node_tree.nodes)
+                                                          if s.material.node_tree is not None else 0)
+                                                         if s.material else ("", 0) for s in o.material_slots))
+                                          for o in obs))
     if _WET.get((scene.name, "mats")) == key:
         return
     for ob in obs:
