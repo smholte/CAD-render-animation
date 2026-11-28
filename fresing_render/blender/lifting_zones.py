@@ -627,8 +627,8 @@ def plan_sheet(scene, path: str | None = None) -> str:
              ("Mat:", f"{L.mat_size[0]:g} × {L.mat_size[1]:g} m" if min(L.mat_size) > 0 else "none (the pad)"),
              ("Made:", datetime.datetime.now().strftime("%Y-%m-%d %H:%M"))]
     notes = [core.NOT_CHECKED_BY_APP[0].upper() + core.NOT_CHECKED_BY_APP[1:] + ": this sheet is a planning aid.",
-             f"Clearance needed by default: {Z.REQUIRED_SOURCE}. Distances are a lower bound (within about 1/400 of a "
-             "part's size).",
+             f"Clearance needed by default: {Z.REQUIRED_SOURCE}. A clearance is measured from points 5 cm apart on "
+             "the moving parts to the obstacles' faces: the true gap, or up to about 3 cm more.",
              "Exclusion zone: the crane's tail swing (OSHA 29 CFR 1926.1424(a): mark the swing radius of the rotating "
              "superstructure), its outriggers or tracks and the load's path, widened by the margin.",
              re.get("words") or ""]

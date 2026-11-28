@@ -4762,7 +4762,7 @@ def _skid_load(b: Build):
 
 
 @tour_set("lifting", "Lifting plan – crane, load, hook and rigging", "test_loads.step", added="0.2.156",
-          changed="0.2.269")
+          changed="0.2.271")
 def build_lifting(b: Build):
     """Task 0231: a yard – an IBC on its pallet, a pump skid and a 20 ft container on the quayside – and an AT-40 on four
     crane mats behind the skid; the skid is the load. The camera looks from the other side of the skid, so the
@@ -4934,7 +4934,7 @@ def _lift_spreader(scene) -> None:
 
 
 @tour_set("crane_setup", "Set up a crane – the KB-20 from its bare STEP", "lifting/KB-20/KB-20.step",
-          added="0.2.161", changed="0.2.176")
+          added="0.2.161", changed="0.2.271")
 def build_crane_setup(b: Build):
     """Task 0203: the built-in KB-20's bare STEP rigged through Set up a crane's own buttons, by names (the steps of
     a knuckle-boom crane), checked; the Set-up window would open on its Check step."""
@@ -5563,7 +5563,7 @@ stop("lifting_zones", MOTION, "lifting", "Lifting: clearance and zones on the gr
      "carries the skid, amber within your 75 % limit; the four mats coloured by the pressure under them. 8 Lifting plan "
      "> Clearance & zones shows the clearance now (3.05 m needed) and the table of Lift path & checks has its row "
      "'Clearance'. Plan sheet… opens the plan view, the range diagram and the checks to print.",
-     where="8 Lifting plan > Clearance & zones", since="0.2.999", check=_check_lifting_zones, setup=_lift_zones)
+     where="8 Lifting plan > Clearance & zones", since="0.2.271", check=_check_lifting_zones, setup=_lift_zones)
 stop("crane_setup", MOTION, "crane_setup", "Set up a crane: KB-20 rigged",
      "The built-in KB-20's bare STEP made a lifting-plan crane through Set up a crane (8 Lifting plan > Equipment > Set "
      "up a crane… > Knuckle-boom crane): its slew, main boom, knuckle, five extensions, hoist with two hook swings and "

@@ -714,8 +714,11 @@ def _draw_rows(layout, context, rows, go: bool, stale: bool = False):
         sp = row.split(factor=0.55, align=True)
         sp.label(text=r.title, icon=STATUS_ICON[r.status])
         sp2 = sp.split(factor=0.5, align=True)
-        sp2.label(text=f"{r.use * 100:.0f} %" if r.use is not None else (r.value if r.status != core.NOT_CHECKED
-                                                                          else "grey"))
+        if r.id == "CLR" and r.status != core.NOT_CHECKED:
+            sp2.label(text=r.value.replace("more than ", "> "))              # a distance reads better than a %
+        else:
+            sp2.label(text=f"{r.use * 100:.0f} %" if r.use is not None else (r.value if r.status != core.NOT_CHECKED
+                                                                              else "grey"))
         if go:
             sub = sp2.row(align=True)
             sub.label(text=f"f {_short(r.t)}")

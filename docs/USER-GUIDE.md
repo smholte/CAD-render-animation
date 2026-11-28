@@ -5967,8 +5967,8 @@ Before you plan a real lift, copy the class nearest your crane into your library
 The box also shows the **line pull**: the pull in the hoist rope at the winch for the gross load on the crane's falls
 (check C10, below), against the winch's maximum line pull from the crane's file.
 
-The lift path with the checks along it and the ground pressure: [Lift path & checks](#lifting-path). The printed
-plan comes in a later version.
+The lift path with the checks along it and the ground pressure: [Lift path & checks](#lifting-path); clearances, the
+reach rings, the exclusion zone, the ground footprint and a plan sheet to print: [Clearance & zones](#lifting-zones).
 
 <a id="lifting-rigging"></a>
 ### Rigging: lift points, slings, shackles, spreader
@@ -6094,6 +6094,43 @@ along the path. It is an ordinary label (5 Scene & Render > Labels): move it, or
 Fresing Render checks the plan against the data entered in it – the chart, the masses, the gear, the ground – never
 against the real crane or ground: the lift must be checked and approved by a competent person.
 
+<a id="lifting-zones"></a>
+### Clearance & zones: what the lift comes near, and what it needs on the ground
+
+<img class="panel" src="img/panel_8_lifting_zones.png" alt="Clearance & zones: the clearance needed and now, the ground drawings, the zone margin, Plan sheet">
+
+8 Lifting plan > **Clearance & zones** adds four things to the lift:
+
+- **Clearance.** How close the **boom**, the **load** and the **rigging** come to everything else in the project –
+  other models, a second crane as it stands, props, a hall's walls (not the ground, a floor or the sea). Type the
+  **Clearance needed**; the default is **3.05 m**, OSHA 29 CFR 1926.1408 Table A's 10 ft from power lines up to 50 kV
+  – set what your site, the line's owner or the lift plan's author asks for. The panel says the clearance **now**
+  (worked out once the crane stands still for a moment, so dragging a joint stays smooth), and **Lift path & checks**
+  gets a row **Clearance** with its worst moment along the whole path: green, amber from your 75 % limit (the
+  clearance needed is 75 % of the distance), red under the clearance needed – for example *"Clearance 0.82 m: the
+  load (SKID FRAME) to CONTAINER SHELL, 3.05 m needed – red."* What the load stands on where the lift starts and
+  ends does not count for it. The distance is measured from points 5 cm apart on the moving parts to the obstacles'
+  exact faces: the true gap, or up to about 3 cm more.
+- **Reach rings.** Two rings on the ground round the slew axis: **red** – how far out the crane's chart (for its
+  set-up now) still carries the load; **amber** – how far it carries it within your 75 % limit.
+- **Exclusion zone.** A red dashed outline on the ground round the crane's **tail swing** (what turns with the slew;
+  OSHA 29 CFR 1926.1424(a) asks to mark the swing radius of the rotating superstructure), its **outriggers or tracks**
+  and the load's **whole path** (once the path is checked), widened by the **Zone margin** (1 m; your own choice –
+  no guideline gives one number). People keep out of it during the lift.
+- **Ground footprint.** The outrigger mats (or the pads, without mats) and the crawler tracks – each track in eight
+  pieces – coloured by the **ground pressure** under them at the frame shown: green, amber, red against the allowable
+  pressure entered under Lift path & checks (grey when none is entered). The panel names the most loaded one.
+
+The rings, the zone and the footprint are drawn in the 3D view only – never in a render; untick any of them. They
+show where the Lifting plan's load shows.
+
+**Plan sheet…** writes one page to the project's outputs folder and opens it in your browser to print (A4
+landscape): the **plan view** to scale – the exclusion zone, the reach rings, the footprint coloured at the ground
+check's worst moment, the load's path from the pick to the set-down –, the **range diagram** – the hook's highest
+point over the radius as the boom luffs, the chart's capacity at each row, the reach lines and the path –, and the
+**table of every check** with its worst value, limit and frame. After **Check along the path** it shows the whole
+path; before, the pose shown. Its notes say that it is a planning aid and where the default numbers come from.
+
 <a id="lifting-own-crane"></a>
 ### Set up your own crane
 
@@ -6207,8 +6244,10 @@ numbers, and lands in your library like any other item.
 
 The made crane's file keeps the class it started from and every number (`made_from`), so the plan's checks and the
 Hook-to-here solver know its exact kinematics. Its chart is worked out by the same invented rule as the built-in
-samples – the smaller of the boom's strength and 75 % of tipping over the weakest outrigger or track edge – so it is
-**SAMPLE DATA – NOT FOR REAL LIFTS**, like theirs.
+samples – the smaller of the boom's strength and 75 % of tipping over the weakest outrigger or track edge, with the
+crane's own masses where its solids put them (a cab counts as mostly air) at every slew angle – so it is **SAMPLE DATA
+– NOT FOR REAL LIFTS**, like theirs. A mobile crane's front outriggers stand right behind its front axles and the
+rear ones **Front to rear pads** behind them; a knuckle-boom truck's front stabilisers stand ahead of its cab.
 
 <a id="lifting-make-chart"></a>
 **Enter the chart of your real crane.** Click **Enter your chart…** (or the button in the small window) and pick a

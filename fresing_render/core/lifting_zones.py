@@ -6,8 +6,9 @@ Python with NumPy, no Blender.
   project's other parts and props), at any joint values. Each moving part is points on its surface (5 cm apart) in its
   joint's frame at zero, the obstacles one set of triangles (``Triangles``; the app: Blender's BVH tree): the distance
   is from those points to the nearest triangle (the true gap, or up to ~3 cm more), looked for only where a part's
-  box comes near an obstacle's box. Obstacles the load or its rigging touch where the
-  lift starts and ends (what it stands on) do not count for them. The row joins ``lifting_path.Checks.at`` (id
+  box comes near an obstacle's box. What the load or its rigging touch where the lift starts and ends (what it stands
+  on) does not count for them; what they are nearer to than the clearance needed there counts again once they have
+  moved that far. The row joins ``lifting_path.Checks.at`` (id
   ``CLR``): use = the clearance needed / the distance, colours like C1 (amber from the crane limit, red under the
   clearance needed).
 * **Reach envelope** (``reach``, ``range_curve``): the radius out to which the chart that applies carries the gross
@@ -188,7 +189,8 @@ class Clearance:
         self.motion = motion
         self.required = max(float(required), 1e-3)
         self.limits = limits
-        self.ignore: dict = {}             # body name -> {obstacle names} (what the load stands on)
+        self.ignore: dict = {}             # body name -> {obstacle names} (what the load stands on: always)
+        self.ends: dict = {}               # body name -> [(where it was, {obstacle names})] (near the pick, the set-down)
         self.need = NEED * self.required / max(limits.crane, 1e-3)
 
     def _mats(self, values) -> dict:
@@ -234,7 +236,7 @@ class Clearance:
             blo, bhi = _moved_box(M, b.lo, b.hi)
             g = np.maximum(0.0, np.maximum(ob.lo - bhi, blo - ob.hi))
             near = np.einsum("ij,ij->i", g, g) <= need * need
-            skip = self.ignore.get(b.name, ())
+            skip = self._skip(b, M)
             if skip:
                 near &= np.array([n not in skip for n in ob.names])
             if not near.any():
@@ -268,13 +270,22 @@ class Clearance:
         d, b, k, p = min(got, key=lambda x: x[0])
         return Nearest(d, b.name, self.obstacles.names[k], b.kind, (tuple(map(float, p)),))
 
+    def _skip(self, b, M) -> set:
+        """What does not count for body ``b`` where ``M`` puts it: what it stands on, and what it was nearer than the
+        clearance needed at the pick or the set-down while it is still within that distance of where it was."""
+        out = set(self.ignore.get(b.name, ()))
+        for where, names in self.ends.get(b.name, ()):
+            if float(np.linalg.norm(M[:3, 3] - where)) < self.required:
+                out |= names
+        return out
+
     def leave_out_touching(self, moments, kinds=("load", "rigging")) -> None:
-        """What the load and its rigging stand on or touch at ``moments`` (joint values: the lift's first and last)
-        does not count for them."""
+        """The ends of the lift (``moments``: joint values at the pick and the set-down): what the load and its
+        rigging touch there does not count for them; what they are nearer to than the clearance needed (the wall
+        beside the pick) counts again once they have moved that far from there."""
         ob = self.obstacles
         if ob is None or not len(ob.names):
             return
-        mats = None
         for values in moments:
             mats = self._mats(values)
             for b in self.bodies:
@@ -282,9 +293,13 @@ class Clearance:
                     continue
                 M = mats[b.joint]
                 pts = b.points @ M[:3, :3].T + M[:3, 3]
-                d, who = ob.nearest(pts, TOUCH)
-                for w in set(int(x) for x in who[d <= TOUCH]):
-                    self.ignore.setdefault(b.name, set()).add(ob.names[w])
+                d, who = ob.nearest(pts, self.required)
+                near = {ob.names[int(w)] for w in who[d < self.required]}
+                touch = {ob.names[int(w)] for w in who[d <= TOUCH]}
+                if touch:
+                    self.ignore.setdefault(b.name, set()).update(touch)
+                if near - touch:
+                    self.ends.setdefault(b.name, []).append((M[:3, 3].copy(), near - touch))
 
     def row(self, values) -> P.Row:
         n = self.nearest(values)
@@ -340,12 +355,12 @@ def reach(chart, gross_kg: float, limits: lifting.Limits = lifting.DEFAULT_LIMIT
         return best
     out.full, out.amber = furthest(1.0), furthest(limits.crane)
     t = lifting.tonnes(gross_kg)
+    lim = f"{limits.crane * 100:.0f} %"
     if out.full is None:
         out.words = f"The chart does not carry {t:.2f} t even at its shortest radius."
     else:
-        out.words = (f"The chart carries {t:.2f} t out to {out.full:g} m"
-                     + (f" ({lifting.tonnes(gross_kg) / limits.crane:.2f} t worth of chart – amber limit – out to "
-                        f"{out.amber:g} m)." if out.amber is not None else "; inside the amber limit nowhere."))
+        out.words = (f"The chart carries {t:.2f} t out to {out.full:g} m; within your {lim} limit "
+                     + (f"out to {out.amber:g} m." if out.amber is not None else "nowhere."))
     return out
 
 
@@ -581,6 +596,14 @@ def _line(to, pts, **attr) -> str:
     return '<polyline points="' + " ".join(f"{x:.1f},{y:.1f}" for x, y in (to(p) for p in pts)) + f'" {a}/>'
 
 
+def nice(x: float) -> float:
+    """The largest 1, 2 or 5 × 10^k not over ``x`` (a scale bar, a tick step)."""
+    if x <= 0 or not math.isfinite(x):
+        return 1.0
+    k = 10 ** math.floor(math.log10(x))
+    return max(m * k for m in (1, 2, 5) if m * k <= x * (1 + 1e-9))
+
+
 def plan_svg(view: dict, w: float = 720.0, h: float = 520.0) -> str:
     """The plan view (top, to scale): the exclusion zone, the reach rings, the crane's footprint coloured by the
     ground check, the hook's path, the pick and the set-down, a scale bar and north-up axes. ``view``: world x-y (m)
@@ -623,7 +646,7 @@ def plan_svg(view: dict, w: float = 720.0, h: float = 520.0) -> str:
     near = view.get("nearest")
     if near:
         out.append(_line(to, near, fill="none", stroke="#6a1b9a", stroke_width="1.5", stroke_dasharray="3 2"))
-    bar = 10 ** math.floor(math.log10(max(120.0 / s, 1e-6)))
+    bar = nice(100.0 / s)
     out.append(f'<line x1="20" y1="{h - 14:.0f}" x2="{20 + bar * s:.1f}" y2="{h - 14:.0f}" stroke="#000" '
                f'stroke-width="2"/><text x="20" y="{h - 20:.0f}">{bar:g} m</text>')
     out.append(f'<text x="{w - 20:.0f}" y="30" text-anchor="middle">N</text><line x1="{w - 20:.0f}" y1="36" '
@@ -658,12 +681,23 @@ def range_svg(curve, chart_rows, full: float | None, amber: float | None, hook=N
                        f'stroke-width="1.5" stroke-dasharray="5 3"/>')
     if len(curve) >= 2:
         out.append(_line(to, curve, fill="none", stroke="#37474f", stroke_width="2"))
+    last = -1e9
     for r, c in chart_rows:
         xr, _ = to((float(r), 0.0))
-        out.append(f'<line x1="{xr:.1f}" y1="{y0:.1f}" x2="{xr:.1f}" y2="{y0 + 5:.1f}" stroke="#000"/>'
-                   f'<text x="{xr:.1f}" y="{y0 + 14:.1f}" text-anchor="middle" font-size="8">{float(r):g}</text>'
+        out.append(f'<line x1="{xr:.1f}" y1="{y0:.1f}" x2="{xr:.1f}" y2="{y0 + 5:.1f}" stroke="#000"/>')
+        if xr - last < 24.0:                    # rows close together: a tick only, their numbers would overlap
+            continue
+        last = xr
+        out.append(f'<text x="{xr:.1f}" y="{y0 + 14:.1f}" text-anchor="middle" font-size="8">{float(r):g}</text>'
                    + (f'<text x="{xr:.1f}" y="{y0 - 4:.1f}" text-anchor="middle" font-size="8" fill="#555">'
                       f'{lifting.tonnes(c):.3g}</text>' if c is not None else ""))
+    step = nice(zm / 5.0)
+    z = step
+    while z <= zm + 1e-9:
+        _, yz = to((0.0, z))
+        out.append(f'<line x1="{x0 - 4:.1f}" y1="{yz:.1f}" x2="{x0:.1f}" y2="{yz:.1f}" stroke="#000"/>'
+                   f'<text x="{x0 - 6:.1f}" y="{yz + 3:.1f}" text-anchor="end" font-size="8">{z:g}</text>')
+        z += step
     if path:
         out.append(_line(to, path, fill="none", stroke="#1565c0", stroke_width="1.5"))
     if hook:
@@ -681,7 +715,7 @@ def sheet_html(title: str, lines: list, plan: str, rng: str, rows: list, notes: 
     head = "".join(f"<div><b>{e(k)}</b> {e(v)}</div>" for k, v in lines)
     trs = "".join(
         f'<tr><td><span class="dot" style="background:{RGB.get(r.status, "#999")}"></span>{e(r.title)}</td>'
-        f"<td>{e(P.COLOUR[r.status])}</td><td>{'' if r.use is None else f'{r.use * 100:.0f} %'}</td>"
+        f"<td>{e(P.COLOUR[r.status])}</td><td>{'' if r.use is None or r.id == 'CLR' else f'{r.use * 100:.0f} %'}</td>"
         f"<td>{e(r.value)}</td><td>{e(r.limit)}</td><td>{'' if r.t is None else f'{r.t:.1f}'}</td>"
         f"<td>{e(r.words)}</td></tr>" for r in rows)
     ns = "".join(f"<li>{e(n)}</li>" for n in notes)

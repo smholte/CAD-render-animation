@@ -84,9 +84,12 @@ def test_what_the_load_stands_on_does_not_count_for_it():
     boom = _body("BOOM", (0, 0, 0.0), (1, 1, 1), kind="crane", joint="K")
     c = Z.Clearance([load, boom], floor, lambda j, v: _slide("J" if j == "J" else "K", v), required=1.0)
     c.leave_out_touching([{"J": 0.0, "K": 5.0}])
-    wall = Z.Clearance([load], _obst(("WALL", (1.5, 0, 0), (2, 1, 1))), _slide, required=1.0)
+    wall = Z.Clearance([load], _obst(("WALL", (1.5, 0, 0), (2, 1, 1))), _slide, required=2.0)
     wall.leave_out_touching([{"J": 0.0}])
-    assert wall.ignore == {}                                      # near but not touching: it counts
+    assert wall.ignore == {} and wall.ends["SKID"][0][1] == {"WALL"}   # near, not touching: only near the pick
+    assert wall.nearest({"J": 0.0}).distance >= Z.FAR / 2
+    assert wall.nearest({"J": -1.9}).distance >= Z.FAR / 2              # still within 2 m of the pick
+    assert wall.nearest({"J": -2.1}).distance == pytest.approx(2.6, abs=1e-6)   # moved away: it counts again
     assert c.ignore == {"SKID": {"FLOOR"}}                       # the boom does not stand on it: it still counts
     assert c.nearest({"J": 0.0, "K": 5.0}).body == "BOOM"
 
@@ -233,3 +236,7 @@ def test_groups_hold_their_points():
         mem = p[start[g]:start[g + 1]]
         assert any(np.allclose(reps[g], m) for m in mem)
         assert np.max(np.linalg.norm(mem - reps[g], axis=1)) <= radius[g] + 1e-12
+
+
+def test_nice_steps():
+    assert [Z.nice(x) for x in (0.7, 1.0, 1.9, 2.0, 4.99, 7.0, 13.0, 160.0)] == [0.5, 1, 1, 2, 2, 5, 10, 100]
