@@ -81,10 +81,11 @@ def test_the_page_script_says_the_same_words():
 def _state(tmp_path, name, **kw):
     path = _page(tmp_path, name, **kw)
     if not _browser_works(tmp_path):                         # no browser here: the page's own numbers must be right
-        st = env.page_settings(open(path, encoding="utf-8").read())
-        v = st.get("v", 1)
-        return {"state": "ready", "player": {"format": v, "formatState": "newer" if v > 1 else "same",
-                                             "newer": outputs.newer() if v > 1 else ""}}
+        page = open(path, encoding="utf-8").read()
+        doc, _ = web3d.read_glb(env.page_glb(page))
+        st = env.page_settings(page)
+        j, text = outputs.page_state(st, doc)
+        return {"state": "ready", "player": {"format": outputs.page_format(st, doc), "formatState": j, "newer": text}}
     return _read(path)
 
 
