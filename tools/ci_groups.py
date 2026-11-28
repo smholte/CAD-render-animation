@@ -9,8 +9,11 @@ no file is ever left out. The packaged self-test (built zip installed into Blend
 same way, as one more item; it runs after the group's tests.
 
 Demo (task 0145): the test files that check the made demo project (they import `tests/demo_made.py`) go into
-DEMO_GROUPS groups of their own, "demo 1" …, balanced the same way. On GitHub one job makes the demo project once
-("Linux - make the demo project") and these groups' jobs take it from there (`.github/workflows/tests.yml`).
+DEMO_GROUPS groups of their own, "demo 1" …, balanced the same way. On GitHub each such job makes the demo project
+first (~1.5 min) and then runs its files (task 0383: the separate make job was one more job for one group).
+
+Order (task 0383): GitHub hands its runners to the jobs that wait in about the order they were queued, so every matrix
+lists its slowest group first (`slowest_first`): the run's longest jobs start first when runners are short.
 
 Real app: the groups are the list `GROUPS` in `tools/ci_real_app.py` (kept by hand, next to MIN_CHECKS).
 
@@ -36,7 +39,9 @@ import sys
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 TIMES = os.path.join(ROOT, "tools", "ci_times.json")
-PYTEST_GROUPS = 9                                  # task 0063: 4 groups took 8-14 min; task 0108: 7 groups 7-14 min, 9 plan ~10 (slowest of 3 runs)
+PYTEST_GROUPS = 8                                  # task 0063: 4 groups took 8-14 min; task 0108: 7 groups 7-14 min, 9 plan ~10
+                                                   # (slowest of 3 runs); task 0383: 8 – one full run fits GitHub Free's 20
+                                                   # jobs at once (8 pytest + 1 demo + the real-app groups + build)
 DEMO_GROUPS = 1                                    # task 0145: the demo's checks after one make (task 0247: ~5 min)
 DEMO_MARK = "demo_made"                            # a test file that opens the shared made demo imports this module
 NEW_FILE_SECS = 30.0
@@ -111,8 +116,14 @@ def matrix_pytest(times: dict | None = None, root: str = ROOT) -> list[dict]:
     secs = times.get("pytest_files", {})
     files = test_files(root)
     demo = set(demo_files(files, root))
-    return [{"name": g["name"], "files": " ".join(g["files"]), "selftest": g["selftest"],
-             "minutes": round(g["secs"] / 60, 1)} for g in pytest_groups([f for f in files if f not in demo], secs)]
+    return slowest_first([{"name": g["name"], "files": " ".join(g["files"]), "selftest": g["selftest"],
+                           "minutes": round(g["secs"] / 60, 1)}
+                          for g in pytest_groups([f for f in files if f not in demo], secs)])
+
+
+def slowest_first(groups: list[dict]) -> list[dict]:
+    """The groups with the most minutes first (task 0383); ties keep their order."""
+    return sorted(groups, key=lambda g: -float(g.get("minutes") or 0.0))
 
 
 def matrix_demo(times: dict | None = None, root: str = ROOT) -> list[dict]:
@@ -124,10 +135,16 @@ def matrix_demo(times: dict | None = None, root: str = ROOT) -> list[dict]:
                                    prefix="demo ")]
 
 
-def matrix_real_app() -> list[dict]:
+REAL_APP_JOB = "Linux - real app "
+
+
+def matrix_real_app(times: dict | None = None) -> list[dict]:
+    """GROUPS of tools/ci_real_app.py, the group whose recorded job took longest first (task 0383)."""
     sys.path.insert(0, os.path.join(ROOT, "tools"))
     import ci_real_app
-    return [{"name": k, "tests": ",".join(v)} for k, v in ci_real_app.GROUPS.items()]
+    jobs = (load_times() if times is None else times).get("jobs", {})
+    return slowest_first([{"name": k, "tests": ",".join(v), "minutes": jobs.get(REAL_APP_JOB + k, 0.0)}
+                          for k, v in ci_real_app.GROUPS.items()])
 
 
 # ---------------------------------------------------------------------------------------------- Windows parts
@@ -198,11 +215,17 @@ def _read(root: str, rel: str) -> str:
         return ""
 
 
-def lane_plan(files: list[str], root: str = ROOT, times: dict | None = None) -> dict:
+def lane_plan(files: list[str], root: str = ROOT, times: dict | None = None, extra: list[str] = (),
+              catchup: bool = False) -> dict:
     """What a lane run of these changed files needs.
 
     {"full": True, "why": [...]} when a shared file changed or a file is named by no test; else {"full": False,
-    "why": [...], "pytest": matrix, "demo": matrix, "realapp": matrix, "windows": matrix, "build": bool}."""
+    "why": [...], "pytest": matrix, "demo": matrix, "realapp": matrix, "windows": matrix, "build": bool}.
+
+    ``extra`` (task 0383, the catch-up): the branch's own changed files; of them only the test files and real-app test
+    scripts are added (they ran green in the branch's full run, on the main it left). They never make the run full. ``catchup``: the plan
+    always builds (the release takes the run's installer), and a plan with no test at all is still a plan (only the
+    build and its documentation checks), not a full run."""
     times = load_times() if times is None else times
     secs = times.get("pytest_files", {})
     tests = test_files(root)
@@ -252,6 +275,14 @@ def lane_plan(files: list[str], root: str = ROOT, times: dict | None = None) -> 
                    + (f", real app {', '.join(sorted(hit_real))}" if hit_real else ""))
     if full:
         return {"full": True, "why": full}
+    for f in sorted(set(extra) - set(files)):             # the branch's own tests (catch-up): run them, nothing more
+        hit = {f} if f in texts else set()
+        hit_real = {k for k, s in scripts.items() if os.path.basename(f) == s and f == f"tools/{s}"}
+        new, new_real = hit - picked, hit_real - real
+        if new or new_real:
+            picked |= new
+            real |= new_real
+            why.append(f"{f}: changed on this branch" + (f" (real app {', '.join(sorted(new_real))})" if new_real else ""))
     demo_set = set(demo_files(sorted(picked), root))
     plain = sorted(picked - demo_set)
 
@@ -271,15 +302,29 @@ def lane_plan(files: list[str], root: str = ROOT, times: dict | None = None) -> 
             "demo": regroup(sorted(demo_set), DEMO_GROUPS, False, "demo "),
             "realapp": realapp,
             "windows": matrix_windows(("a",)) if windows else [],
-            "build": windows,
+            "build": windows or catchup,
             "realpack": realpack}
+    if catchup:
+        for k in ("pytest", "demo", "realapp"):
+            plan[k] = slowest_first(plan[k]) if k != "realapp" else plan[k]
+        if not (plan["pytest"] or plan["demo"] or plan["realapp"] or plan["windows"]):
+            plan["why"].append("no test file names what main brought: the build and its documentation checks only")
+        return plan
     if not (plan["pytest"] or plan["demo"] or plan["realapp"] or plan["windows"] or plan["realpack"]):
         return {"full": True, "why": ["no test is named by the changed files: everything"]}
     return plan
 
 
+def catchup_plan(main_files: list[str], branch_files: list[str], root: str = ROOT, times: dict | None = None) -> dict:
+    """Task 0383: the catch-up run of a branch whose full run went green at G and which then merged main (and raised
+    its version). What is new is only where main's changes meet the branch's: the tests that name a file main brought
+    (as a lane run of those files – a shared one makes it full), plus every test file and real-app test the branch
+    itself changed or added (``extra``), plus the build (the release takes this run's installer)."""
+    return lane_plan(main_files, root, times, extra=branch_files, catchup=True)
+
+
 def describe(plan: dict) -> list[str]:
-    """Lines for the precheck's summary."""
+    """Lines for the precheck's summary (a lane or a catch-up plan)."""
     if plan.get("full"):
         return [f"full: {w}" for w in plan["why"]]
     out = [f"why: {w}" for w in plan["why"]]
@@ -289,7 +334,8 @@ def describe(plan: dict) -> list[str]:
     out += [f"real-app group {g['name']}: {g['tests']}" for g in plan["realapp"]]
     out += [f"Windows part {p['name']}: {p['what']}" for p in plan["windows"]]
     if not plan["windows"]:
-        out.append("no installer build, no Windows job (no Windows code changed)")
+        out.append("the installer is built (the release takes it), no Windows job (no Windows code changed)"
+                   if plan.get("build") else "no installer build, no Windows job (no Windows code changed)")
     if plan.get("realpack"):
         out.append("the assets pack code changed: the real assets pack's job runs (once a pin exists)")
     return out

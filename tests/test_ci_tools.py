@@ -490,6 +490,12 @@ class _Runs:
         if state == "reuse":
             return [pre, _job("Linux - test suite 1", "skipped"), _job("Build the Windows installer zip", "skipped"),
                     _job("Tests - verdict")]
+        if state == "lane":                                         # task 0383: a lane run proves nothing
+            return [pre, _job("Linux - test suite 1"), _job("Build the Windows installer zip", "skipped"),
+                    _job("Tests - verdict (lane run - not a release check)")]
+        if state == "catchup":                                      # task 0383: a green catch-up proves its tree
+            return [pre, _job("Linux - test suite 1"), _job("Build the Windows installer zip"),
+                    _job("Tests - verdict (catch-up)")]
         if state == "running-docs":
             return [pre, _job("Linux - test suite 1", "skipped"), _job("Build the Windows installer zip", None),
                     _job("Tests - verdict", None)]
@@ -821,7 +827,7 @@ def test_workflow_real_pack_job_tags_and_by_hand_check():
     assert '    branches: ["**"]\n    tags-ignore: ["assets-*"]\n    paths-ignore:' in on and "    tags:" not in on
     job = text[text.index("\n  real-pack:\n"):text.index("\n  verdict:\n")]
     assert "    needs: precheck\n    if: ${{ needs.precheck.outputs.realpack == 'true' }}\n" in job
-    assert "needs: [precheck, suite, demo-make, demo, real-app, build, windows, real-pack]" in text
+    assert "needs: [precheck, suite, demo, real-app, build, windows, real-pack]" in text
     assert "realpack: ${{ steps.pre.outputs.realpack }}" in text
     assert "rp_ok && ok=true ;;" in text
     assert "secrets." not in job and "fresing-assets-src" not in job          # no secret, nothing private
@@ -845,3 +851,256 @@ def test_assets_release_workflow_is_by_hand_from_main_with_one_read_only_secret(
     for line in code.splitlines():                     # inputs reach the shell only through env (no injection)
         if "${{ inputs." in line:
             assert re.match(r"\s*(- )?([A-Z]+|name):\s", line), line
+
+
+# ------------------------------------------------- task 0383: catch-up runs, stale runs, the claim helper, fewer jobs
+
+V11 = {"fresing_render/__init__.py": '__version__ = "0.2.11"\nX = 1\n',
+       "fresing_render/blender_manifest.toml": 'version = "0.2.11"\n', "CHANGELOG.md": "c\n0.2.11\n"}
+
+
+def _catchup_repo(r, main_change=None):
+    """main M1 (modules web3d + clash, their tests, the tour); the task branch changes clash and adds a tour stop with
+    no version yet (G, its [full run] green); main moves on by another task's change (M2); the branch merges main (C)
+    and raises its version, setting the stop's since= (V)."""
+    r.commit("M1", {"fresing_render/web3d.py": "w = 1\n", "fresing_render/clash.py": "c = 1\n",
+                    "fresing_render/blender/tour.py": 'stop("a", since="0.2.9")\n',
+                    "tests/test_web3d.py": "from fresing_render import web3d\n",
+                    "tests/test_clash.py": "from fresing_render import clash\n", "tests/test_other.py": "x = 1\n"})
+    r.git("checkout", "-q", "-b", "task")
+    r.commit("G", {"fresing_render/clash.py": "c = 2\n", "tests/test_other.py": "x = 2\n",
+                   "fresing_render/blender/tour.py": 'stop("a", since="0.2.9")\nstop("b", since="")\n'})
+    r.git("checkout", "-q", "main")
+    r.commit("M2", main_change or {"fresing_render/web3d.py": "w = 2\n"})
+    r.git("checkout", "-q", "task")
+    try:
+        r.merge("C", "main")
+    except Exception:                                   # a conflict: the worker settles it by hand
+        r.commit("C", {"fresing_render/clash.py": "c = 2\nc9 = 9\n"})
+    r.commit("V", dict(V11, **{"fresing_render/blender/tour.py": 'stop("a", since="0.2.9")\nstop("b", since="0.2.11")\n'}))
+
+
+def _plan(repo, runs, sha, before, message="Task: merge main, version 0.2.11"):
+    P = _pre()
+    return P.decide_plan("push", "refs/heads/task", repo.sha[sha], repo.sha[before], "1", runs, sleep=runs.sleep,
+                         message=message)
+
+
+def test_a_full_run_word_run_with_the_version_not_raised_is_full_and_proves_its_commit(repo):
+    """Row A: '[full run]' while the version is not raised gives a full run, and such a run proves the commit."""
+    _lane_repo(repo)
+    runs = _Runs({repo.sha["M1"]: "green"})
+    assert _plan(repo, runs, "L1", "M1", message="Task: done [full run]")[0] == "full"
+    assert _pre().run_is_proven(_run(1), NEW_JOBS)[0]
+    assert _pre().proven_state(repo.sha["M1"], runs)[0] == "proven"
+
+
+def test_stamps_only():
+    P = _pre()
+    old = 'stop("a", since="0.2.9")\n@tour_set("x", added="0.2.51", changed="0.2.207")\nstop("b", since="")\n'
+    new = 'stop("a", since="0.2.9")\n@tour_set("x", added="0.2.51", changed="0.2.11")\nstop("b", since="0.2.11")\n'
+    assert P.stamps_only(old, new, "0.2.11") and P.stamps_only(old, old, "0.2.11")
+    assert not P.stamps_only(old, new.replace("0.2.11", "0.2.12"), "0.2.11")        # another number than the version
+    assert not P.stamps_only(old, new + "x = 1\n", "0.2.11")                         # a line more
+    assert not P.stamps_only(old, new.replace('stop("b"', 'stop("c"'), "0.2.11")     # code around the stamp
+    assert not P.stamps_only('pin = "3.5.4"\n', 'pin = "3.5.5"\n', "0.2.11")         # a dependency pin is no stamp
+    assert not P.stamps_only('x = ""\n', 'x = "0.2.11"\n', "0.2.11")                 # only since= / added= / changed=
+
+
+def test_catchup_after_a_green_full_run_and_a_merge_of_main(repo):
+    _catchup_repo(repo)
+    runs = _Runs({repo.sha["G"]: "green"})
+    mode, _, why, plan = _plan(repo, runs, "V", "G")
+    assert mode == "catchup" and repo.sha["G"][:7] in why, why
+    # the tests of main's module + the test the branch changed; a branch module's own tests ran green in G's full run
+    assert _plan_files(plan) == {"tests/test_web3d.py", "tests/test_other.py"}
+    assert "tests/test_clash.py" not in _plan_files(plan)
+    assert plan["build"] and not plan["windows"] and not plan["realapp"]
+    # the merge alone (version not raised yet) is a catch-up too: it proves the tree, a lane run would not
+    assert _plan(repo, runs, "C", "G")[0] == "catchup"
+    # '[full run]' in the message: full
+    assert _plan(repo, runs, "V", "G", message="version [full run]")[0] == "full"
+
+
+@pytest.mark.parametrize("state", ["lane", "red", "cancelled", "running-full", None])
+def test_no_catchup_without_a_proven_full_run(repo, state):
+    _catchup_repo(repo)
+    runs = _Runs({repo.sha["G"]: state} if state else {})
+    mode, _, why, _ = _plan(repo, runs, "V", "G")
+    assert mode == "full" and "not a catch-up" in why, why
+
+
+def test_catchup_falls_back_to_full_when_main_brought_a_shared_file(repo):
+    _catchup_repo(repo, main_change={"fresing_render/blender/props.py": "p = 1\n"})
+    mode, _, why, _ = _plan(repo, _Runs({repo.sha["G"]: "green"}), "V", "G")
+    assert mode == "full" and "props.py is shared" in why, why
+
+
+def test_catchup_with_only_documents_from_main_builds_and_runs_no_test(repo):
+    _catchup_repo(repo, main_change={"tasks/0001-x.md": "brief\n", "README.md": "r\n"})
+    mode, _, why, plan = _plan(repo, _Runs({repo.sha["G"]: "green"}), "V", "G")
+    assert mode == "catchup", why
+    assert _plan_files(plan) == {"tests/test_other.py"} and plan["build"]          # the branch's own test only
+
+
+def test_no_catchup_when_the_push_changes_code_beyond_the_merge(repo):
+    _catchup_repo(repo)
+    repo.commit("W", {"fresing_render/clash.py": "c = 3\n"})                          # a code change after the merge
+    mode, _, why, _ = _plan(repo, _Runs({repo.sha["G"]: "green"}), "W", "V")
+    assert mode == "full" and "clash.py" in why and "beyond" in why, why
+
+
+def test_no_catchup_when_main_and_the_branch_changed_the_same_lines(repo):
+    _catchup_repo(repo, main_change={"fresing_render/clash.py": "c = 9\n"})        # the merge needed a hand
+    mode, _, why, _ = _plan(repo, _Runs({repo.sha["G"]: "green"}), "V", "G")
+    assert mode == "full" and "conflict" in why, why
+
+
+def test_a_green_catchup_proves_its_tree_and_can_be_the_next_basis(repo):
+    """Row C: a green catch-up is a proven run (a fast-forward of main to it is a reuse) and the basis of the next
+    catch-up when main moves once more."""
+    P = _pre()
+    catchup_jobs = NEW_JOBS[:-1] + [_job("Tests - verdict (catch-up)")]
+    assert P.run_is_proven(_run(1), catchup_jobs)[0]
+    _catchup_repo(repo)
+    repo.git("checkout", "-q", "main")
+    repo.commit("M3", {"fresing_render/web3d.py": "w = 3\n"})
+    repo.git("checkout", "-q", "task")
+    repo.merge("C2", "main")
+    runs = _Runs({repo.sha["V"]: "catchup"})
+    mode, _, why, plan = _plan(repo, runs, "C2", "V")
+    assert mode == "catchup" and repo.sha["V"][:7] in why, why
+    assert "tests/test_web3d.py" in _plan_files(plan)
+
+
+class _BranchApi:
+    def __init__(self, head, files, status="ahead"):
+        self.head, self.files, self.status = head, files, status
+
+    def __call__(self, path):
+        if "/branches/" in path:
+            return {"commit": {"sha": self.head}}
+        if "/compare/" in path:
+            return {"status": self.status, "files": [{"filename": f} for f in self.files]}
+        raise AssertionError(path)
+
+
+def test_stale_runs_stop_at_the_precheck():
+    P = _pre()
+    old, new = "a" * 40, "b" * 40
+    assert P.stale_decision("push", "refs/heads/task/x", old, _BranchApi(new, ["fresing_render/a.py"]))
+    assert P.stale_decision("push", "refs/heads/task/x", old, _BranchApi(new, ["tasks/0383-x.md", "TASKS.md"])) == ""
+    assert P.stale_decision("push", "refs/heads/task/x", old, _BranchApi(old, [])) == ""        # still the head
+    assert P.stale_decision("push", "refs/heads/main", old, _BranchApi(new, ["fresing_render/a.py"])) == ""
+    assert P.stale_decision("pull_request", "refs/pull/3/merge", old, _BranchApi(new, ["a.py"])) == ""
+
+    def broken(path):
+        raise RuntimeError("gh api: 502")
+    assert P.stale_decision("push", "refs/heads/task/x", old, broken) == ""                 # never stop for that
+    mode, _, why, plan = P.decide_plan("push", "refs/heads/task/x", old, "", "1", _BranchApi(new, ["x.py"]),
+                                       message="x")
+    assert mode == "stale" and plan is None and new[:7] in why
+
+
+def _status():
+    sys.path.insert(0, os.path.join(ROOT, "tools"))
+    import ci_status
+    return ci_status
+
+
+def test_claim_line_read_written_and_described():
+    S = _status()
+    from datetime import datetime, timezone
+    head = "# Version claim – one merge at a time\n\nOne line below …\n"
+    assert S.read_claim(head) is None
+    text = S.write_claim(head, "0.2.277 · task 0371 · task/0371-demo-kit · claimed 28 Nov 18:38")
+    c = S.read_claim(text)
+    assert c == {"version": "0.2.277", "task": "0371", "branch": "task/0371-demo-kit", "when": "28 Nov 18:38"}
+    assert S.write_claim(text, "") == head and S.read_claim(S.write_claim(head, "no version · task 0383 · "
+                                                                          "task/0383-x · claimed 3 Dec 09:05"))
+    now = datetime(2026, 11, 28, 20, 30, tzinfo=timezone.utc)
+    lines = S.describe_claim(c, now, branch_moved=lambda b: "2026-11-28T18:40:00Z")
+    assert "112 min ago" in lines[0] and "110 min ago" in lines[1] and "ask the owner" in lines[2]
+    assert len(S.describe_claim(c, now, branch_moved=lambda b: "2026-11-28T20:10:00Z")) == 2   # it still moves
+    assert S.claim_time("31 Dec 23:50", datetime(2027, 1, 1, 0, 5, tzinfo=timezone.utc)).year == 2026
+    assert S.next_version("0.2.276", {"0.2.275", "0.2.276"}) == "0.2.277"
+    assert S.next_version("0.2.276", {"0.2.278"}) == "0.2.279"
+    assert "taken" not in S.describe_claim(None, now)[0] and "free" in S.describe_claim(None, now)[0]
+
+
+def test_claim_and_unclaim_push_only_the_claim_file(tmp_path, monkeypatch, capsys):
+    """--claim against a local 'GitHub': writes tasks/MERGING.md on main, refuses while another task holds it,
+    --unclaim empties it; the task's own work is never pushed."""
+    import argparse
+    import subprocess
+    S = _status()
+    origin, work = tmp_path / "origin.git", tmp_path / "work"
+    run = lambda *a, cwd=work: subprocess.run(a, cwd=cwd, check=True, capture_output=True, text=True).stdout  # noqa
+    run("git", "init", "-q", "--bare", "-b", "main", str(origin), cwd=tmp_path)
+    run("git", "clone", "-q", str(origin), str(work), cwd=tmp_path)
+    run("git", "config", "user.email", "t@example.com")
+    run("git", "config", "user.name", "t")
+    (work / "tasks").mkdir()
+    (work / "tasks" / "MERGING.md").write_text("# Version claim\n\nOne line below.\n", encoding="utf-8")
+    (work / "fresing_render").mkdir()
+    (work / "fresing_render" / "blender_manifest.toml").write_text('version = "0.2.276"\n', encoding="utf-8")
+    run("git", "add", "-A")
+    run("git", "commit", "-q", "-m", "m0")
+    run("git", "push", "-q", "origin", "HEAD:main")
+    run("git", "checkout", "-q", "-b", "task/0383-ci-catch-up")
+    (work / "mine.py").write_text("x = 1\n", encoding="utf-8")
+    run("git", "add", "-A")
+    run("git", "commit", "-q", "-m", "my work")
+    monkeypatch.chdir(work)
+    monkeypatch.setattr(S, "_released", lambda: {"0.2.276"})
+    monkeypatch.setattr(S, "_branch_moved", lambda b: "?")
+
+    def args(**kw):
+        base = dict(claim=False, unclaim=False, claimed=False, no_version=False, task=None, claim_branch=None,
+                    force=False, trailer=["Co-Authored-By: x"])
+        base.update(kw)
+        return argparse.Namespace(**base)
+
+    def on_main():
+        run("git", "fetch", "-q", "origin", "main:refs/remotes/origin/main")
+        return run("git", "show", "origin/main:tasks/MERGING.md"), run("git", "log", "-1", "--format=%B%n%H",
+                                                                       "origin/main")
+
+    assert S.claim(args(claim=True)) == 0
+    text, log = on_main()
+    assert S.read_claim(text)["version"] == "0.2.277" and S.read_claim(text)["task"] == "0383"
+    assert "Version claim: 0.2.277 for task 0383" in log and "Co-Authored-By: x" in log
+    assert run("git", "ls-tree", "--name-only", "-r", "origin/main").split() == [
+        "fresing_render/blender_manifest.toml", "tasks/MERGING.md"]                    # my work stays on my branch
+    assert run("git", "rev-parse", "--abbrev-ref", "HEAD").strip() == "task/0383-ci-catch-up"
+    assert S.claim(args(claim=True)) == 0 and "already" in capsys.readouterr().out    # mine: nothing pushed again
+    assert S.claim(args(claim=True, task="0390")) == 1                                 # another task: refused
+    assert "Held by another task" in capsys.readouterr().out
+    assert S.claim(args(unclaim=True, task="0390")) == 1                               # not theirs to give back
+    assert S.claim(args(unclaim=True)) == 0
+    assert S.read_claim(on_main()[0]) is None
+    assert S.claim(args(claim=True, no_version=True)) == 0
+    assert S.read_claim(on_main()[0])["version"] == "no version"
+
+
+def test_workflow_runs_catchup_and_stale_modes():
+    text = open(os.path.join(ROOT, ".github", "workflows", "tests.yml"), encoding="utf-8").read()
+    jobs = {name: text[text.index(f"\n  {name}:\n"):] for name in ("suite", "demo", "real-app", "build", "windows")}
+    for name, body in jobs.items():
+        cond = body[:body.index("runs-on:")]
+        assert "catchup" in cond, name                                    # every test job runs in a catch-up
+    assert "demo-make" not in text and 'python tests/demo_made.py "$RUNNER_TEMP/demo-made"' in jobs["demo"]
+    pre = text[text.index("\n  precheck:\n"):text.index("\n  suite:\n")]
+    assert "actions: write" in pre and "fetch-depth: 300" in pre               # cancels itself; merge-base reach
+    assert "catchup) [ \"$PRE$BUILD\" = \"successsuccess\" ] && lane_ok && rp_ok && ok=true ;;" in text
+    assert "' (catch-up)'" in text and "tests/test_tour_versions.py" in jobs["build"]
+
+
+def test_matrices_start_with_the_slowest_and_one_full_run_takes_at_most_20_jobs_at_once():
+    G = _groups()
+    for m in (G.matrix_pytest(), G.matrix_real_app()):
+        mins = [g["minutes"] for g in m]
+        assert mins == sorted(mins, reverse=True)
+    # task 0383: GitHub Pro runs 40 jobs at once – two full runs side by side: the test jobs that start together
+    at_once = len(G.matrix_pytest()) + len(G.matrix_demo()) + len(G.matrix_real_app()) + 1       # + the build
+    assert at_once <= 20, at_once

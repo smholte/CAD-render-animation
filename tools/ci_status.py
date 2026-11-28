@@ -6,6 +6,16 @@
     python3 tools/ci_status.py --wait               # wait until the run has finished (max 90 min)
     python3 tools/ci_status.py --run 123456789 --log "Windows"   # whole log of the job(s) matching "Windows"
     python3 tools/ci_status.py --run 123456789 --record   # copy a green run's times into tools/ci_times.json
+    python3 tools/ci_status.py --claimed             # the version claim (tasks/MERGING.md on main) and its age
+    python3 tools/ci_status.py --claim               # take the claim: the next version, for this branch's task
+    python3 tools/ci_status.py --claim --no-version  # a task that raises no version (tools, docs) takes its turn
+    python3 tools/ci_status.py --unclaim             # give the claim back (after the merge, or after a second red run)
+
+The claim (task 0383, CLAUDE.md section 2 "One merge at a time"): one line in tasks/MERGING.md on main. --claim and
+--unclaim read it from GitHub's main, write only that file in a checkout of its own (a git worktree of origin/main)
+and push only that commit to main – a tasks/-only push starts no test run. --claim refuses while another task holds
+the claim and shows who holds it, since when, and when its branch last moved. The task number comes from the branch
+name (task/NNNN-…) or --task; --trailer "Co-Authored-By: …" lines end the commit message.
 
 Prints the mode of the run (full / docs / reuse, chosen by the precheck job, task 0036), each job with its
 time, the run's total, a flag for a job that took more than 1.5 x its recorded time, and for a failed job
@@ -23,7 +33,7 @@ import re
 import subprocess
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 
 REPO = "smholte/cad-render-animation"
 
@@ -144,7 +154,10 @@ def run_mode(jobs) -> str:
     return {"docs": "docs - documentation-only change: build, tooltip check, guide",
             "full": "full - all tests",
             "lane": "lane - only the tests of the changed files (version not raised yet); not a release check: the "
-                    "full run comes with the version raise or '[full run]' in the commit message"
+                    "full run comes with the version raise or '[full run]' in the commit message",
+            "catchup": "catch-up - the branch's full run was green; only the tests of what main brought (and of the "
+                       "branch's files) and the build; proves the tree like a full run",
+            "stale": "stale - the branch has moved on to a commit with its own run; this run was cancelled",
             }.get(m.group(1), m.group(1))
 
 
@@ -261,6 +274,177 @@ def record(run) -> int:
     return 0
 
 
+# ---------------------------------------------------------------------------------------------- the version claim
+
+MERGING = "tasks/MERGING.md"
+CLAIM_LINE = re.compile(r"^(?P<version>\d+\.\d+\.\d+|no version) · task (?P<task>\d{4}) · (?P<branch>\S+) · "
+                        r"claimed (?P<when>\d{1,2} \w{3} \d{1,2}:\d{2})\s*$")
+STALE_CLAIM_MIN = 90                              # CLAUDE.md: older than this with no push on its branch → ask the owner
+
+
+def read_claim(text: str) -> dict | None:
+    """The claim line of tasks/MERGING.md as a dict (version, task, branch, when), None when it is free."""
+    for line in text.splitlines():
+        m = CLAIM_LINE.match(line.strip())
+        if m:
+            return m.groupdict()
+    return None
+
+
+def claim_time(when: str, now: datetime) -> datetime | None:
+    """'28 Nov 18:38' (UTC) as a datetime in now's year (the year before when that would lie in the future)."""
+    try:
+        t = datetime.strptime(f"{when} {now.year}", "%d %b %H:%M %Y").replace(tzinfo=now.tzinfo)
+    except ValueError:
+        return None
+    return t.replace(year=now.year - 1) if (t - now).days > 1 else t
+
+
+def write_claim(text: str, line: str) -> str:
+    """tasks/MERGING.md with its claim line replaced by ``line`` ('' empties it); the header lines stay."""
+    keep = [ln for ln in text.splitlines() if not CLAIM_LINE.match(ln.strip())]
+    while keep and not keep[-1].strip():
+        keep.pop()
+    return "\n".join(keep + ([line] if line else [])) + "\n"
+
+
+def next_version(main_version: str, released: set[str]) -> str:
+    def vt(v):
+        return tuple(int(x) for x in re.findall(r"\d+", v)[:3])
+    newest = max([main_version] + list(released), key=vt)
+    a = list(vt(newest)) + [0, 0, 0]
+    return f"{a[0]}.{a[1]}.{a[2] + 1}"
+
+
+def _released() -> set[str]:
+    rels = gh(f"repos/{REPO}/releases?per_page=100")
+    return {r["tag_name"][1:] for r in rels if r["tag_name"].startswith("v") and "rehearsal" not in r["tag_name"]}
+
+
+def _main_text(path: str) -> str:
+    r = subprocess.run(["git", "show", f"origin/main:{path}"], capture_output=True, text=True)
+    return r.stdout if r.returncode == 0 else ""
+
+
+def _branch_moved(branch: str) -> str:
+    try:
+        c = gh(f"repos/{REPO}/branches/{branch}")["commit"]["commit"]["committer"]["date"]
+    except (RuntimeError, KeyError, TypeError):
+        return "?"
+    return c
+
+
+def describe_claim(claim: dict | None, now: datetime, branch_moved=_branch_moved) -> list[str]:
+    if not claim:
+        return ["The version claim is free (tasks/MERGING.md on main has no claim line)."]
+    t = claim_time(claim["when"], now)
+    age = (now - t).total_seconds() / 60 if t else None
+    out = [f"Claimed: {claim['version']} · task {claim['task']} · {claim['branch']} · since {claim['when']} UTC"
+           + (f" ({age:.0f} min ago)" if age is not None else "")]
+    moved = branch_moved(claim["branch"])
+    mt = None
+    try:
+        mt = datetime.fromisoformat(moved.replace("Z", "+00:00"))
+    except (ValueError, AttributeError):
+        pass
+    if mt:
+        out.append(f"  its branch last moved {(now - mt).total_seconds() / 60:.0f} min ago")
+    if age is not None and age > STALE_CLAIM_MIN and (mt is None or (now - mt).total_seconds() / 60 > STALE_CLAIM_MIN):
+        out.append(f"  older than {STALE_CLAIM_MIN} min with no push on its branch: ask the owner whether that session "
+                   "stopped (CLAUDE.md section 2) – never take the claim over yourself")
+    return out
+
+
+def _current_task(branch: str) -> str:
+    m = re.match(r"task/(\d{4})", branch)
+    return m.group(1) if m else ""
+
+
+def push_claim(new_text: str, message: str) -> tuple[bool, str]:
+    """Commit tasks/MERGING.md = new_text on top of origin/main in a worktree of its own and push it to main."""
+    import tempfile
+    tmp = tempfile.mkdtemp(prefix="fr-claim-")
+    wt = os.path.join(tmp, "main")
+    try:
+        r = subprocess.run(["git", "worktree", "add", "-q", "--detach", wt, "origin/main"], capture_output=True, text=True)
+        if r.returncode:
+            return False, r.stderr.strip()
+        with open(os.path.join(wt, MERGING), "w", encoding="utf-8", newline="\n") as fh:
+            fh.write(new_text)
+        for cmd in (["git", "-C", wt, "add", MERGING], ["git", "-C", wt, "commit", "-q", "-m", message],
+                    ["git", "-C", wt, "push", "-q", "origin", "HEAD:main"]):
+            r = subprocess.run(cmd, capture_output=True, text=True)
+            if r.returncode:
+                return False, (r.stderr or r.stdout).strip()
+        return True, ""
+    finally:
+        subprocess.run(["git", "worktree", "remove", "--force", wt], capture_output=True)
+        subprocess.run(["git", "worktree", "prune"], capture_output=True)
+
+
+def claim(args, now: datetime | None = None) -> int:
+    now = now or datetime.now(timezone.utc)
+    branch = args.claim_branch or _git("rev-parse", "--abbrev-ref", "HEAD")
+    task = args.task or _current_task(branch)
+    for attempt in range(3):
+        if subprocess.run(["git", "fetch", "-q", "origin", "main:refs/remotes/origin/main"]).returncode:
+            print("Could not fetch main from GitHub.")
+            return 2
+        text = _main_text(MERGING)
+        held = read_claim(text)
+        if args.claimed:
+            print("\n".join(describe_claim(held, now)))
+            return 0
+        mine = bool(held and task and held["task"] == task)
+        if args.unclaim:
+            if not held:
+                print("The claim is free already.")
+                return 0
+            if not mine and not args.force:
+                print("\n".join(describe_claim(held, now)))
+                print(f"Not yours (task {task or '?'}): only the task that holds a claim gives it back.")
+                return 1
+            new = write_claim(text, "")
+            msg = f"Version claim: free again (task {held['task']}, {held['version']})"
+        else:
+            if not task:
+                print("No task number: work on a branch task/NNNN-… or give --task NNNN.")
+                return 2
+            if held and not mine:
+                print("\n".join(describe_claim(held, now)))
+                print("Held by another task: do not merge main, do not raise the version, do not push code. Finish the "
+                      "report and the guide; check again with this command in about 15 minutes.")
+                return 1
+            if mine:
+                print("\n".join(describe_claim(held, now)))
+                print("You hold the claim already.")
+                return 0
+            if args.no_version:
+                version = "no version"
+            else:
+                main_v = re.search(r'(?m)^version\s*=\s*"([^"]+)"', _main_text("fresing_render/blender_manifest.toml"))
+                version = next_version(main_v.group(1) if main_v else "0.0.0", _released())
+            line = f"{version} · task {task} · {branch} · claimed {now.strftime('%d %b %H:%M').lstrip('0')}"
+            new = write_claim(text, line)
+            msg = f"Version claim: {version} for task {task}"
+        if args.trailer:                           # the session's attribution lines, after a blank line
+            msg += "\n\n" + "\n".join(args.trailer)
+        ok, err = push_claim(new, msg)
+        if ok:
+            if args.unclaim:
+                print("The claim is free again (tasks/MERGING.md on main).")
+            else:
+                print(f"Claimed: {line}")
+                if version != "no version":
+                    print(f"Next: merge main once, raise both version files to {version}, its CHANGELOG heading, the "
+                          "tour / function versions, push once (a catch-up run when your [full run] was green). "
+                          "Green: fast-forward main, then --unclaim in the report push.")
+            return 0
+        print(f"The push to main was refused ({err.splitlines()[-1] if err else '?'}): someone pushed first; reading "
+              "the claim again.")
+    return 1
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--branch")
@@ -269,7 +453,17 @@ def main() -> int:
     ap.add_argument("--wait", action="store_true")
     ap.add_argument("--log", metavar="JOB_NAME_PART")
     ap.add_argument("--record", action="store_true", help="copy this green run's times into tools/ci_times.json")
+    ap.add_argument("--claim", action="store_true", help="take the version claim (tasks/MERGING.md on main)")
+    ap.add_argument("--unclaim", action="store_true", help="give the version claim back")
+    ap.add_argument("--claimed", action="store_true", help="show the version claim and its age")
+    ap.add_argument("--no-version", action="store_true", help="with --claim: a task that raises no version")
+    ap.add_argument("--task", help="the task number for --claim / --unclaim (default: from the branch name)")
+    ap.add_argument("--claim-branch", help="the branch named in the claim (default: the current branch)")
+    ap.add_argument("--force", action="store_true", help="with --unclaim: also another task's claim (the owner said so)")
+    ap.add_argument("--trailer", action="append", help="a line for the end of the claim's commit message")
     args = ap.parse_args()
+    if args.claim or args.unclaim or args.claimed:
+        return claim(args)
     end = time.time() + 90 * 60
     grace = time.time() + TASK_LIST_GRACE
     while True:

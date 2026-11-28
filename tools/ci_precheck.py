@@ -25,6 +25,16 @@ Mode of the run (output `mode`):
          file, a file no test names, a raised version, `main`, a pull request, "[full run]" or "[release rehearsal]"
          in the commit message → full. A lane run proves nothing (its verdict job says "lane run"): never the basis of
          a docs or reuse run.
+  catchup (task 0383) a branch push whose newest commit G with a proven green run (a full run – "[full run]" while the
+         version is not raised – or a catch-up / docs run on top of one) is followed only by a merge of main and the
+         version lines, version stamps (a tour set's changed=, a function's since= … set to this version), the
+         CHANGELOG heading and documents: the tree equals the clean merge of G and main apart from those
+         (`git merge-tree`). Runs the tests that name a file main brought since it parted from G (a lane plan of
+         those files: a shared one → full), the tests that name the branch's own files, and the build. Proves the
+         tree like a full run (a reuse on main takes it). "[full run]" in the commit message → full.
+  stale  (task 0383) a branch push whose branch has moved on to a commit that starts its own run (it changes more
+         than the task list): the precheck cancels its own run before any test job starts. Never on main (a main
+         run publishes its version).
   full   everything else: all tests.
 """
 
@@ -32,6 +42,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import difflib
 import glob
 import json
 import os
@@ -395,6 +406,7 @@ WAIT_STEP = 30
 TEST_JOBS = ("Linux - test suite", "Linux - real app", "Windows - install", "Linux - make the demo")
 LANE_MARK = "lane run"     # in the verdict job's name of a lane run: such a run proves nothing (task 0171)
 FULL_WORDS = ("[full run]", "[release rehearsal]")
+CATCHUP_FULL_WORDS = ("[full run]",)     # a rehearsal may be a catch-up: its build is what the release takes
 
 
 def candidates(sha: str, before: str, base: str, depth: int = 10) -> list[str]:
@@ -527,6 +539,156 @@ def lane_decision(event: str, ref: str, sha: str, message: str | None = None) ->
                   f"{len(files)} changed files since {mb[:7]} on main")
 
 
+# ---------------------------------------------------------------------------------------------- catch-up (task 0383)
+
+STAMP = re.compile(r"\d+\.\d+\.\d+")
+EMPTY_STAMP = re.compile(r'(?<=since=")(?=")|(?<=added=")(?=")|(?<=changed=")(?=")')
+# Files the precheck itself checks against the tree (tools/tour_versions.py): any change to them is checked above.
+PRECHECKED = {"tests/data/tour_versions.json"}
+
+
+def stamps_only(old: str, new: str, version: str) -> bool:
+    """True when ``new`` differs from ``old`` only by version stamps set to ``version``: every changed line is a line of
+    ``old`` in which some version numbers (or an empty since= / added= / changed=) became ``version`` – a test tour
+    set's ``changed="0.2.277"``, a function's ``since=``, a PC-check line's version. No line added or taken away."""
+    if not version or old == new:
+        return old == new
+    a, b = old.splitlines(), new.splitlines()
+    for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(a=a, b=b, autojunk=False).get_opcodes():
+        if tag == "equal":
+            continue
+        if tag != "replace" or i2 - i1 != j2 - j1:
+            return False
+        for x, y in zip(a[i1:i2], b[j1:j2]):
+            if version not in y:
+                return False
+            parts, pos = [], 0
+            for m in sorted(list(STAMP.finditer(x)) + list(EMPTY_STAMP.finditer(x)), key=lambda m: m.start()):
+                parts += [re.escape(x[pos:m.start()]), f"(?:{re.escape(m.group())}|{re.escape(version)})"]
+                pos = m.end()
+            parts.append(re.escape(x[pos:]))
+            if not re.fullmatch("".join(parts), y):
+                return False
+    return True
+
+
+def merge_tree(a: str, b: str) -> tuple[str, list[str]]:
+    """(tree, conflicted files) of a merge of commits a and b (git merge-tree --write-tree); ('', []) on an error. A
+    conflicted file holds git's conflict markers in that tree."""
+    r = subprocess.run(["git", "-C", ROOT, "merge-tree", "--write-tree", "--name-only", "--no-messages", a, b],
+                       capture_output=True, text=True)
+    out = r.stdout.splitlines()
+    if r.returncode not in (0, 1) or not out or not re.fullmatch(r"[0-9a-f]{40,64}", out[0].strip()):
+        return "", []
+    return out[0].strip(), ([ln for ln in out[1:] if ln.strip()] if r.returncode == 1 else [])
+
+
+def beyond_merge(tree: str, sha: str, version: str, keep_docs: bool = False) -> list[str]:
+    """The files in which commit sha differs from tree by more than documents, the version lines, version stamps set to
+    ``version`` and the files the precheck checks itself ([] = only those). ``keep_docs``: documents are listed too
+    (the lane plan picks their checks)."""
+    bad = []
+    for f in changed_files(tree, sha):
+        if (is_doc_path(f) and not keep_docs) or f in PRECHECKED:
+            continue
+        if f in VERSION_FILES and only_version_line(git("diff", "-U0", tree, sha, "--", f)):
+            continue
+        old = subprocess.run(["git", "-C", ROOT, "show", f"{tree}:{f}"], capture_output=True)
+        new = subprocess.run(["git", "-C", ROOT, "show", f"{sha}:{f}"], capture_output=True)
+        if old.returncode == 0 and new.returncode == 0:
+            try:
+                if stamps_only(old.stdout.decode("utf-8"), new.stdout.decode("utf-8"), version):
+                    continue
+            except UnicodeDecodeError:
+                pass
+        bad.append(f)
+    return bad
+
+
+def catchup_decision(event: str, ref: str, sha: str, message: str | None = None, api=gh_api) \
+        -> tuple[dict | None, str, str]:
+    """(plan, why, G) for a catch-up run (task 0383), or (None, why not, '')."""
+    if event != "push" or ref == "refs/heads/main":
+        return None, "main or a pull request", ""
+    message = git("log", "-1", "--format=%B", sha) if message is None else message
+    word = next((w for w in CATCHUP_FULL_WORDS if w in message), "")
+    if word:
+        return None, f"'{word}' in the commit message", ""
+    main = lane_base(sha)
+    if not main or main == sha:
+        return None, "no commit of main to compare with", ""
+    version = version_at(sha)
+    notes, asked = [], 0
+    for c in git("rev-list", "--topo-order", f"--max-count={CANDIDATES}", sha, f"^{main}").split():
+        if c == sha:
+            continue
+        base = git("merge-base", c, main)
+        tree, conflicts = merge_tree(c, main) if base else ("", [])
+        code = [f for f in conflicts if not (is_doc_path(f) or f in PRECHECKED)]
+        if not tree or code:            # a conflict in a document (CHANGELOG, TASKS.md) is judged with the documents
+            notes.append(f"{c[:7]}: " + ("history too short" if not base else f"a conflict in {', '.join(code[:3])} "
+                                         "with main (settled by hand)" if code else "git merge-tree failed"))
+            continue
+        bad = beyond_merge(tree, sha, version)
+        if bad:
+            notes.append(f"{c[:7]}: this push changes {', '.join(bad[:3])}{' …' if len(bad) > 3 else ''} beyond "
+                         "the merge of main")
+            continue
+        if asked >= API_CHECKS:
+            notes.append(f"stopped after {API_CHECKS} commits")
+            break
+        asked += 1
+        state, why = proven_state(c, api)
+        if state != "proven":
+            notes.append(f"{c[:7]}: {why}")
+            continue
+        import ci_groups
+        # what main brought, less its own version raises (version lines, other tasks' stamps): those are no code
+        main_files, own = beyond_merge(base, main, version_at(main), keep_docs=True), changed_files(base, c)
+        plan = ci_groups.catchup_plan(main_files, own, ROOT)
+        if plan["full"]:
+            return None, (f"{c[:7]} ran green, but main brought " + "; ".join(plan["why"][:3])
+                          + (" …" if len(plan["why"]) > 3 else "")), ""
+        return plan, (f"{c[:7]} ran green ({why}); since then only a merge of main ({len(main_files)} files main "
+                      f"brought since {base[:7]}) and version lines / stamps / documents: the tests of what main "
+                      f"brought, the tests this branch changed, the build"), c
+    return None, ("no green commit of this branch is followed only by a merge of main and the version"
+                  + (f" ({'; '.join(notes[:4])})" if notes else "")), ""
+
+
+# ---------------------------------------------------------------------------------------------- stale runs (task 0383)
+
+def stale_decision(event: str, ref: str, sha: str, api=gh_api) -> str:
+    """Why this run is stale ('' = it is not): a branch push whose branch on GitHub has moved on to a commit that changes
+    more than the task list (that commit starts a run of its own, which supersedes this one). Main never: a run on main
+    publishes its version. A push of only TASKS.md / tasks/ starts no run, so it never makes an older run stale."""
+    if event != "push" or not ref.startswith("refs/heads/") or ref == "refs/heads/main":
+        return ""
+    branch = ref[len("refs/heads/"):]
+    try:
+        head = api(f"repos/{REPO}/branches/{branch}")["commit"]["sha"]
+        if head == sha:
+            return ""
+        cmp = api(f"repos/{REPO}/compare/{sha}...{head}")
+    except Exception:                      # GitHub not reachable or an odd answer: never stop a run for that
+        return ""
+    files = [f.get("filename", "") for f in cmp.get("files") or []]
+    if cmp.get("status") == "identical" or (files and all(f == TASK_LIST_ONLY[0] or f.startswith(TASK_LIST_ONLY[1])
+                                                          for f in files)):
+        return ""
+    return (f"{branch} is at {head[:7]} now ({cmp.get('status', '?')}, {len(files)} files changed): that push has its "
+            "own run")
+
+
+def cancel_own_run(run_id: str, api_post=None) -> bool:
+    """Cancel this workflow run (the precheck job needs actions: write). True when GitHub took the request."""
+    if not run_id or run_id == "0":
+        return False
+    cmd = ["gh", "api", "-X", "POST", f"repos/{REPO}/actions/runs/{run_id}/cancel"]
+    r = (api_post or subprocess.run)(cmd, capture_output=True, text=True)
+    return getattr(r, "returncode", 1) == 0
+
+
 def decide(event: str, ref: str, sha: str, before: str, run_id: str, api=gh_api,
            sleep=time.sleep) -> tuple[str, str, str]:
     """(mode, artifacts run id, why)."""
@@ -535,14 +697,21 @@ def decide(event: str, ref: str, sha: str, before: str, run_id: str, api=gh_api,
 
 def decide_plan(event: str, ref: str, sha: str, before: str, run_id: str, api=gh_api, sleep=time.sleep,
                 message: str | None = None) -> tuple[str, str, str, dict | None]:
-    """(mode, artifacts run id, why, lane plan or None)."""
+    """(mode, artifacts run id, why, lane / catch-up plan or None). After reuse and docs, a catch-up (task 0383) is
+    tried before a lane run: a catch-up proves the tree, a lane run does not."""
+    stale = stale_decision(event, ref, sha, api)
+    if stale:
+        return "stale", run_id, stale, None
     mode, art, why = _decide(event, ref, sha, before, run_id, api, sleep)
     if mode != "full":
         return mode, art, why, None
+    plan, up_why, _g = catchup_decision(event, ref, sha, message, api)
+    if plan:
+        return "catchup", run_id, up_why, plan
     plan, lane_why = lane_decision(event, ref, sha, message)
     if plan:
         return "lane", run_id, lane_why, plan
-    return mode, art, f"{why} – not a lane run: {lane_why}", None
+    return mode, art, f"{why} – not a catch-up: {up_why} – not a lane run: {lane_why}", None
 
 
 def _decide(event: str, ref: str, sha: str, before: str, run_id: str, api=gh_api,
@@ -598,7 +767,7 @@ def real_pack_wanted(mode: str, plan: dict | None, root: str = ROOT) -> bool:
     """Every full run once the pin exists; a lane run when the pack code changed (the pin itself gives a full run)."""
     if not os.path.isfile(os.path.join(root, ASSETS_PIN)):
         return False
-    return mode == "full" or (mode == "lane" and bool(plan and plan.get("realpack")))
+    return mode == "full" or (mode in ("lane", "catchup") and bool(plan and plan.get("realpack")))
 
 
 def main(argv=None) -> int:
@@ -647,6 +816,10 @@ def main(argv=None) -> int:
         mode, art_run, why, plan = decide_plan(args.event, ref, sha, args.before, args.run)
     if plan:
         pytest_m, real_m, demo_m, win_m, build = plan["pytest"], plan["realapp"], plan["demo"], plan["windows"], plan["build"]
+    if mode == "stale":
+        pytest_m, real_m, demo_m, win_m, build = [], [], [], [], False
+        cancelled = cancel_own_run(args.run)
+        why += (" – this run is cancelled" if cancelled else " – could not cancel this run: every test job is skipped")
 
     realpack = real_pack_wanted(mode, plan)
 
@@ -660,13 +833,17 @@ def main(argv=None) -> int:
             out += [f"- pytest group {g['name']} (after the demo is made once): ~{g['minutes']} min" for g in demo_m]
             out += [f"- real-app group {g['name']}: {g['tests']}" for g in real_m]
             out += [f"- Windows part {p['name']}: {p['what']}" for p in win_m]
-        if mode in ("full", "lane"):
+        if mode in ("full", "lane", "catchup"):
             out += ["- real assets pack: " + ("the pinned pack is checked" if realpack else
                     "no pin yet (installer/assets_pin.json) – skipped" if not os.path.isfile(os.path.join(ROOT, ASSETS_PIN))
                     else "the pack code did not change – skipped")]
         if mode == "lane":
             out += ["- **lane run – not a release check**: the full run comes with the version raise "
                     "(or put [full run] in the commit message)"]
+            out += [f"- {line}" for line in ci_groups.describe(plan)]
+        if mode == "catchup":
+            out += ["- **catch-up run**: the branch's full run went green; this run checks what main brought (it proves "
+                    "the tree – a fast-forward of main to it is a reuse)"]
             out += [f"- {line}" for line in ci_groups.describe(plan)]
     text = "\n".join(out) + "\n"
     print(text)

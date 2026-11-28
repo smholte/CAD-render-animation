@@ -8,6 +8,9 @@ name: Tests
 #       reuse  a push to main whose git tree already ran green (fast-forward): no tests, straight to the release
 #       lane   (task 0171) a branch push whose version is not raised yet: only the jobs its changed files need
 #              (tools/ci_groups.py lane_plan); proves nothing - the full run comes with the version raise
+#       catchup (task 0383) a branch whose full run went green, then merged main and raised its version: the tests
+#              of what main brought + of the branch's files, and the build; proves the tree (main reuses it)
+#       stale  (task 0383) the branch has a newer commit with a run of its own: the precheck cancels this run
 #   - Linux: the test suite in parallel groups (tools/ci_groups.py), one of them also the packaged self-test
 #   - Linux: the real app on a virtual screen in parallel groups (GROUPS in tools/ci_real_app.py): simulated
 #     clicks, the accented-paths test, the PC check (Full) and the in-app update
@@ -62,6 +65,9 @@ jobs:
     name: Precheck (version, counts, groups; picks the mode)
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: write                 # task 0383: reads runs; cancels its own run when it is stale
     outputs:
       mode: ${{ steps.pre.outputs.mode }}
       artifacts_run: ${{ steps.pre.outputs.artifacts_run }}
@@ -79,10 +85,10 @@ jobs:
 
       - uses: actions/checkout@v7
         with:
-          fetch-depth: 100             # enough to compare with the commit before and with main
+          fetch-depth: 300             # the commit before, main, and (catch-up) where the branch parted from main
 
       - name: main for comparison
-        run: git fetch --no-tags --depth=100 origin main:refs/remotes/origin/main || true
+        run: git fetch --no-tags --depth=300 origin main:refs/remotes/origin/main || true
 
       - uses: actions/setup-python@v7
         with:
@@ -102,7 +108,7 @@ jobs:
   suite:
     name: Linux - test suite ${{ matrix.group.name }}${{ matrix.group.selftest && ' + packaged self-test' || '' }}
     needs: precheck
-    if: ${{ (needs.precheck.outputs.mode == 'full' || needs.precheck.outputs.mode == 'lane') && needs.precheck.outputs.pytest != '[]' }}
+    if: ${{ contains(fromJSON('["full", "lane", "catchup"]'), needs.precheck.outputs.mode) && needs.precheck.outputs.pytest != '[]' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     strategy:
@@ -175,59 +181,12 @@ jobs:
         run: |
           awk -v s="$(( $(date +%s) - JOB_T0 ))" 'BEGIN { printf "⏱️ Test suite group ${{ matrix.group.name }}: %.1f min\n", s / 60 }' | tee -a "$GITHUB_STEP_SUMMARY"
 
-  # Task 0145: the demo project is made ONCE per run and handed to the demo's test groups as an artifact (they unpack
-  # it at the same place: the saved project's paths stay right). Why not GitHub's cache: it would be keyed on all the
-  # app's code, which nearly every push changes, and on a miss every group would make it again at once.
-  demo-make:
-    name: Linux - make the demo project
-    needs: precheck
-    if: ${{ (needs.precheck.outputs.mode == 'full' || needs.precheck.outputs.mode == 'lane') && needs.precheck.outputs.demo != '[]' }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    steps:
-      - name: Start the clock
-        run: echo "JOB_T0=$(date +%s)" >> "$GITHUB_ENV"
-
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-python@v7
-        id: py
-        with:
-          python-version: "3.13"
-
-      - name: Python packages from the cache (a venv, by the hash of tools/requirements-dev.txt)
-        id: cache-venv
-        uses: actions/cache@v6
-        with:
-          path: ~/venv
-          key: venv-${{ runner.os }}-py${{ steps.py.outputs.python-version }}-${{ hashFiles('tools/requirements-dev.txt') }}
-
-      - name: Install packages (only when not cached)
-        if: steps.cache-venv.outputs.cache-hit != 'true'
-        run: |
-          python -m venv ~/venv
-          ~/venv/bin/python -m pip install -q -r tools/requirements-dev.txt
-
-      - name: Make the demo project (tests/demo_made.py, scaled-down form)
-        run: ~/venv/bin/python tests/demo_made.py "$RUNNER_TEMP/demo-made"
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: demo-made
-          path: ${{ runner.temp }}/demo-made
-          if-no-files-found: error
-          retention-days: 1
-          compression-level: 1
-
-      - name: Minutes
-        if: always()
-        run: |
-          awk -v s="$(( $(date +%s) - JOB_T0 ))" 'BEGIN { printf "⏱️ Make the demo project: %.1f min\n", s / 60 }' | tee -a "$GITHUB_STEP_SUMMARY"
-
+  # Task 0145: the files that check the made demo project run in groups of their own. Task 0383: each such job makes the
+  # demo first (~1.5 min; tests/demo_made.py) – the separate make job and its artifact were one more job for one group.
   demo:
     name: Linux - test suite ${{ matrix.group.name }}
-    needs: [precheck, demo-make]
-    if: ${{ !cancelled() && needs.demo-make.result == 'success' && needs.precheck.outputs.demo != '[]' }}
+    needs: precheck
+    if: ${{ contains(fromJSON('["full", "lane", "catchup"]'), needs.precheck.outputs.mode) && needs.precheck.outputs.demo != '[]' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
@@ -261,11 +220,8 @@ jobs:
       - name: Use the venv
         run: echo "$HOME/venv/bin" >> "$GITHUB_PATH"
 
-      - name: The made demo project (from the job that made it)
-        uses: actions/download-artifact@v8
-        with:
-          name: demo-made
-          path: ${{ runner.temp }}/demo-made
+      - name: Make the demo project (tests/demo_made.py, scaled-down form)
+        run: python tests/demo_made.py "$RUNNER_TEMP/demo-made"
 
       - name: Test suite (pytest, this group's files)
         env:
@@ -294,7 +250,7 @@ jobs:
   real-app:
     name: Linux - real app ${{ matrix.group.name }}
     needs: precheck
-    if: ${{ (needs.precheck.outputs.mode == 'full' || needs.precheck.outputs.mode == 'lane') && needs.precheck.outputs.realapp != '[]' }}
+    if: ${{ contains(fromJSON('["full", "lane", "catchup"]'), needs.precheck.outputs.mode) && needs.precheck.outputs.realapp != '[]' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     strategy:
@@ -387,6 +343,7 @@ jobs:
     needs: precheck
     if: >-
       ${{ needs.precheck.outputs.mode == 'full' || needs.precheck.outputs.mode == 'docs'
+      || needs.precheck.outputs.mode == 'catchup'
       || (needs.precheck.outputs.mode == 'lane' && needs.precheck.outputs.build == 'true') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -410,13 +367,14 @@ jobs:
       - name: Build an old version to update from (the same code as 0.0.1, with the 0.2.10 app template)
         run: python tools/build_release.py --dist dist-old --version-as 0.0.1 --template-from tests/data/old_app_template
 
-      - name: Documentation checks (docs-only push; a full run does these in the test suite)
-        if: ${{ needs.precheck.outputs.mode == 'docs' }}
+      - name: Documentation checks (docs-only push or catch-up; a full run does these in the test suite)
+        if: ${{ needs.precheck.outputs.mode == 'docs' || needs.precheck.outputs.mode == 'catchup' }}
         run: |
           python -m pip install "$(grep -E '^pytest==' tools/requirements-dev.txt)"
           python tools/tooltip_report.py --strict
           python tools/build_guide.py
-          python -m pytest tests/test_user_guide.py tests/test_updates.py tests/test_ci_tools.py tests/test_site.py -q -rfE \
+          python -m pytest tests/test_user_guide.py tests/test_updates.py tests/test_ci_tools.py tests/test_site.py \
+            tests/test_tour_versions.py -q -rfE \
             --disable-warnings -p no:cacheprovider --junitxml=test-results/pytest-docs.xml
           python tools/ci_pytest_summary.py test-results/pytest-docs.xml --title "documentation checks"
 
@@ -450,7 +408,7 @@ jobs:
     needs: [precheck, build]
     if: >-
       ${{ !cancelled() && needs.build.result == 'success' && needs.precheck.outputs.windows != '[]'
-      && (needs.precheck.outputs.mode == 'full' || needs.precheck.outputs.mode == 'lane') }}
+      && contains(fromJSON('["full", "lane", "catchup"]'), needs.precheck.outputs.mode) }}
     runs-on: windows-2025
     timeout-minutes: 60
     strategy:
@@ -647,8 +605,8 @@ jobs:
           awk -v s="$(( $(date +%s) - JOB_T0 ))" 'BEGIN { printf "⏱️ Real assets pack: %.1f min\n", s / 60 }' | tee -a "$GITHUB_STEP_SUMMARY"
 
   verdict:
-    name: "Tests - verdict${{ needs.precheck.outputs.mode == 'lane' && ' (lane run - not a release check)' || '' }}"
-    needs: [precheck, suite, demo-make, demo, real-app, build, windows, real-pack]
+    name: "Tests - verdict${{ needs.precheck.outputs.mode == 'lane' && ' (lane run - not a release check)' || needs.precheck.outputs.mode == 'catchup' && ' (catch-up)' || '' }}"
+    needs: [precheck, suite, demo, real-app, build, windows, real-pack]
     if: ${{ always() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -660,19 +618,18 @@ jobs:
           PRE: ${{ needs.precheck.result }}
           SUITE: ${{ needs.suite.result }}
           DEMO: ${{ needs.demo.result }}
-          DMAKE: ${{ needs.demo-make.result }}
           REAL: ${{ needs.real-app.result }}
           BUILD: ${{ needs.build.result }}
           WIN: ${{ needs.windows.result }}
           RPACK: ${{ needs.real-pack.result }}
           RPACK_WANT: ${{ needs.precheck.outputs.realpack }}
         run: |
-          echo "mode=$MODE precheck=$PRE suite=$SUITE demo-make=$DMAKE demo=$DEMO real-app=$REAL build=$BUILD windows=$WIN real-pack=$RPACK (wanted: $RPACK_WANT)"
+          echo "mode=$MODE precheck=$PRE suite=$SUITE demo=$DEMO real-app=$REAL build=$BUILD windows=$WIN real-pack=$RPACK (wanted: $RPACK_WANT)"
           ok=false
-          # lane: every job the precheck planned is green; a job it did not plan is skipped (a failed job never is)
-          lane_ok() { for r in "$SUITE" "$DMAKE" "$DEMO" "$REAL" "$BUILD" "$WIN"; do
-                        [ "$r" = success ] || [ "$r" = skipped ] || return 1; done
-                      [ "$DMAKE" != success ] || [ "$DEMO" = success ]; }
+          # lane / catch-up: every job the precheck planned is green; a job it did not plan is skipped (a failed job
+          # never is). The precheck plans a job only with a group in it, so an empty matrix is a skipped job.
+          lane_ok() { for r in "$SUITE" "$DEMO" "$REAL" "$BUILD" "$WIN"; do
+                        [ "$r" = success ] || [ "$r" = skipped ] || return 1; done; }
           # task 0356: the real assets pack's job must pass when the precheck planned it (a pin exists), else it is skipped
           rp_ok() { if [ "$RPACK_WANT" = true ]; then [ "$RPACK" = success ]; else [ "$RPACK" = skipped ]; fi; }
           case "$MODE" in
@@ -680,12 +637,15 @@ jobs:
             docs)  [ "$PRE$BUILD" = "successsuccess" ] && ok=true ;;
             reuse) [ "$PRE" = "success" ] && ok=true ;;
             lane)  [ "$PRE" = "success" ] && lane_ok && rp_ok && ok=true ;;
+            catchup) [ "$PRE$BUILD" = "successsuccess" ] && lane_ok && rp_ok && ok=true ;;
           esac
           case "$MODE" in
             reuse) what="no tests: this tree already ran green in run $ART (https://github.com/$GITHUB_REPOSITORY/actions/runs/$ART)" ;;
             docs)  what="documentation-only change: build, tooltip check, guide and their tests" ;;
             full)  what="all tests" ;;
             lane)  what="lane run - only the tests of the changed files (precheck's list); not a release check" ;;
+            catchup) what="catch-up - the branch's full run was green; the tests of what main brought, the build" ;;
+            stale) what="stale - the branch has a newer commit with its own run; nothing was tested" ;;
             *)     what="the precheck failed: see its job (nothing else ran)" ;;
           esac
           if $ok; then echo "### ✅ Tests passed – mode ${MODE}: $what" >> "$GITHUB_STEP_SUMMARY"

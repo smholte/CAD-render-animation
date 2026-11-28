@@ -1,6 +1,6 @@
 """Task 0145: the demo project ("Vessel in a wind park" since task 0247) made ONCE and shared by every test file that checks it.
 
-    python tests/demo_made.py <folder>          # make it there (GitHub: the job "Linux - make the demo project")
+    python tests/demo_made.py <folder>          # make it there (GitHub: each demo job makes it first, task 0383)
 
 The demo's tests (``tests/test_demo_project*.py``) were one file of ~35 min on GitHub (task 0134: one job near
 GitHub's 40-minute limit), and the clash check made the same project again. Now:
