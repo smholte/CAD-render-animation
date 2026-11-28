@@ -162,7 +162,12 @@ additive: `props.py` scene fields `assets_source` / `assets_version`, `materials
   looks on 11,000 parts: 0.42 s without the backup.
 - Hot path: 1,400 questions for existing copies opened no file, looked at no folder, appended nothing (test).
 - Local: 29 new tests in 19 s; the neighbours (`test_assets_*`, `test_backups_blender`, `test_compat*`,
-  `test_materials_look`) 215 passed. GitHub: see below.
+  `test_materials_look`) 215 passed. GitHub: 4 full runs – green (run 46138223201), green again after merging main
+  (0356's code, 46141026110), then 0374 took 0.2.271 (renumbered to 0.2.272) and the run failed once in another task's
+  test (`test_cable_lay_0374_independent.py::test_KNOWN_FAULT_a_coil_read_…`: 11.6 mm beside the cable where its
+  bound allows less; it passes locally and on main's runs – likely the runner's processor), then 0372 took 0.2.272
+  (renumbered to 0.2.273) and the fourth run was green (46146421752); main's reuse run published 0.2.273
+  (46148377778: release, old-version update on Windows, offered).
 
 **Independent review** (a helper agent that did not write the code, 28 Nov): 9 findings, 8 reproduced, all fixed with a
 regression test each – parts of two pack files with the same name merged (now shared only within a file or as an
@@ -184,4 +189,5 @@ operator – 0357 / 0359 put their buttons on `lock.ALLOWED` or not).
 - 0354's report said the test pack's other files are byte-equal between 1.0.0 and 1.1.0: true for pictures, not for the
   `.blend` files (Blender writes them differently each time) – the update therefore reads each row's `changed` /
   `since`.
+- For the lead: the 0374 known-fault test above failed once on a GitHub runner (11.6 mm); worth a look in that lane.
 - No PC-check line, tour stop or function entry (nothing visible yet) – 0357 adds `assets.pack`.
