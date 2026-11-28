@@ -235,6 +235,7 @@ def test_the_presence_keys_pass_every_event_on():
 def test_a_key_press_marks_presence_like_a_mouse_move():
     """Task 0377: keyboard-only work (no mouse move for minutes) is presence too."""
     from fresing_render.blender import usage
+    usage._S["seen_t"], usage._S["xy"] = -1e9, None          # other tests leave the real clock here
     usage.presence("MOUSEMOVE", 10, 10, now=1000.0)
     assert usage.presence("A", 10, 10, now=1000.0 + 2.0)              # a key at the same mouse spot still counts
     assert usage._S["seen_t"] == 1002.0
