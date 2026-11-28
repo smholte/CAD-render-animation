@@ -1553,8 +1553,12 @@ def _notes_of_joints(scene, item, memo: dict) -> list:
                 note = ""
             elif mine is None:
                 top = joints.driver_of(scene, j)
-                note = (f"its joint '{j.name}' follows '{top.name if top is not None else j.follows}', not this "
-                        "cable: left as it is")
+                other = _sharing(scene, item, c, top)
+                if other is not None:
+                    note = _shared_note(item, c, other, memo)
+                else:
+                    note = (f"its joint '{j.name}' follows '{top.name if top is not None else j.follows}', not "
+                            "this cable: left as it is")
             else:
                 tol = RATIO_ROLLER if c.kind == "ROLLER" else RATIO_TOL
                 off = abs(abs(mine) - abs(ratio)) / abs(ratio)
@@ -1575,6 +1579,74 @@ def _notes_of_joints(scene, item, memo: dict) -> list:
             with _quiet(c):
                 c.note = note
     return slightly
+
+
+SHARED = "it also carries cable"          # the start of a shared sheave's note (task 0374)
+
+
+def _sharing(scene, item, c, top):
+    """(cable, its contact): the other cable whose speed joint ``top`` turns the part of the contact ``c`` – two
+    cables over one sheave (task 0374) –, or None."""
+    if top is None:
+        return None
+    for it in scene.fresing.cables:
+        if it.name == item.name or it.joint != top.name:
+            continue
+        for oc in it.contacts:
+            if oc.joint == c.joint and oc.kind in TURNING:
+                return it, oc
+    return None
+
+
+def _shared_note(item, c, other, memo: dict) -> str:
+    """The note of a sheave or roller two cables run over (task 0374): it turns with the first one; when the two lie
+    in one groove (their middles closer along its axis than half their diameters together) they lie in each other."""
+    it, oc = other
+    note = f"{SHARED} '{it.name}' and turns with it"
+    try:
+        a = _cad(c.carrier, memo)
+        b = _cad(oc.carrier, memo)
+        pa = a[:3, :3] @ np.array(c.centre, dtype=float) + a[:3, 3]
+        pb = b[:3, :3] @ np.array(oc.centre, dtype=float) + b[:3, 3]
+        axis = _unit(a[:3, :3] @ np.array(c.axis, dtype=float))
+        apart = abs(float((pa - pb) @ axis))
+    except Exception:                           # (a carrier gone: no groove check)
+        return note
+    if apart < 0.5 * (float(item.diameter) + float(it.diameter)) - 1e-4:
+        note += (f"; the two lie in ONE groove ({_mm(apart)} mm apart): give each cable its own groove (draw it "
+                 "over another groove or sheave)")
+    return note
+
+
+def _hand_over(scene, item) -> None:
+    """Before ``item`` is removed: a joint it made that another cable's contact also uses goes to that cable (made
+    by it, coupled to its speed) instead of being deleted with it (task 0374: two cables over one sheave)."""
+    mine = {c.joint for c in item.contacts if c.joint and (c.made_joint or c.coupled)}
+    if not mine:
+        return
+    for it in scene.fresing.cables:
+        if it.name == item.name:
+            continue
+        took = False
+        for oc in it.contacts:
+            if oc.joint in mine and oc.kind in TURNING and not (oc.made_joint or oc.coupled):
+                made = any(c.made_joint for c in item.contacts if c.joint == oc.joint)
+                with _quiet(oc):
+                    oc.made_joint, oc.coupled = made, True
+                    oc.note = ""
+                j = joints.find(scene, oc.joint)
+                if j is not None and j.motion is not None and made:
+                    j.motion[TAG] = it.name
+                for c in item.contacts:         # (not deleted, not uncoupled with the cable that goes)
+                    if c.joint == oc.joint:
+                        with _quiet(c):
+                            c.made_joint = c.coupled = False
+                took = True
+        if took:
+            _couple(scene, it)
+        mine = {c.joint for c in item.contacts if c.joint and (c.made_joint or c.coupled)}
+        if not mine:
+            return
 
 
 def _summary(scene, item, geo: dict) -> list[str]:
@@ -3705,6 +3777,8 @@ def remove(scene, index: int) -> None:
     name = index_of(scene, item)
     _STATE["busy"] += 1
     try:
+        _hand_over(scene, item)                 # (a sheave another cable also runs over stays, task 0374)
+        item = _cable(scene, name)
         gone = [c.joint for c in item.contacts if c.made_joint and c.joint]
         loose = [c.joint for c in item.contacts if c.coupled and not c.made_joint and c.joint]
         lead, made_lead = item.joint, bool(item.made_joint)

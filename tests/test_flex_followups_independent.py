@@ -227,17 +227,25 @@ def test_tipping_towards_flat_the_leave_point_slides_over_to_the_far_end():
 
 
 def test_a_moment_apart_from_the_others_does_not_slide():
-    """The slide is over time only: moments that are not neighbouring frames (``frames`` with a gap) each keep their
-    own answer, and a single moment is the moment's answer."""
-    tilt = np.radians([30.0, 2.0])
-    g = gutter(2, np.full(2, 1.0), R=3.5, tilt=tilt, tilt_axis=(0.0, 1.0, 0.0))
+    """The slide is over time only: the two moments either side of the fold (the per-moment answer jumps ~65° between
+    them) keep their own answers when they are not neighbouring frames (``frames`` with a gap); as neighbouring frames
+    the second moves no further than ``SLIDE`` plus what the wheel moved."""
+    F = 400
+    tilt = np.linspace(math.radians(30.0), 0.0, F)
+    g = gutter(F, np.full(F, 1.0), R=3.5, tilt=tilt, tilt_axis=(1.0, 0.0, 0.0))
     S = np.array([-60.0, 0.0, ZB])
-    L0 = length0(g, S, np.full(2, 2.0))
-    own = C.hang_off(*g, math.pi, S, AFT, ZB, L0)
-    apart = C.hang_off_steady(*g, math.pi, S, AFT, ZB, L0, frames=np.array([10, 40]))
-    assert np.allclose(own["psi"], apart["psi"]) and abs(own["psi"][1] - own["psi"][0]) > 1.0
-    near = C.hang_off_steady(*g, math.pi, S, AFT, ZB, L0, frames=np.array([10, 11]))
-    assert abs(near["psi"][1] - near["psi"][0]) <= C.SLIDE / 3.5 + 1e-9
+    L0 = length0(g, S, np.full(F, 2.0))
+    every = C.hang_off(*g, math.pi, S, AFT, ZB, L0)
+    k = int(np.abs(np.diff(every["psi"])).argmax())
+    assert abs(every["psi"][k + 1] - every["psi"][k]) > math.radians(30.0)
+    sel = [k, k + 1]
+    g2 = tuple(x[sel] if isinstance(x, np.ndarray) and x.shape[:1] == (F,) else x for x in g)
+    own = C.hang_off(*g2, math.pi, S, AFT, ZB, L0[sel])
+    apart = C.hang_off_steady(*g2, math.pi, S, AFT, ZB, L0[sel], frames=np.array([10, 40]))
+    assert np.allclose(own["psi"], apart["psi"])
+    near = C.hang_off_steady(*g2, math.pi, S, AFT, ZB, L0[sel], frames=np.array([10, 11]))
+    moved = 2.0 * 3.5 * abs(tilt[k + 1] - tilt[k])          # the arrival point and the axis, both swung by the tilt
+    assert abs(near["psi"][1] - near["psi"][0]) * 3.5 <= C.SLIDE + C.SLIDE_FOLLOW * moved + 1e-6
 
 
 def test_lowering_a_flat_gutter_the_bends_end_moves_on_smoothly():

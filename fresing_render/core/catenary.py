@@ -66,6 +66,7 @@ ROUNDS = 64                     # bisection steps (2⁻⁶⁴ of the range in lo
 FIX_ROUNDS = 60                 # rounds of the fixed point on the wrap
 FIX_TOL = 1e-12                 # rad
 BEND_MIN = 1e-4                 # rad: a smaller kink is left as it is (no free bend)
+BEND_TOL = 1e-8                 # rad: the free bend is settled when a round changes it less (task 0374: was 1e-10)
 BEND_ROUNDS = 80                # rounds of the fixed point on the free bend's turn
 FLAT = 0.2                      # a wheel whose plane holds less of "down" than this lies (nearly) flat (as paths_sea.FLAT)
 BED_GAP = 1e-3                  # m: a free bend ends at least this far over the cable's middle on the seabed
@@ -137,6 +138,9 @@ def _a_for_span_1(X: float, h: float) -> float:
     return h / math.exp(0.5 * (lo + hi))
 
 
+SPAN_TOL = 1e-14                # ln(h/a): a_for_span stops here (relative 1e-14 in a)
+
+
 def a_for_span(X, h):
     """The catenary parameter a whose touching-down catenary reaches X flat over the height h (bisection on
     ln(h / a); X/h falls from infinity to 0 as h/a grows)."""
@@ -146,12 +150,14 @@ def a_for_span(X, h):
                         ).reshape(X.shape)
     ratio = X / np.maximum(h, _TINY)
     lo, hi = np.full(ratio.shape, -80.0), np.full(ratio.shape, 80.0)     # ln q
-    for _ in range(ROUNDS * 2):
+    for n in range(ROUNDS * 2):
         mid = 0.5 * (lo + hi)
         q = np.exp(mid)
         far = _acosh1p(q) / q > ratio           # reaches further than wanted: q must grow
         lo = np.where(far, mid, lo)
         hi = np.where(far, hi, mid)
+        if n >= 52 and n % 4 == 0 and float(np.max((hi - lo) / np.maximum(np.abs(lo), 1.0), initial=0.0)) < SPAN_TOL:
+            break                               # (task 0374: ln q to 1e-14 is a's last digits; 128 rounds did no more)
     return h / np.exp(0.5 * (lo + hi))
 
 
@@ -633,30 +639,32 @@ def _bend_low(T, t, m, r, theta) -> np.ndarray:
 
 def _bend_fit(T, t, m, r, theta, floor: float) -> np.ndarray:
     """(F,): how far (≤ theta) a free bend from T along t, turning towards m on the radius r, turns before it comes
-    down to the height ``floor`` (task 0172: it ends there, on the seabed, instead of curling into it)."""
+    down to the height ``floor`` (task 0172: it ends there, on the seabed, instead of curling into it).
+    Task 0374: in closed form. Its height z(φ) = z₀ + r (t_z sin φ + m_z (1 − cos φ)) is a sine in φ; the first φ
+    where it comes down to the floor is where that sine first falls to a known level (before: a grid of 64 steps and a
+    bisection, a third of a sea cable's solve)."""
     T, t, m = (np.asarray(x, dtype=float).reshape(-1, 3) for x in (T, t, m))
     r = np.broadcast_to(np.asarray(r, dtype=float), (len(T),))
     theta = np.asarray(theta, dtype=float)
-
-    def z(phi):
-        return T[:, 2] + r * (np.sin(phi) * t[:, 2] + (1.0 - np.cos(phi)) * m[:, 2])
-
-    n = 64
-    grid = theta[:, None] * np.linspace(0.0, 1.0, n + 1)[None, :]
-    zz = T[:, 2, None] + r[:, None] * (np.sin(grid) * t[:, 2, None] + (1.0 - np.cos(grid)) * m[:, 2, None])
-    below = zz <= floor
+    # z(φ) − floor = D + r A sin(φ − δ), with A sin(φ − δ) = t_z sin φ − m_z cos φ
+    a_, b_ = t[:, 2], m[:, 2]
+    A = np.hypot(a_, b_)
+    D = T[:, 2] - floor + r * b_
+    delta = np.arctan2(b_, a_)
+    rA = r * A
+    with np.errstate(divide="ignore", invalid="ignore"):
+        lvl = np.where(rA > 1e-300, -D / rA, np.where(D <= 0.0, np.inf, -np.inf))
     out = theta.copy()
-    hit = below.any(axis=1)
-    if hit.any():
-        first = np.argmax(below, axis=1)                    # the first step at or below the floor
-        lo = np.where(first > 0, grid[np.arange(len(T)), np.maximum(first - 1, 0)], 0.0)
-        hi = grid[np.arange(len(T)), first]
-        for _ in range(40):
-            mid = 0.5 * (lo + hi)
-            over = z(mid) > floor
-            lo, hi = np.where(over, mid, lo), np.where(over, hi, mid)
-        out = np.where(hit, np.where(first > 0, lo, 0.0), theta)
-    return out
+    start_below = T[:, 2] <= floor
+    reach = (lvl > -1.0) & ~start_below                     # the sine can come down to the level at all
+    if reach.any():
+        s_ = np.clip(lvl, -1.0, 1.0)
+        x0 = -delta                                          # x = φ − δ at φ = 0
+        xe = math.pi - np.arcsin(s_)                         # where sin x falls through the level
+        k_ = np.ceil((x0 - xe) / (2.0 * math.pi))
+        phi = xe + 2.0 * math.pi * k_ + delta                # the first such x at or after x0, as φ
+        out = np.where(reach & (phi <= theta), np.maximum(phi, 0.0), out)
+    return np.where(start_below, 0.0, out)
 
 
 def bend_points(res: dict, n: int):
@@ -724,6 +732,7 @@ def hang_off_steady(centre, axis, radius, side, arrive, wrap_max, start, aft, bo
     return _slide(res, fr, (centre, axis, radius, side, arrive, wrap_max), start, aft, bottom_z, length0)
 
 
+SLIDE_FOLLOW = 4.0              # … plus this many times how far the wheel and the cable's length moved in that frame
 SLIDE = 0.1                     # m: the leave point moves at most this far round its wheel between neighbouring frames
 
 
@@ -738,7 +747,21 @@ def _slide(res: dict, fr, wheel, start, aft, bottom_z, length0) -> dict:
     if F < 2:
         return res
     r = np.broadcast_to(np.asarray(wheel[2], dtype=float), (F,))
-    step = SLIDE / np.maximum(r, 1e-9)
+    # what moved between the frames (the wheel, where the cable arrives on it, the cable's length): a leave point
+    # that moves because these do (a cable let go settling, a wheel swinging) is followed; only a jump while (almost)
+    # nothing moved – the fold – is slid
+    moved = np.zeros(F)
+    for x in (wheel[0], wheel[4]):
+        a = np.asarray(x, dtype=float)
+        if a.ndim == 2 and len(a) == F:
+            moved[1:] += np.linalg.norm(np.diff(a, axis=0), axis=1)
+    ax = np.asarray(wheel[1], dtype=float)
+    if ax.ndim == 2 and len(ax) == F:
+        moved[1:] += r[1:] * np.linalg.norm(np.diff(ax, axis=0), axis=1)
+    L0 = np.asarray(length0, dtype=float)
+    if L0.ndim == 1 and len(L0) == F:
+        moved[1:] += np.abs(np.diff(L0))
+    step = (SLIDE + SLIDE_FOLLOW * moved) / np.maximum(r, 1e-9)
     lim = psi.copy()
     for j in range(1, F):
         if fr[j] == fr[j - 1] + 1:
@@ -779,31 +802,43 @@ def hang_off(centre, axis, radius, side, arrive, wrap_max, start, aft, bottom_z,
     else:
         psi = np.clip(np.broadcast_to(np.asarray(psi0, dtype=float), (F,)).astype(float), 0.0, wmax)
 
-    def at(p):
-        T = centre + _rot(rho, k, p) * r[:, None]
-        res = hang(T, start, aft, bottom_z, L0 - r * p)
-        return T, res, _way_want(res, k, t0, wmax)
+    def at(p, sel=None):
+        if sel is None:
+            T = centre + _rot(rho, k, p) * r[:, None]
+            res = hang(T, start, aft, bottom_z, L0 - r * p)
+            return T, res, _way_want(res, k, t0, wmax)
+        T = centre[sel] + _rot(rho[sel], k[sel], p) * r[sel, None]
+        res = hang(T, _rows(start, sel, F), _rows(aft, sel, F), bottom_z, L0[sel] - r[sel] * p)
+        return T, res, _way_want(res, k[sel], t0[sel], wmax[sel])
 
+    # (task 0374: each round works out only the moments still moving – the others are settled; before, every round
+    # and every bisection step went over all moments, most of a sea cable's solve)
     done = np.zeros(F, dtype=bool)
     if psi_fixed is not None:
         psi = np.clip(np.broadcast_to(np.asarray(psi_fixed, dtype=float), (F,)).astype(float), 0.0, wmax)
         done[:] = True
-    for _ in range(0 if psi_fixed is not None else FIX_ROUNDS):
-        _T, _res, want = at(psi)
-        new = np.clip(want, 0.0, wmax)
-        done = np.abs(new - psi) < FIX_TOL
-        psi = new
-        if done.all():
-            break
+    else:
+        psi = psi.copy()
+        act = np.arange(F)
+        for _ in range(FIX_ROUNDS):
+            _T, _res, want = at(psi[act], act)
+            new = np.clip(want, 0.0, wmax[act])
+            ok = np.abs(new - psi[act]) < FIX_TOL
+            psi[act] = new
+            done[act[ok]] = True
+            act = act[~ok]
+            if not len(act):
+                break
     if not done.all():                          # no fixed point by rounds: bisection on want(ψ) − ψ
-        lo, hi = np.zeros(F), wmax.copy()
+        act = np.flatnonzero(~done)
+        lo, hi = np.zeros(len(act)), wmax[act].copy()
         for _ in range(ROUNDS):
             mid = 0.5 * (lo + hi)
-            _T, _res, want = at(mid)
+            _T, _res, want = at(mid, act)
             ahead = want > mid
             lo = np.where(ahead, mid, lo)
             hi = np.where(ahead, hi, mid)
-        psi = np.where(done, psi, 0.5 * (lo + hi))
+        psi[act] = 0.5 * (lo + hi)
     T, res, want = at(psi)
     steep, short = want > wmax + 1e-9, want < -1e-9
     tangent = np.cross(k, _rot(rho, k, psi))
@@ -831,7 +866,7 @@ def hang_off(centre, axis, radius, side, arrive, wrap_max, start, aft, bottom_z,
             m_new = m_new - (m_new * ta).sum(1, keepdims=True) * ta
             m_new = np.where(np.linalg.norm(m_new, axis=1, keepdims=True) > 1e-9, _unit(m_new), m_T[act])
             new = _bend_fit(Ta, ta, m_new, ra, want, floor)
-            done = (np.abs(new - th) < 1e-10) & (np.abs(m_new - ma).max(axis=1) < 1e-10)
+            done = (np.abs(new - th) < BEND_TOL) & (np.abs(m_new - ma).max(axis=1) < BEND_TOL)
             # (half steps: where the bend's end hangs over the lay line the catenary's sideways pull changes side with
             # it, and full steps went back and forth for ever; half steps settle between)
             both = ma + m_new
