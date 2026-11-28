@@ -102,7 +102,7 @@ owns the lines it names). Whoever merges second updates its branch to `main`; ve
   apart on a 30 m boom, a NaN corner hid a part, the sheet said "lower bound", `distances`' docstring, the zone's
   polygons inside their circles (−5 cm). All fixed but one (below); 8 of its tests adjusted to the deliberate design
   (index-based leave-out, the reach words, the pick rule). 71 pass + 1 xfail.
-- GitHub: see the last line of the report.
+- GitHub: 6 runs. 1st: tour title too long (precheck) + a runner killed; 2nd: real-app motion ran out of memory on the lattice cranes' clearance (sampling bounded, view without clearance) and scenes stopped; 3rd cancelled by a newer push; 4th green (46156543244); 5th green after merging 0373 (46159518195); 6th green after merging 0375 and renumbering 0.2.274 → 0.2.275 (46165635902). Main fast-forwarded to 05e617f, reuse run 46170409508 published v0.2.275, the old-version update check passed and it is offered to the apps. Progress note `claude/render-app-progress.md` not reachable from this session: lead please add.
 
 **Task 0380's fix group F1 (owner's request, 28 Nov)** – the rows of bug hunt 9 on the lift path, `tests/test_lifting_0380.py`:
 - **Row 1 – crash** (Check along the path → Go there → Ctrl+Z → segfault): the cached checks' line pull held the crane
