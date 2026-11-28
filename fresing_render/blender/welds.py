@@ -329,11 +329,6 @@ class indexed:
         return False
 
 
-def of_part(ob) -> list:
-    """The weld objects that ride on part ``ob`` (beads and heat zones)."""
-    return [c for c in ob.children if c.get(build.PROP_KIND) in KINDS]
-
-
 def web_objects(scene) -> list:
     """The beads the web 3D export takes (shown ones; not the heat zones)."""
     out = []
