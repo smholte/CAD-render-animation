@@ -794,6 +794,8 @@ def forget() -> None:
     try:
         from . import lifting_path              # task 0348: the live rows go with the readout
         lifting_path.forget()
+        from . import lifting_zones             # task 0349: the clearance and the drawing with them
+        lifting_zones.forget()
     except ImportError:
         pass
     _READ.clear()
@@ -1376,10 +1378,13 @@ def register():
         bpy.app.handlers.load_post.append(_load_post)
     from . import lifting_path                  # task 0348: the use bar beside the hook
     lifting_path.register()
+    from . import lifting_zones                 # task 0349: reach rings, exclusion zone, ground footprint
+    lifting_zones.register()
 
 
 def unregister():
-    from . import lifting_path
+    from . import lifting_path, lifting_zones
+    lifting_zones.unregister()
     lifting_path.unregister()
     if _DRAW["handle"] is not None:
         bpy.types.SpaceView3D.draw_handler_remove(_DRAW["handle"], "WINDOW")

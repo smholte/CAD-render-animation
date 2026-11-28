@@ -45,7 +45,7 @@ def _crane_and_load(scene, crane=None, load=None):
     return crane, load
 
 
-def numbers(scene, crane, load) -> P.Plan:
+def numbers(scene, crane, load, clearance: bool = True) -> P.Plan:
     """The plan's numbers for ``core/lifting_path.Checks`` (SI)."""
     from . import lifting_rig as RG
     L = lifting.plan(scene)
@@ -60,7 +60,18 @@ def numbers(scene, crane, load) -> P.Plan:
                   spread=None if crane.spread_from_pose else float(crane.outriggers),
                   hung=hung, rig_checks=(r or {}).get("checks", []), rig_stale=bool(hung and RG.stale(scene, load)),
                   allowable_pa=L.allowable_kpa * 1000.0 if L.allowable_kpa > 0 else None, mat=mat,
-                  line_pull=lambda g, s=scene, c=crane: lifting.line_pull(s, c, g))
+                  line_pull=lambda g, s=scene, c=crane: lifting.line_pull(s, c, g),
+                  clearance=_clearance(scene, crane, load) if clearance else None)
+
+
+def _clearance(scene, crane, load):
+    """The clearance row's function (task 0349), or None when it cannot be made (then the row is grey)."""
+    from . import lifting_zones
+    try:
+        return lifting_zones.row_function(scene, crane, load)
+    except Exception as exc:  # noqa: BLE001 - a part without a mesh, a crane being set up
+        msg = str(exc).rstrip(".").lower()
+        return lambda values: P.grey("CLR", msg)
 
 
 def _plan_key(scene, crane, load) -> tuple:
@@ -68,22 +79,25 @@ def _plan_key(scene, crane, load) -> tuple:
     rk = None
     if load is not None:
         rk = (load.rig_state, load.hung_on, load.rig_result)
-    return (round(L.allowable_kpa, 6), tuple(round(x, 6) for x in L.mat_size), rk)
+    from . import lifting_zones
+    return (round(L.allowable_kpa, 6), tuple(round(x, 6) for x in L.mat_size), rk,
+            lifting_zones.fingerprint(scene, crane, load))
 
 
 _CHECKS: dict = {}
 
 
-def checks(scene, crane, load) -> P.Checks:
-    """The crane's checks (its rig and charts read once per key)."""
+def checks(scene, crane, load, clearance: bool = True) -> P.Checks:
+    """The crane's checks (its rig and charts read once per key); ``clearance`` False: without the clearance row (the
+    live rows add it themselves when the pose stands still)."""
     key = (crane.name, lifting.path_of(crane), lifting._mtime(lifting.item_at(lifting.path_of(crane)).path or ""),
-           lifting._key(scene, crane, load)[3:], _plan_key(scene, crane, load))
-    got = _CHECKS.get(crane.name)
+           lifting._key(scene, crane, load)[3:], _plan_key(scene, crane, load), clearance)
+    got = _CHECKS.get((crane.name, clearance))
     if got is not None and got[0] == key:
         return got[1]
     c = P.Checks(lifting.item_at(lifting.path_of(crane)).data, lifting.charts_of(crane),
-                 numbers(scene, crane, load))
-    _CHECKS[crane.name] = (key, c)
+                 numbers(scene, crane, load, clearance))
+    _CHECKS[(crane.name, clearance)] = (key, c)
     return c
 
 
@@ -120,7 +134,10 @@ def live_rows(scene, crane=None, load=None, force: bool = False):
         return _LIVE["rows"]
     try:
         lifting.check_joints(scene, crane)
-        rows = checks(scene, crane, load).at(lifting.values(scene, crane))
+        rows = checks(scene, crane, load, clearance=False).at(lifting.values(scene, crane))
+        from . import lifting_zones                  # task 0349: once the pose stands still
+        rows.append(lifting_zones.live_row(scene, crane, load, key, force=force))
+        rows = P.ordered({r.id: r for r in rows})
     except lifting.LR.ReachError as exc:
         rows = str(exc)
     _LIVE.update(key=key, rows=rows, at=time.perf_counter(), count=_LIVE["count"] + 1)
@@ -152,6 +169,11 @@ def _redraw() -> None:
 def forget() -> None:
     _LIVE.update(key=None, rows=None, at=0.0)
     _CHECKS.clear()
+
+
+def forget_live() -> None:
+    """Only the live rows (the next look works them out again)."""
+    _LIVE.update(key=None, rows=None, at=0.0)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -348,7 +370,12 @@ def check(scene, crane=None, load=None, build: bool = True, reference: bool = Fa
         animation.bake(scene, a)
         t_build = time.perf_counter() - t0
     at_vals, keys, (f0, f1) = reader(scene, crane)
+    from . import lifting_zones
     ck = checks(scene, crane, load)
+    try:                                    # what the load stands on at the pick and the set-down (task 0349)
+        lifting_zones.clearance_for(scene, crane, load).leave_out_touching([at_vals(f0), at_vals(f1)])
+    except Exception:  # noqa: BLE001 - the row says why it is grey
+        pass
     t0 = time.perf_counter()
     found = P.search(lambda t: ck.at(at_vals(t)), f0, f1, keys=keys, step=0.01, inner=1,
                      spacing=max(float(a.fps) / 5.0, 1.0))          # the grid at least every 0.2 s
@@ -358,6 +385,10 @@ def check(scene, crane=None, load=None, build: bool = True, reference: bool = Fa
            "rows": [r.to_dict() for r in P.ordered(found.worst)],
            "moments": [[round(t, 3), st] for t, st in found.moments],
            "evaluations": found.evaluations, "seconds": round(t_search, 4), "build_seconds": round(t_build, 3)}
+    try:
+        out["view"] = lifting_zones.path_view(scene, crane, load, at_vals, f0, f1, found)
+    except Exception as exc:  # noqa: BLE001 - the plan sheet then draws the pose shown
+        out["view_error"] = str(exc)
     if reference:
         t0 = time.perf_counter()
         ref = P.every(lambda t: ck.at(at_vals(t)), np.arange(f0, f1 + 0.5))
@@ -517,6 +548,7 @@ def bar_numbers(scene):
 
 
 TITLE_SHORT = {"C5": "outriggers", "C6": "tracks", "SETUP": "set-up", "BACK": "backward stability", "C10": "line pull",
+               "CLR": "clearance",
                "C2": "sling legs", "C3": "sling legs", "C4": "gear"}
 
 

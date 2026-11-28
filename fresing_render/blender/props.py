@@ -4469,6 +4469,11 @@ class FRLiftLoad(bpy.types.PropertyGroup):
     rig_result: StringProperty(default="", description="The last hang's result (JSON): legs, forces, checks")
 
 
+def _lift_zones_changed(self, context):
+    from . import lifting_zones
+    lifting_zones.changed(context.scene if context else None)
+
+
 class FRLifting(bpy.types.PropertyGroup):
     """The project's lifting plan (8 Lifting plan)."""
     cranes: CollectionProperty(type=FRLiftCrane)
@@ -4505,6 +4510,30 @@ class FRLifting(bpy.types.PropertyGroup):
         name="Lift data box", default=False, update=_lift_data_box,
         description="A box of the lift's numbers in renders and videos: the load, the radius, the crane use and the "
                     "worst status so far, at every frame. It is a label on the hook block (5 Scene & Render > Labels)")
+    # ---- clearances, reach envelope, exclusion zone, ground footprint (task 0349) ----
+    clearance_m: FloatProperty(
+        name="Clearance needed", default=3.05, min=0.05, soft_max=30.0, precision=2, unit="LENGTH",
+        update=_lift_zones_changed,
+        description="How far the boom, the load and the rigging must stay from everything else in the project, m. "
+                    "The default is OSHA 29 CFR 1926.1408 Table A: 10 ft (3.05 m) from power lines up to 50 kV – set "
+                    "the distance your site, the line's owner or the lift plan's author asks for")
+    zone_margin: FloatProperty(
+        name="Zone margin", default=1.0, min=0.0, soft_max=20.0, precision=2, unit="LENGTH",
+        update=_lift_zones_changed,
+        description="How far the exclusion zone reaches past the crane's tail swing, its outriggers or tracks and "
+                    "the load's path, m – your own choice: no guideline gives one number")
+    show_reach: BoolProperty(
+        name="Reach rings", default=True, update=_lift_zones_changed,
+        description="Draws two rings on the ground round the slew axis: how far out the chart carries the load (red) "
+                    "and how far within your amber limit (amber). In the 3D view only, never in a render")
+    show_zone: BoolProperty(
+        name="Exclusion zone", default=True, update=_lift_zones_changed,
+        description="Draws the exclusion zone on the ground: the area round the crane and the load's path that "
+                    "people keep out of during the lift. In the 3D view only; it is on the plan sheet too")
+    show_footprint: BoolProperty(
+        name="Ground footprint", default=True, update=_lift_zones_changed,
+        description="Colours the outrigger mats or the crawler tracks by the ground pressure under them at the "
+                    "frame shown: green, amber, red against the allowable pressure entered (grey: none entered)")
 
 
 # ---- Set up a crane (task 0203) ----

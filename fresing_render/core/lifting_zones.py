@@ -3,9 +3,10 @@ Python with NumPy, no Blender.
 
 * **Clearance** (``Clearance``): the smallest distance between what moves in the lift – the crane's parts that turn
   with the slew (boom, superstructure, counterweight, hook block), the load and its rigging – and every obstacle (the
-  project's other parts and props), at any joint values. Each part is a box tree of its triangles (``clash.box_tree``)
-  in its joint's frame at zero; the distance is the clash check's gap search (``clash.tree_separation``: a lower bound,
-  within about 1/400 of a part's size – never more than the truth). Obstacles the load or its rigging touch where the
+  project's other parts and props), at any joint values. Each moving part is points on its surface (5 cm apart) in its
+  joint's frame at zero, the obstacles one set of triangles (``Triangles``; the app: Blender's BVH tree): the distance
+  is from those points to the nearest triangle (the true gap, or up to ~3 cm more), looked for only where a part's
+  box comes near an obstacle's box. Obstacles the load or its rigging touch where the
   lift starts and ends (what it stands on) do not count for them. The row joins ``lifting_path.Checks.at`` (id
   ``CLR``): use = the clearance needed / the distance, colours like C1 (amber from the crane limit, red under the
   clearance needed).
@@ -39,53 +40,130 @@ from . import lifting_reach as LR
 REQUIRED_DEFAULT = 3.05            # m – OSHA 29 CFR 1926.1408 Table A: 10 ft to power lines up to 50 kV
 REQUIRED_SOURCE = "OSHA 29 CFR 1926.1408, Table A: 10 ft (3.05 m) from power lines up to 50 kV"
 MARGIN_DEFAULT = 1.0               # m round the exclusion zone (the user's choice, no guideline)
-NEED = 3.0                         # distances are searched out to this many times the clearance needed
-PIECES = 6000                      # a part's triangles in at most about this many boxes (its tree)
+NEED = 1.1                         # distances are searched out to this share past the amber border
+SPACING = 0.05                     # m between a moving part's surface points
+MOST_POINTS = 20000                # surface points of one part at most
+GROUP = 0.3                        # m: a moving part's points are looked at in cubes this big first
 FAR = 1e9
+TOUCH = 0.05                       # m: the load "stands on" what is this close at the lift's start or end
 
 
 # ---------------------------------------------------------------------------------------------------------------------
 # clearance
 
+def _moved_box(M, lo, hi):
+    c = clash.transform(M, clash.corners(lo[None], hi[None])[0])
+    return c.min(axis=0), c.max(axis=0)
+
+
 @dataclass
 class Body:
-    """A part that moves in the lift: its triangles in its joint's frame at zero (m), the joint (rig name; None: it
-    stands), its kind: "crane", "load" or "rigging"."""
+    """A part that moves in the lift: points on its surface (``SPACING`` apart, its corners too) in its joint's frame
+    at zero (m), sorted into groups of a ``GROUP`` m cube – each group a point of its own (``reps``), the furthest of
+    its points ``radius`` from it, its points ``points[start[g]:start[g + 1]]`` – the joint (rig name; None: it
+    stands) and its kind: "crane", "load" or "rigging"."""
 
     name: str
     kind: str
     joint: str | None
-    tree: tuple
+    points: np.ndarray
     lo: np.ndarray
     hi: np.ndarray
+    reps: np.ndarray = None
+    radius: np.ndarray = None
+    start: np.ndarray = None
+
+    def __post_init__(self):
+        if self.reps is None:
+            self.points, self.reps, self.radius, self.start = grouped(self.points)
 
 
-@dataclass
-class Obstacle:
-    name: str
-    tree: tuple
-    lo: np.ndarray
-    hi: np.ndarray
+def grouped(points, size: float = None):
+    """(points sorted by group, one of each group's points (the nearest to its middle), how far its furthest point
+    lies from it, where each group starts): groups = cubes of ``size`` m."""
+    size = GROUP if size is None else size
+    p = np.asarray(points, float)
+    if not len(p):
+        return p, np.zeros((0, 3)), np.zeros(0), np.zeros(1, np.int64)
+    key = np.floor(p / size).astype(np.int64)
+    order = np.lexsort((key[:, 2], key[:, 1], key[:, 0]))
+    p, key = p[order], key[order]
+    new = np.ones(len(p), bool)
+    new[1:] = np.any(key[1:] != key[:-1], axis=1)
+    start = np.r_[np.flatnonzero(new), len(p)]
+    g = np.repeat(np.arange(len(start) - 1), np.diff(start))
+    n = np.diff(start).astype(float)
+    mid = np.zeros((len(n), 3))
+    np.add.at(mid, g, p)
+    mid /= n[:, None]
+    d = np.linalg.norm(p - mid[g], axis=1)
+    best = np.full(len(n), np.inf)
+    np.minimum.at(best, g, d)
+    pick = np.flatnonzero(d <= best[g] + 1e-12)
+    first = np.full(len(n), -1, np.int64)
+    for i in pick[::-1]:
+        first[g[i]] = i
+    reps = p[first]
+    r = np.linalg.norm(p - reps[g], axis=1)
+    radius = np.zeros(len(n))
+    np.maximum.at(radius, g, r)
+    return p, reps, radius, start
 
 
-def tree_of(verts, tris, pieces: int = PIECES) -> tuple:
-    """(box tree, lo, hi) of a mesh (``verts`` (N, 3) m, ``tris`` (T, 3))."""
+def surface_points(verts, tris, spacing: float = None, most: int = None) -> np.ndarray:
+    """Points on a mesh's surface: its corners and points spread over its triangles ``spacing`` apart (at most
+    ``most``, evenly picked)."""
+    spacing = SPACING if spacing is None else spacing
+    most = MOST_POINTS if most is None else most
     v = np.asarray(verts, float)
     t = np.asarray(tris, np.int64).reshape(-1, 3)
-    if not len(v) or not len(t):
+    if not len(t):
+        return v
+    pts, _w = clash.triangle_points(v[t], spacing, max_split=64)
+    return clash.thin_out(np.unique(np.round(pts, 6), axis=0), most)
+
+
+def body(name: str, kind: str, joint, verts, tris) -> Body:
+    pts = surface_points(verts, tris)
+    if not len(pts):
         raise ValueError("a part without triangles")
-    lo, hi = clash.piece_boxes(v, t, pieces)
-    return clash.box_tree(lo, hi), v.min(axis=0), v.max(axis=0)
+    return Body(name, kind, joint, pts, pts.min(axis=0), pts.max(axis=0))
 
 
-def _box_gap(alo, ahi, blo, bhi) -> float:
-    g = np.maximum(0.0, np.maximum(alo - bhi, blo - ahi))
-    return float(np.sqrt(g @ g))
+class Triangles:
+    """The obstacles as triangles (world, m) with their names: ``nearest(points, need)`` -> (distance, obstacle index;
+    -1 when none is within ``need``), worked out exactly (closest point on every triangle near the point) in plain
+    NumPy – for tests and small sets. The app hands its own (Blender's BVH tree) with the same methods."""
 
+    def __init__(self, parts):
+        """``parts`` [(name, verts (N, 3) world m, tris (T, 3))]."""
+        self.names, tri, owner = [], [], []
+        for k, (name, v, t) in enumerate(parts):
+            v, t = np.asarray(v, float), np.asarray(t, np.int64).reshape(-1, 3)
+            self.names.append(name)
+            tri.append(v[t])
+            owner.append(np.full(len(t), k))
+        self.tri = np.concatenate(tri) if tri else np.zeros((0, 3, 3))
+        self.owner = np.concatenate(owner) if owner else np.zeros(0, np.int64)
+        self.lo = np.array([x.min(axis=(0, 1)) for x in tri]) if tri else np.zeros((0, 3))
+        self.hi = np.array([x.max(axis=(0, 1)) for x in tri]) if tri else np.zeros((0, 3))
+        self.tlo, self.thi = self.tri.min(axis=1), self.tri.max(axis=1)
 
-def _moved_box(M, lo, hi):
-    c = clash.transform(M, clash.corners(lo[None], hi[None])[0])
-    return c.min(axis=0), c.max(axis=0)
+    def nearest(self, points, need: float):
+        pts = np.asarray(points, float)
+        d = np.full(len(pts), np.inf)
+        who = np.full(len(pts), -1, np.int64)
+        for i, p in enumerate(pts):
+            g = np.maximum(0.0, np.maximum(self.tlo - p, p - self.thi))
+            near = np.flatnonzero(np.einsum("ij,ij->i", g, g) <= need * need)
+            if not len(near):
+                continue
+            q = clash.closest_on_triangles(p, self.tri[near])
+            dd = np.linalg.norm(q - p, axis=1)
+            k = int(np.argmin(dd))
+            if dd[k] <= need:
+                d[i], who[i] = dd[k], self.owner[near[k]]
+        return d, who
 
 
 @dataclass
@@ -94,21 +172,24 @@ class Nearest:
     body: str = ""
     obstacle: str = ""
     kind: str = ""
+    points: tuple = ()                 # (the body's point, world) – where the gap is
 
 
 class Clearance:
     """The lift's clearance at any joint values. ``motion(joint, values)`` -> 4 x 4: the joint's frame now relative to
-    its frame at zero, in the world (m)."""
+    its frame at zero, in the world (m). ``obstacles``: ``Triangles`` or the app's own with its methods and its
+    ``names``, ``lo``, ``hi``. A distance is the nearest obstacle triangle to the body's surface points – they lie
+    ``SPACING`` apart, so it is the true gap or up to about half that more."""
 
     def __init__(self, bodies, obstacles, motion, required: float = REQUIRED_DEFAULT,
                  limits: lifting.Limits = lifting.DEFAULT_LIMITS):
         self.bodies = list(bodies)
-        self.obstacles = list(obstacles)
+        self.obstacles = obstacles
         self.motion = motion
         self.required = max(float(required), 1e-3)
         self.limits = limits
         self.ignore: dict = {}             # body name -> {obstacle names} (what the load stands on)
-        self.need = NEED * self.required
+        self.need = NEED * self.required / max(limits.crane, 1e-3)
 
     def _mats(self, values) -> dict:
         out = {}
@@ -117,38 +198,93 @@ class Clearance:
                 out[b.joint] = np.eye(4) if b.joint is None else np.asarray(self.motion(b.joint, values), float)
         return out
 
+    @staticmethod
+    def _boxes_near(ob, pts, reach, near):
+        """Which of ``pts`` come within ``reach`` (a number or one per point) of an obstacle box in ``near``."""
+        olo, ohi = ob.lo[near], ob.hi[near]
+        r2 = np.asarray(reach, float) ** 2
+        keep = np.zeros(len(pts), bool)
+        for k in range(len(olo)):
+            gp = np.maximum(0.0, np.maximum(olo[k] - pts, pts - ohi[k]))
+            keep |= np.einsum("ij,ij->i", gp, gp) <= r2
+        return keep
+
+    def _lookup(self, ob, pts, need, skip):
+        d, who = ob.nearest(pts, need)
+        if skip:
+            bad = np.array([w >= 0 and ob.names[w] in skip for w in who])
+            d = np.where(bad, np.inf, d)
+        return d, who
+
     def distances(self, values, need: float | None = None) -> list:
-        """[(distance m, body, obstacle)] of every pair whose boxes come within ``need`` (default: ``NEED`` x the
-        clearance needed); pairs further apart are not listed."""
+        """[(distance m, body, obstacle index, the body's point)]: each body's nearest obstacle when it comes within
+        ``need`` (default: the amber border, a little wider). First every body's group points (each a surface point);
+        then only the groups that can hold a nearer point – a group's points lie within its radius – point by point.
+        The answer is the same as looking at every point."""
         need = self.need if need is None else need
+        ob = self.obstacles
+        if ob is None or not len(ob.names):
+            return []
         mats = self._mats(values)
-        out = []
+        first = []
+        best = math.inf
         for b in self.bodies:
             M = mats[b.joint]
+            rmax = float(b.radius.max()) if len(b.radius) else 0.0
             blo, bhi = _moved_box(M, b.lo, b.hi)
+            g = np.maximum(0.0, np.maximum(ob.lo - bhi, blo - ob.hi))
+            near = np.einsum("ij,ij->i", g, g) <= need * need
             skip = self.ignore.get(b.name, ())
-            for o in self.obstacles:
-                if o.name in skip or _box_gap(blo, bhi, o.lo, o.hi) > need:
-                    continue
-                d = clash.tree_separation(o.tree, b.tree, M, need=need)
-                if d <= need:
-                    out.append((float(d), b, o))
+            if skip:
+                near &= np.array([n not in skip for n in ob.names])
+            if not near.any():
+                continue
+            reps = b.reps @ M[:3, :3].T + M[:3, 3]
+            keep = np.flatnonzero(self._boxes_near(ob, reps, need + b.radius, near))
+            if not len(keep):
+                continue
+            d, who = self._lookup(ob, reps[keep], need + rmax, skip)
+            first.append((b, M, keep, d, who, skip))
+            if len(d):
+                best = min(best, float(np.min(d)))
+        out = []
+        lim = min(best, need)
+        for b, M, keep, d, who, skip in first:
+            cand = keep[d - b.radius[keep] <= lim]
+            if not len(cand):
+                continue
+            idx = np.concatenate([np.arange(b.start[k], b.start[k + 1]) for k in cand])
+            pts = b.points[idx] @ M[:3, :3].T + M[:3, 3]
+            dd, ww = self._lookup(ob, pts, lim + 1e-3, skip)
+            i = int(np.argmin(dd))
+            if math.isfinite(dd[i]) and dd[i] <= need:
+                out.append((float(dd[i]), b, int(ww[i]), pts[i]))
         return out
 
     def nearest(self, values) -> Nearest:
         got = self.distances(values)
         if not got:
             return Nearest(FAR)
-        d, b, o = min(got, key=lambda x: x[0])
-        return Nearest(d, b.name, o.name, b.kind)
+        d, b, k, p = min(got, key=lambda x: x[0])
+        return Nearest(d, b.name, self.obstacles.names[k], b.kind, (tuple(map(float, p)),))
 
     def leave_out_touching(self, moments, kinds=("load", "rigging")) -> None:
         """What the load and its rigging stand on or touch at ``moments`` (joint values: the lift's first and last)
         does not count for them."""
+        ob = self.obstacles
+        if ob is None or not len(ob.names):
+            return
+        mats = None
         for values in moments:
-            for d, b, o in self.distances(values, need=self.required):
-                if b.kind in kinds and d < self.required:
-                    self.ignore.setdefault(b.name, set()).add(o.name)
+            mats = self._mats(values)
+            for b in self.bodies:
+                if b.kind not in kinds:
+                    continue
+                M = mats[b.joint]
+                pts = b.points @ M[:3, :3].T + M[:3, 3]
+                d, who = ob.nearest(pts, TOUCH)
+                for w in set(int(x) for x in who[d <= TOUCH]):
+                    self.ignore.setdefault(b.name, set()).add(ob.names[w])
 
     def row(self, values) -> P.Row:
         n = self.nearest(values)
@@ -157,9 +293,9 @@ class Clearance:
         row.limit = f"{req:.2f} m needed"
         if n.distance >= FAR / 2:
             row.status, row.use, row.measure = lifting.OK, req / self.need, -self.need
-            row.value = f"more than {self.need:.1f} m"
-            row.words = (f"Nothing comes within {self.need:.1f} m of the boom, the load or the rigging – "
-                         f"{P._limit_words(lifting.OK, self.limits.crane)}.")
+            row.value = f"more than {self.need:.2f} m"
+            row.words = (f"Nothing comes within {self.need:.2f} m of the boom, the load or the rigging ({req:.2f} m "
+                         f"needed) – {P._limit_words(lifting.OK, self.limits.crane)}.")
             return row
         d = n.distance
         row.use = req / max(d, 1e-6)

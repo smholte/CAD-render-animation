@@ -27,13 +27,12 @@ def _box(lo, hi):
 
 
 def _body(name, lo, hi, kind="crane", joint="J"):
-    tree, a, b = Z.tree_of(*_box(lo, hi))
-    return Z.Body(name, kind, joint, tree, a, b)
+    return Z.body(name, kind, joint, *_box(lo, hi))
 
 
-def _obst(name, lo, hi):
-    tree, a, b = Z.tree_of(*_box(lo, hi))
-    return Z.Obstacle(name, tree, a, b)
+def _obst(*boxes):
+    """``Triangles`` of named boxes: ("WALL", lo, hi), …"""
+    return Z.Triangles([(n, *_box(lo, hi)) for n, lo, hi in boxes])
 
 
 def _slide(joint, values):
@@ -43,24 +42,35 @@ def _slide(joint, values):
 
 
 def test_clearance_is_the_gap_and_follows_the_joint():
-    c = Z.Clearance([_body("BOOM", (0, 0, 0), (1, 1, 1))], [_obst("WALL", (3, 0, 0), (4, 1, 1))], _slide,
+    c = Z.Clearance([_body("BOOM", (0, 0, 0), (1, 1, 1))], _obst(("WALL", (3, 0, 0), (4, 1, 1))), _slide,
                     required=1.0)
-    assert c.nearest({"J": 0.0}).distance == pytest.approx(2.0, abs=0.02)
+    assert c.nearest({"J": 0.8}).distance == pytest.approx(1.2, abs=1e-6)
     assert c.nearest({"J": 1.5}).distance == pytest.approx(0.5, abs=0.02)
     assert c.nearest({"J": -10.0}).distance >= Z.FAR / 2                   # beyond the search: nothing near
-    r = c.row({"J": 0.0})
-    assert r.id == "CLR" and r.status == lifting.OK and r.use == pytest.approx(0.5, rel=0.02)
+    r = c.row({"J": 0.6})                                                  # 1.4 m: just outside the amber border
+    assert r.id == "CLR" and r.status == lifting.OK and r.use == pytest.approx(1 / 1.4, rel=1e-6)
     assert "BOOM" in r.words and "WALL" in r.words and "1.00 m needed" in r.words
     assert c.row({"J": 1.5}).status == lifting.RED
     far = c.row({"J": -10.0})
     assert far.status == lifting.OK and "more than" in far.value
-    # never more than the truth (a lower bound)
-    for x in np.linspace(-1.0, 1.9, 13):
-        assert c.nearest({"J": float(x)}).distance <= (2.0 - x) + 1e-9
+    # the true gap within the points' spacing (the box's corners and faces are sampled 5 cm apart)
+    for x in np.linspace(0.6, 1.9, 9):
+        assert c.nearest({"J": float(x)}).distance == pytest.approx(2.0 - x, abs=1e-6)
+    # a part turned so that only its edge comes near: within half the spacing
+    def turn(j, v):
+        a = math.radians(v.get(j, 0.0))
+        M = np.eye(4)
+        M[:2, :2] = [[math.cos(a), -math.sin(a)], [math.sin(a), math.cos(a)]]
+        M[0, 3] = 1.2
+        return M
+    t = Z.Clearance([_body("BOOM", (0, 0, 0), (1, 1, 1))], _obst(("WALL", (3, -5, 0), (4, 5, 1))), turn,
+                    required=1.0)
+    exact = 3.0 - 1.2 - math.cos(math.radians(30.0))                      # the corner (1, 0) turned 30°
+    assert exact <= t.nearest({"J": 30.0}).distance <= exact + Z.SPACING
 
 
 def test_amber_from_the_crane_limit():
-    c = Z.Clearance([_body("BOOM", (0, 0, 0), (1, 1, 1))], [_obst("WALL", (3, 0, 0), (4, 1, 1))], _slide,
+    c = Z.Clearance([_body("BOOM", (0, 0, 0), (1, 1, 1))], _obst(("WALL", (3, 0, 0), (4, 1, 1))), _slide,
                     required=1.0)
     # use = 1 / d: amber from 75 % (d ≤ 1.33 m), red above 100 % (d < 1 m)
     assert c.row({"J": 2.0 - 1.5}).status == lifting.OK
@@ -69,11 +79,14 @@ def test_amber_from_the_crane_limit():
 
 
 def test_what_the_load_stands_on_does_not_count_for_it():
-    floor = _obst("FLOOR", (-5, -5, -1), (5, 5, 0))
+    floor = _obst(("FLOOR", (-5, -5, -1), (5, 5, 0)))
     load = _body("SKID", (0, 0, 0.0), (1, 1, 1), kind="load")
     boom = _body("BOOM", (0, 0, 0.0), (1, 1, 1), kind="crane", joint="K")
-    c = Z.Clearance([load, boom], [floor], lambda j, v: _slide("J" if j == "J" else "K", v), required=1.0)
+    c = Z.Clearance([load, boom], floor, lambda j, v: _slide("J" if j == "J" else "K", v), required=1.0)
     c.leave_out_touching([{"J": 0.0, "K": 5.0}])
+    wall = Z.Clearance([load], _obst(("WALL", (1.5, 0, 0), (2, 1, 1))), _slide, required=1.0)
+    wall.leave_out_touching([{"J": 0.0}])
+    assert wall.ignore == {}                                      # near but not touching: it counts
     assert c.ignore == {"SKID": {"FLOOR"}}                       # the boom does not stand on it: it still counts
     assert c.nearest({"J": 0.0, "K": 5.0}).body == "BOOM"
 
@@ -178,3 +191,45 @@ def test_clearance_row_joins_the_checks():
     assert rows["CLR"].status == lifting.NOT_CHECKED and "division" in rows["CLR"].words
     assert P.ORDER.index("CLR") > P.ORDER.index("BACK")
     assert math.isfinite(Z.REQUIRED_DEFAULT) and "1926.1408" in Z.REQUIRED_SOURCE
+
+
+def test_grouped_search_is_the_same_as_every_point():
+    """The groups only skip points that cannot be the nearest: on random boxes, moved and turned, the answer equals
+    the nearest of every surface point."""
+    rng = np.random.default_rng(7)
+    bodies = []
+    for k in range(4):
+        lo = rng.uniform(-2, 2, 3)
+        bodies.append(_body(f"PART {k}", lo, lo + rng.uniform(0.2, 2.5, 3), joint="J" if k % 2 else "K"))
+    obst = _obst(*[(f"OBST {k}", lo, lo + rng.uniform(0.3, 2.0, 3))
+                   for k, lo in enumerate(rng.uniform(-6, 6, (6, 3)))])
+
+    def mot(j, v):
+        a = math.radians(v.get(j, 0.0))
+        M = np.eye(4)
+        M[:2, :2] = [[math.cos(a), -math.sin(a)], [math.sin(a), math.cos(a)]]
+        M[2, 3] = 0.01 * v.get(j, 0.0)
+        return M
+    c = Z.Clearance(bodies, obst, mot, required=2.0)
+    for t in range(0, 360, 45):
+        v = {"J": float(t), "K": float(-t)}
+        got = c.nearest(v).distance
+        truth = math.inf
+        for b in bodies:
+            M = mot(b.joint, v)
+            d, _w = obst.nearest(b.points @ M[:3, :3].T + M[:3, 3], c.need)
+            truth = min(truth, float(d.min()))
+        if math.isfinite(truth):
+            assert got == pytest.approx(truth, abs=1e-9), t
+        else:
+            assert got >= Z.FAR / 2
+
+
+def test_groups_hold_their_points():
+    pts = np.random.default_rng(3).uniform(-1, 1, (500, 3))
+    p, reps, radius, start = Z.grouped(pts, 0.3)
+    assert sorted(map(tuple, p)) == sorted(map(tuple, pts))
+    for g in range(len(reps)):
+        mem = p[start[g]:start[g + 1]]
+        assert any(np.allclose(reps[g], m) for m in mem)
+        assert np.max(np.linalg.norm(mem - reps[g], axis=1)) <= radius[g] + 1e-12

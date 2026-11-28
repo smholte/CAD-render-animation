@@ -654,6 +654,82 @@ def lifting_path(ctx):
             f"{out['every']['evaluations']} frames; worst {worst}")
 
 
+@line("lifting.zones", "Lifting plan: clearance, reach rings, exclusion zone, ground footprint, plan sheet", "0.2.999",
+      what="The pump skid hung on the AT-40 and lifted 5 m away (as lifting.path), a wall put up beside the hook "
+           "block: the clearance row names the wall and agrees with the true gap; along the path the row has its "
+           "worst moment; the exclusion zone holds the crane's tail swing, its mats and the whole path; the reach "
+           "ring is where the chart stops carrying the skid; the four mats carry the crane and the skid; the plan "
+           "sheet is written")
+def lifting_zones(ctx):
+    import tempfile
+
+    import bpy
+    import numpy as np
+
+    from ..blender import build, lifting, lifting_path as LP, lifting_rig, lifting_zones as LZ, logic
+    from ..core import lifting as core
+    from ..core import lifting_zones as Z
+    scene = ctx.fresh(LOADS)
+    c = lifting.place(bpy.context, os.path.join(DATA, "lifting", lifting.EXAMPLE_CRANE), (1.0, 7.6, 0.0), math.pi)
+    lifting.apply_pose(scene, c, "Set up")
+    part = next(o for o in logic.descendants(build.model_roots(scene)[0]) if o.get(build.PROP_NAME) == "PUMP SKID.ASM")
+    ld = lifting.new_load(scene, [part], "Pump skid")
+    ld.mass_mode, ld.mass_t, ld.source = "ENTERED", 6.0, "ESTIMATE"
+    _check(lifting_rig.find_named(scene, ld) == 4, "the skid's four padeyes were not found by their names")
+    ld.leg_length, ld.clearance = 4.0, 3.2
+    a = lifting.hook_to(scene, c, lifting.above_load(scene, ld), ld)
+    _check(a.ok, f"Hook to here: {a.reason}")
+    lifting_rig.hang(scene, c, ld)
+    L = lifting.plan(scene)
+    L.allowable_kpa, L.mat_size = 250.0, (1.2, 1.2)
+    # a wall 0.8 m beside the hook block
+    hb = next(o for o in c.root.children_recursive if o.type == "MESH" and "HOOK BLOCK" in str(o.get("fr_name", "")))
+    pts = np.array([hb.matrix_world @ v.co for v in hb.data.vertices])
+    lo, hi = pts.min(axis=0), pts.max(axis=0)
+    me = bpy.data.meshes.new("PC CHECK WALL")
+    x0, x1 = hi[0] + 0.8, hi[0] + 1.1
+    me.from_pydata([(x, y, z) for x in (x0, x1) for y in (lo[1] - 2, hi[1] + 2) for z in (lo[2] - 1, hi[2] + 1)], [],
+                   [(0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3)])
+    wall = bpy.data.objects.new("PC CHECK WALL", me)
+    scene.collection.objects.link(wall)
+    bpy.context.view_layer.update()
+    LZ.forget()
+    LP.forget()
+    t0 = time.perf_counter()
+    rows = {r.id: r for r in LP.live_rows(scene, force=True)}
+    ctx.metric("clearance at one moment", round((time.perf_counter() - t0) * 1000.0), "ms")
+    clr = rows.get("CLR")
+    _check(clr is not None and "PC CHECK WALL" in clr.words and clr.status == core.RED,
+           f"the clearance row does not name the wall: {clr.words if clr else 'no row'}")
+    _check(0.0 < float(clr.value.split()[0]) <= 0.8 + 1e-3, f"the clearance to the wall reads {clr.value}")
+    bpy.data.objects.remove(wall)
+    LZ.forget()
+    LP.forget()
+    hook = lifting.hook_world(scene, c)
+    pt = np.array((hook[0] + 3.0, hook[1] - 4.0, 0.0))
+    _check(LP.propose(scene, point=tuple(pt)).ok, "Propose did not work")
+    t0 = time.perf_counter()
+    out = LP.check(scene)
+    ctx.metric("checks along the path with the clearance", round((time.perf_counter() - t0) * 1000.0), "ms")
+    row = next((r for r in out["rows"] if r["id"] == "CLR"), None)
+    _check(row is not None and row["status"] != core.NOT_CHECKED and row["t"] is not None,
+           "no clearance row along the path")
+    v = out.get("view") or {}
+    zone = v.get("zone") or []
+    _check(len(zone) >= 3 and all(Z.inside(zone, p[:2]) for p in v["path_world"]) and Z.inside(zone, v["slew"]),
+           "the exclusion zone does not hold the path and the crane")
+    _check(all(Z.inside(zone, q) for d in v["patches"] for q in d["corners"]), "a mat lies outside the zone")
+    c5 = next(r for r in out["rows"] if r["id"] == "C5")
+    worst = max(v["patches"], key=lambda d: d["force"])
+    _check(abs(core.force_t(worst["force"]) - c5["measure"]) < 1e-3, "the heaviest mat is not C5's outrigger")
+    full = v["reach"]["full"]
+    _check(full is not None and v["rings"], "no reach ring")
+    path = LZ.plan_sheet(scene, os.path.join(tempfile.mkdtemp(prefix="fr_pc_sheet_"), "plan.html"))
+    _check(os.path.getsize(path) > 3000, "the plan sheet is empty")
+    return (f"clearance {row['value']} ({row['status']}); zone {Z.polygon_area(zone):.0f} m²; reach {full:g} m; "
+            f"heaviest mat {worst['name']} {core.force_t(worst['force']):.1f} t")
+
+
 @line("lifting.make", "Lifting plan: make a crane from numbers", "0.2.159",
       what="Make a crane…: the AT-100's numbers with 5 boom sections and a 50 m boom made in the background into a "
            "library folder (model, equipment file with a SAMPLE chart, picture), placed beside the test crane, every "

@@ -632,6 +632,79 @@ class FRESING_PT_lifting_path(_Panel, bpy.types.Panel):
                               "the entered chart, gear, ground and limits only.")
 
 
+class FRESING_PT_lifting_zones(_Panel, bpy.types.Panel):
+    bl_label = "Clearance & zones"
+    bl_parent_id = "FRESING_PT_lifting"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    @classmethod
+    def poll(cls, context):
+        return _ok(context)
+
+    def draw_header(self, context):
+        self.layout.label(icon="MOD_LENGTH")
+
+    def draw_header_preset(self, context):
+        from . import lifting_path as LP
+        live = LP.live_rows(context.scene) if lifting.active_crane(context.scene) is not None else None
+        row = next((r for r in live if r.id == "CLR"), None) if isinstance(live, list) else None
+        if row is None or row.status == core.NOT_CHECKED:
+            header_status(self.layout, "not checked")
+            return
+        header_status(self.layout, f"clearance {row.value}", icon=STATUS_ICON[row.status],
+                      alert=row.status == core.RED)
+
+    def draw(self, context):
+        from . import lifting_path as LP
+        from . import lifting_zones as LZ
+        layout = self.layout
+        scene = context.scene
+        L = scene.fresing.lifting
+        if lifting.active_crane(scene) is None:
+            missing(layout, context, "No crane yet: place one under Equipment.")
+            return
+        steps(layout, context, ["Clearance needed: how far the boom, the load and the rigging stay from everything "
+                                "else in the project – checked now and along the path",
+                                "On the ground: the reach rings, the exclusion zone and the outrigger mats or tracks "
+                                "coloured by the ground pressure",
+                                "Plan sheet: the plan view, the range diagram and the checks on one page to print"],
+              key="fr_how_lifting_zones", used=bool(L.path_result))
+        gap(layout)
+        col = split_props(layout)
+        col.prop(L, "clearance_m", text="Clearance needed")
+        live = LP.live_rows(scene)
+        row = next((r for r in live if r.id == "CLR"), None) if isinstance(live, list) else None
+        if row is not None:
+            wrap(layout, context, row.words, icon=STATUS_ICON[row.status], alert=row.status == core.RED)
+        hint(layout, context, "Default: OSHA's 10 ft (3.05 m) from power lines up to 50 kV – set what your site asks.")
+        gap(layout)
+        layout.label(text="On the ground", icon="MESH_GRID")
+        col = layout.column(align=True)
+        col.prop(L, "show_reach")
+        col.prop(L, "show_zone")
+        col.prop(L, "show_footprint")
+        col = split_props(layout)
+        col.prop(L, "zone_margin", text="Zone margin")
+        d = LZ.live_view(scene)
+        if d is not None:
+            hint(layout, context, (d.get("reach") or {}).get("words", ""))
+            pads = d.get("patches") or []
+            if pads:
+                worst = max(pads, key=lambda p: (P_RANK[p["status"]], p["pressure"] or 0.0))
+                words = (f"Ground now: {worst['name']} {core.kPa(worst['pressure']):.0f} kPa"
+                         if worst["pressure"] is not None else "Ground now: outside the base")
+                wrap(layout, context, words + (f" ({worst['use'] * 100:.0f} % of the allowable)"
+                                               if worst.get("use") is not None else " – enter the allowable pressure "
+                                               "under Lift path & checks"),
+                     icon=STATUS_ICON[worst["status"]], alert=worst["status"] == core.RED)
+        gap(layout)
+        big(layout, "fresing.lifting_plan_sheet", "Plan sheet…", icon="DOCUMENTS")
+        hint(layout, context, "Checked along the path: the sheet shows the whole path; else the pose shown.")
+
+
+P_RANK = {core.OK: 0, core.NOT_CHECKED: 1, core.AMBER: 2, core.RED: 3}
+
+
 def _draw_rows(layout, context, rows, go: bool, stale: bool = False):
     from . import lifting_path as LP
     col = layout.column(align=True)
@@ -660,7 +733,7 @@ def _draw_rows(layout, context, rows, go: bool, stale: bool = False):
 
 
 CLASSES = (FRESING_PT_lifting, FRESING_PT_lifting_equipment, FRESING_PT_lifting_load, FRESING_PT_lifting_rigging,
-           FRESING_PT_lifting_hook, FRESING_PT_lifting_path)
+           FRESING_PT_lifting_hook, FRESING_PT_lifting_path, FRESING_PT_lifting_zones)
 
 
 def unregister_previews():
