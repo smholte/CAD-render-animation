@@ -1206,19 +1206,26 @@ def test_read_a_300_m_route_with_15_arcs():
 
 
 def test_read_what_is_no_line_or_arc():
-    """A spline and a coil with a pitch are refused in plain words; so is a centreline that is none."""
+    """Task 0374 (0078's open point): a spline and a coil with a pitch (Inventor sweeps have them) are read as rows of
+    short bends that keep to the drawn cable – before they were refused; a centreline that is none is refused in plain
+    words."""
     t = np.linspace(0.0, 1.0, 400)[:, None]
     ctrl = np.array([[0.0, 0, 0], [3.0, 0, 0], [3.0, 0, 2.5], [7.0, 1.0, 2.5]])
     spline = ((1 - t) ** 3 * ctrl[0] + 3 * (1 - t) ** 2 * t * ctrl[1] + 3 * (1 - t) * t ** 2 * ctrl[2] + t ** 3 * ctrl[3])
     seg = np.concatenate([[0.0], np.cumsum(np.linalg.norm(np.diff(spline, axis=0), axis=1))])
     even = np.stack([np.interp(np.linspace(0, seg[-1], 300), seg, spline[:, k]) for k in range(3)], axis=1)
-    rd = P.read_cable(even, 0.03, [])
-    assert not rd.ok and "neither straight nor a round bend" in rd.problem and rd.contacts == [] and not rd.path.ok
-    assert " m " in rd.problem and rd.problem.endswith(".")
     a = np.linspace(0.0, 6 * math.pi, 600)
     coil = np.stack([1.5 * np.cos(a), 1.5 * np.sin(a), 0.4 * a / (2 * math.pi)], axis=1)       # 0.4 m per turn
-    rd = P.read_cable(coil, 0.03, [])
-    assert not rd.ok and rd.problem
+    for pts, most in ((even, 0.002), (coil, 0.006)):
+        t0 = time.perf_counter()
+        rd = P.read_cable(pts, 0.03, [])
+        took = time.perf_counter() - t0
+        assert rd.ok, rd.problem
+        assert len(rd.contacts) >= 8 and all(c.kind == "BEND" for c in rd.contacts)
+        assert rd.deviation < most, rd.deviation                    # the path keeps to the drawn cable
+        seg = np.concatenate([[0.0], np.cumsum(np.linalg.norm(np.diff(pts, axis=0), axis=1))])
+        assert rd.path.length == pytest.approx(seg[-1], rel=2e-3)
+        assert took < 15.0, took                                    # (1–2 s on the 4-core web machine)
     for bad in (np.zeros((0, 3)), np.zeros((1, 3)), np.full((5, 3), np.nan), np.zeros((4, 3))):
         rd = P.read_cable(bad, 0.03, [])
         assert not rd.ok and rd.problem and rd.contacts == [] and len(rd.path.points) == 0

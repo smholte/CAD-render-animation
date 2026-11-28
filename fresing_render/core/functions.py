@@ -375,9 +375,11 @@ fn(id="structure.remove", short="Remove", title="Remove a model, subassembly or 
    guide="remove-model", tour=("remove",), pccheck=("place.remove",), since="0.2.219",
    workspaces=("cnc", "offshore", "product", "education", "lifting"))
 fn(id="structure.copy", short="Copy", title="Copy and paste a model, subassembly or parts with its joints, cylinders, "
-   "mechanisms, way covers, hoses and labels (Ctrl+C / Ctrl+V, right-click > Copy / Paste here)", family="import",
-   panel="FRESING_PT_place", button="fresing.paste", guide="copy-paste", tour=("copy",), pccheck=("place.copy",),
-   since="0.2.227", workspaces=("cnc", "offshore", "product", "education", "lifting"))
+   "mechanisms, way covers, hoses, cables, drums and labels (Ctrl+C / Ctrl+V, right-click > Copy / Paste here)",
+   family="import",
+   panel="FRESING_PT_place", button="fresing.paste", guide="copy-paste", tour=("copy",),
+   pccheck=("place.copy", "place.copy_cable"),
+   since="0.2.227", changed="0.2.271", workspaces=("cnc", "offshore", "product", "education", "lifting"))
 fn(id="structure.cleanup", title="Clean-up: small parts, remove for good", family="import",
    panel="FRESING_PT_cleanup", button="fresing.select_small", guide="cleanup", since="0.2.0",
    workspaces=("cnc", "offshore", "product", "education", "lifting"))
@@ -522,6 +524,7 @@ fn(id="machines.tracks", title="Tracks and belts", family="machines", panel="FRE
 # ----- 4 Motion: cables, drums; the sea -----
 fn(id="offshore.cables", title="Cables and paths", family="offshore", panel="FRESING_PT_cables",
    button="fresing.cable_add", guide="cables", tour=("cables",), pccheck=("motion.paths",), since="0.2.80",
+   changed="0.2.271",
    manual_estimate=("use", 1800, "draw the cable's path round every sheave and keep it tight through the motion"))
 fn(id="paths.draw_cable", short="Draw a cable", title="Draw a cable route by clicking: drum, sheaves, end", family="offshore",
    panel="FRESING_PT_cables", button="fresing.cable_draw", guide="draw-cable", tour=("drawn_cable",),
