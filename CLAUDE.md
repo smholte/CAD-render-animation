@@ -919,6 +919,31 @@ needs it. Its part names follow its maker's conventions, not the owner's: for so
 on the owner's own naming, ask him for one of his own models (attached in the chat only). Small test models are in `tests/data/` (made by `tools/make_test_step.py` and
 `tools/make_test_crane.py`).
 
+### Assets pack checks (task 0356)
+
+One set of pack checks, all in this repository – **zero private CI** (owner's pick 12, study 0344 1.6–1.7, section 6):
+`tools/assets_check.py <pack folder | FresingAssets-<v>.zip>` – pack.json read by the app's own `core/assets_pack.py`
+with no note, every file with its size + sha256 and nothing unlisted or not data, `LICENSE-ASSETS.txt`, a code twin (or
+`fallback`) for every id, 256 px picker pictures, 1k / 2k / 4k sizes (2k always there, 4k only for 360° photos), set
+budgets (the ~300 MB total is a warning), each look's `cost` ≤ 1.3 x or `approved_slower`; then in Blender 5.2.3 (the
+venv's bpy, or `--blender`) every `.blend` is **data only** (no Text, no Python driver, no OSL Script node, no link to
+another file, pictures as relative files of the pack), keeps its kind's contract, appends into an empty project, and a
+small render of every item shows no pink and no black. OK / one line per problem, exit code 1. Tests:
+`tests/test_assets_check.py` (the test pack passes, one broken copy per check, ~35 s).
+
+| Where | What runs |
+| --- | --- |
+| A worker's session, **before it uploads** a pack | `~/venv/bin/python tools/assets_check.py "dist/Fresing Assets"` and on the zip, then `FRESING_ASSETS_REAL="<folder>" ~/venv/bin/python -m pytest tests/real_pack -q` |
+| **"Check an assets pack"** (`assets-check.yml`, by hand: Actions → the workflow → Run workflow → `assets-1.0.0`) | downloads that release's zip (it must be a pre-release with `LICENSE-ASSETS.txt` beside the zip; `assets.json`, when there, must name its size + sha256), `assets_check.py`, `tests/real_pack/` – **before** a branch moves the pin |
+| Every full run once `installer/assets_pin.json` exists (0358); a lane run that changes the pack code | job **"Linux - real assets pack"**: the pinned zip from GitHub's cache (`assets-<version>-<sha256>`) or the release (`curl` + `sha256sum -c`, as Blender's zip), `assets_check.py`, `tests/real_pack/`. Skipped while there is no pin |
+
+- `tests/real_pack/` = the app's with-pack tests on a REAL pack (`FRESING_ASSETS_REAL`); in no pytest group, skipped
+  without the variable. A plug-in task (0360 …) adds its real-pack checks there.
+- A pack's release: tag `assets-<version>`, **always a pre-release** (the precheck fails on any release whose tag does
+  not start with `v` and is not one), files `FresingAssets-<version>.zip`, `LICENSE-ASSETS.txt`, `assets.json`. An
+  `assets-*` tag starts no test run (`tests.yml` `push: branches: ["**"], tags-ignore: ["assets-*"]` – GitHub applies
+  no paths filter to a tag push, and a tags filter alone would stop the branch runs).
+
 ## 6. Rules for changes
 
 - **The repository is public.** Never commit the owner's STEP files, part-name lists, renders
